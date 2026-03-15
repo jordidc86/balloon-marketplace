@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 
-import { isRedirectError } from 'next/dist/client/components/redirect'
+function isRedirectError(error: any): boolean {
+  return typeof error === 'object' && error !== null && 'digest' in error && typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')
+}
 
 export async function login(formData: FormData) {
   try {
