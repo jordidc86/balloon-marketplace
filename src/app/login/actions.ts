@@ -59,6 +59,39 @@ export async function signup(formData: FormData) {
 }
 
 
+export async function signupWithDetails(formData: FormData) {
+  try {
+    const supabase = await createClient()
+
+    const name = formData.get('name') as string
+    const phone = formData.get('phone') as string
+    const email = formData.get('email') as string
+    const password = formData.get('password') as string
+
+    const { data: authData, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, phone } 
+      }
+    })
+
+    if (error) {
+      redirect('/signup?error=' + encodeURIComponent(error.message))
+    }
+
+    if (!authData?.session) {
+      redirect('/login?message=' + encodeURIComponent('Please check your email to verify your account.'))
+    }
+
+    revalidatePath('/', 'layout')
+    redirect('/dashboard')
+  } catch (error: any) {
+    if (isRedirectError(error)) throw error
+    redirect('/signup?error=' + encodeURIComponent(error.message || 'An unexpected error occurred'))
+  }
+}
+
 export async function signout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
