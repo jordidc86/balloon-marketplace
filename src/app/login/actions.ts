@@ -35,15 +35,19 @@ export async function signup(formData: FormData) {
   try {
     const supabase = await createClient()
 
-    const data = {
+    const authData = {
       email: formData.get('email') as string,
       password: formData.get('password') as string,
     }
 
-    const { error } = await supabase.auth.signUp(data)
+    const { data, error } = await supabase.auth.signUp(authData)
 
     if (error) {
       redirect('/login?error=' + encodeURIComponent(error.message))
+    }
+
+    if (!data?.session) {
+      redirect('/login?message=' + encodeURIComponent('Please check your email to verify your account.'))
     }
 
     revalidatePath('/', 'layout')
@@ -53,6 +57,7 @@ export async function signup(formData: FormData) {
     redirect('/login?error=' + encodeURIComponent(error.message || 'An unexpected error occurred'))
   }
 }
+
 
 export async function signout() {
   const supabase = await createClient()

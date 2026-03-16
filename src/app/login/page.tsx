@@ -1,5 +1,5 @@
 import { login, signup } from './actions'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, CheckCircle } from 'lucide-react'
 
 export default async function LoginPage({
   searchParams,
@@ -8,6 +8,8 @@ export default async function LoginPage({
 }) {
   const params = await searchParams
   const error = params.error
+  const message = params.message
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -23,6 +25,14 @@ export default async function LoginPage({
             <p className="text-sm">{error}</p>
           </div>
         )}
+
+        {message && (
+          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg flex items-start gap-3 text-green-600 dark:text-green-500">
+            <CheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p className="text-sm">{message}</p>
+          </div>
+        )}
+
 
         <form className="space-y-4">
           <div className="space-y-2">
