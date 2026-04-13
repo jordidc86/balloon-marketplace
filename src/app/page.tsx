@@ -1,7 +1,59 @@
 import Link from "next/link";
 import { Search, Flame, Wind, Clock, Lock, Plane } from "lucide-react";
+import { createClient } from '@/utils/supabase/server';
+import { formatDistanceToNow } from 'date-fns';
 
-export default function Home() {
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "AeroTrade | Global Hot Air Balloon Marketplace",
+  description: "The private global exchange for lighter-than-air aviation. Buy and sell used hot air balloons, baskets, burners, and accessories.",
+  openGraph: {
+    title: "AeroTrade | Global Hot Air Balloon Marketplace",
+    description: "The private global exchange for lighter-than-air aviation. Buy and sell used hot air balloons, baskets, burners, and accessories.",
+  }
+};
+
+export default async function Home() {
+  const supabase = await createClient()
+
+  const { data: listings } = await supabase
+    .from('listings')
+    .select(`
+      *,
+      images (url, is_primary)
+    `)
+    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+    .order('created_at', { ascending: false })
+    .limit(3);
+
+  const { data: allActiveListings } = await supabase
+    .from('listings')
+    .select('category')
+    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']);
+
+  const counts: Record<string, number> = {
+    complete: 0,
+    envelopes: 0,
+    baskets: 0,
+    burners: 0
+  };
+
+  if (allActiveListings) {
+    allActiveListings.forEach(l => {
+      if (counts[l.category] !== undefined) {
+        counts[l.category]++;
+      }
+    });
+  }
+
+  const { data: { user } } = await supabase.auth.getUser()
+  let isPremium = false
+  if (user) {
+    const { data: profile } = await supabase.from('users').select('is_premium').eq('id', user.id).single()
+    isPremium = profile?.is_premium || false
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* HERO SECTION */}
@@ -19,22 +71,23 @@ export default function Home() {
           </p>
           
           <div className="bg-background/95 backdrop-blur-md p-2 rounded-2xl shadow-xl flex flex-col md:flex-row gap-2 max-w-3xl mx-auto">
-            <div className="flex-1 flex items-center px-4 bg-muted/50 rounded-xl">
+            <form action="/catalog" method="GET" id="searchForm" className="flex-1 flex items-center px-4 bg-muted/50 rounded-xl">
               <Search className="w-5 h-5 text-muted-foreground mr-2" />
               <input 
                 type="text" 
+                name="q"
                 placeholder="Search 'Cameron Z-105' or 'Double Burner'..." 
                 className="w-full bg-transparent border-none focus:ring-0 py-3 text-foreground outline-none"
               />
-            </div>
-            <select className="px-4 py-3 bg-muted/50 rounded-xl text-foreground font-medium md:w-48 outline-none border-t md:border-t-0 md:border-l border-border mt-2 md:mt-0">
+            </form>
+            <select name="category" form="searchForm" className="px-4 py-3 bg-muted/50 rounded-xl text-foreground font-medium md:w-48 outline-none border-t md:border-t-0 md:border-l border-border mt-2 md:mt-0">
               <option value="">All Categories</option>
-              <option value="complete">Complete Balloons</option>
+              <option value="complete">Complete</option>
               <option value="envelopes">Envelopes</option>
               <option value="baskets">Baskets</option>
               <option value="burners">Burners</option>
             </select>
-            <button className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-8 py-3 rounded-xl transition-colors mt-2 md:mt-0">
+            <button form="searchForm" type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-8 py-3 rounded-xl transition-colors mt-2 md:mt-0">
               Search
             </button>
           </div>
@@ -64,17 +117,17 @@ export default function Home() {
           <h2 className="text-2xl font-bold mb-8">Browse Categories</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { name: 'Complete Balloons', icon: Plane, count: '14 Active' },
-              { name: 'Envelopes', icon: Wind, count: '28 Active' },
-              { name: 'Baskets', icon: Search, count: '45 Active' },
-              { name: 'Burners', icon: Flame, count: '19 Active' },
+              { name: 'Complete Balloons', slug: 'complete', icon: Plane, count: counts.complete },
+              { name: 'Envelopes', slug: 'envelopes', icon: Wind, count: counts.envelopes },
+              { name: 'Baskets', slug: 'baskets', icon: Search, count: counts.baskets },
+              { name: 'Burners', slug: 'burners', icon: Flame, count: counts.burners },
             ].map((cat) => (
-              <Link href={`/catalog?category=${cat.name.toLowerCase()}`} key={cat.name} className="group p-6 rounded-2xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-center flex flex-col items-center">
+              <Link href={`/catalog?category=${cat.slug}`} key={cat.name} className="group p-6 rounded-2xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-center flex flex-col items-center">
                 <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <cat.icon className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="font-semibold">{cat.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{cat.count}</p>
+                <p className="text-sm text-muted-foreground mt-1">{cat.count} Active</p>
               </Link>
             ))}
           </div>
@@ -95,64 +148,71 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Mock Premium Locked Listing */}
-            <div className="rounded-2xl border bg-card overflow-hidden group">
-              <div className="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center">
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-white">
-                  <Lock className="w-8 h-8 mb-2 text-accent" />
-                  <span className="font-bold tracking-tight">PREMIUM EXCLUSIVE</span>
-                  <p className="text-xs mt-1 text-slate-300">Public in 34h 12m</p>
-                </div>
-              </div>
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Envelope</span>
-                  <span className="text-xs font-medium bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full">New</span>
-                </div>
-                <h3 className="font-bold text-lg mb-1 truncate">Cameron Z-105 Envelope</h3>
-                <p className="text-xl font-extrabold text-foreground mb-4">€ 12,500</p>
-                <div className="flex items-center text-sm text-muted-foreground justify-between">
-                  <span>140 hrs • UK</span>
-                  <button className="text-accent font-medium hover:underline text-sm">Unlock to View</button>
-                </div>
-              </div>
-            </div>
+            {listings?.map((listing: any) => {
+              const isPremiumExclusive = new Date() < new Date(listing.public_at)
+              const isOwner = user?.id === listing.seller_id
+              const canViewFully = !isPremiumExclusive || isPremium || isOwner
+              const primaryImage = listing.images?.find((img: any) => img.is_primary)?.url || listing.images?.[0]?.url
 
-            {/* Mock Public Listing 1 */}
-            <div className="rounded-2xl border bg-card overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
-              <div className="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center">
-                <Flame className="w-12 h-12 text-slate-400 opacity-20" />
-              </div>
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Burner</span>
-                </div>
-                <h3 className="font-bold text-lg mb-1 truncate">Ultramagic MK21 Double</h3>
-                <p className="text-xl font-extrabold text-foreground mb-4">€ 2,800</p>
-                <div className="flex items-center text-sm text-muted-foreground justify-between">
-                  <span>Used-Good • Spain</span>
-                  <span className="font-medium">Details &rarr;</span>
-                </div>
-              </div>
-            </div>
+              if (!canViewFully) {
+                return (
+                  <div key={listing.id} className="rounded-2xl border bg-card overflow-hidden group flex flex-col h-full relative">
+                    <div className="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center shrink-0">
+                      {primaryImage && (
+                        <img src={primaryImage} alt="Blurred decorative background" className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-40" />
+                      )}
+                      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-white px-4 text-center">
+                        <Lock className="w-8 h-8 mb-2 text-accent" />
+                        <span className="font-bold tracking-tight text-sm">PREMIUM EXCLUSIVE</span>
+                        <p className="text-xs mt-1 text-slate-300">Public in {formatDistanceToNow(new Date(listing.public_at))}</p>
+                      </div>
+                    </div>
+                    <div className="p-5 flex-1 flex flex-col">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{listing.category}</span>
+                      </div>
+                      <h3 className="font-bold text-lg mb-1 line-clamp-2 blur-sm select-none text-muted">{listing.title}</h3>
+                      <p className="text-xl font-extrabold text-foreground mb-4 blur-sm select-none text-muted">€ {listing.price}</p>                    </div>
+                  </div>
+                )
+              }
 
-            {/* Mock Public Listing 2 */}
-            <div className="rounded-2xl border bg-card overflow-hidden group hover:shadow-md transition-shadow cursor-pointer">
-              <div className="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center">
-                <Wind className="w-12 h-12 text-slate-400 opacity-20" />
+              return (
+                <Link href={`/catalog/${listing.id}`} key={listing.id} className="rounded-2xl border bg-card overflow-hidden group hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full">
+                  <div className="h-48 bg-muted relative overflow-hidden flex items-center justify-center shrink-0">
+                    {primaryImage ? (
+                      <img src={primaryImage} alt={listing.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <Search className="w-8 h-8 text-muted-foreground/30" />
+                    )}
+                    {isPremiumExclusive && (
+                      <div className="absolute top-2 right-2 bg-accent text-accent-foreground text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
+                        Premium Active
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5 flex-1 flex flex-col">
+                    <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{listing.category}</span>
+                        <span className="text-xs font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{listing.condition}</span>
+                    </div>
+                    <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
+                    <p className="text-xl font-extrabold text-foreground mb-4">€ {listing.price.toLocaleString()}</p>
+                    <div className="mt-auto w-full pt-4 border-t flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{listing.location_country}</span>
+                      <span>{formatDistanceToNow(new Date(listing.created_at))} ago</span>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+
+            {listings?.length === 0 && (
+              <div className="col-span-full py-20 text-center flex flex-col items-center">
+                <p className="text-muted-foreground">No dynamic listings found.</p>
+                <Link href="/sell" className="mt-4 text-primary font-medium hover:underline">Add yours now!</Link>
               </div>
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Basket</span>
-                </div>
-                <h3 className="font-bold text-lg mb-1 truncate">Lindstrand Solid Floor 110x150</h3>
-                <p className="text-xl font-extrabold text-foreground mb-4">€ 1,950</p>
-                <div className="flex items-center text-sm text-muted-foreground justify-between">
-                  <span>Excellent • Germany</span>
-                  <span className="font-medium">Details &rarr;</span>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </section>

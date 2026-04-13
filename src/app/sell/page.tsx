@@ -1,6 +1,12 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import SellForm from '@/components/SellForm'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Post a Listing | AeroTrade Marketplace',
+  description: 'List your hot air balloon equipment on the global exchange and reach buyers worldwide.',
+}
 
 export default async function SellPage() {
   const supabase = await createClient()

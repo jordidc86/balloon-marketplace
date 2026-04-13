@@ -4,6 +4,22 @@ import { formatDistanceToNow } from 'date-fns'
 import { Lock, MapPin, Tag, Calendar, Activity, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import ContactSeller from './ContactSeller'
+import { Metadata } from 'next'
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data: listing } = await supabase.from('listings').select('title, description').eq('id', id).single()
+
+  if (!listing) {
+    return { title: 'Listing Not Found | AeroTrade' }
+  }
+
+  return {
+    title: `${listing.title} | AeroTrade Marketplace`,
+    description: listing.description?.substring(0, 160) || `Buy ${listing.title} on AeroTrade.`,
+  }
+}
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -37,6 +53,30 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Schema.org Product Data */}
+      {canViewFully && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org/",
+              "@type": "Product",
+              "name": listing.title,
+              "image": images,
+              "description": listing.description,
+              "offers": {
+                "@type": "Offer",
+                "url": `https://aerotrade-mvp-app.netlify.app/catalog/${listing.id}`,
+                "priceCurrency": listing.currency || "EUR",
+                "price": listing.price,
+                "itemCondition": "https://schema.org/UsedCondition",
+                "availability": "https://schema.org/InStock"
+              }
+            })
+          }}
+        />
+      )}
+
       {/* Premium Teaser Bar */}
       {isPremiumExclusive && !canViewFully && (
         <div className="bg-accent text-accent-foreground p-4 rounded-xl mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -97,7 +137,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <div className="flex gap-4 overflow-x-auto pb-2">
               {images.map((img: string, idx: number) => (
                 <div key={idx} className="w-24 h-24 shrink-0 rounded-xl overflow-hidden border bg-muted">
-                  <img src={img} className={`w-full h-full object-cover ${!canViewFully ? 'blur-md' : ''}`} alt="" />
+                  <img src={img} className={`w-full h-full object-cover ${!canViewFully ? 'blur-md' : ''}`} alt={`Thumbnail ${idx + 1} for ${listing.title}`} />
                 </div>
               ))}
             </div>
@@ -159,8 +199,13 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 Upgrade to Contact Seller
               </Link>
             ) : isOwner ? (
-               <div className="w-full text-center p-4 bg-muted text-muted-foreground rounded-xl font-medium border">
-                 This is your listing.
+               <div className="space-y-3">
+                 <div className="w-full text-center p-4 bg-muted text-muted-foreground rounded-xl font-medium border">
+                   This is your listing.
+                 </div>
+                 <Link href={`/catalog/${listing.id}/edit`} className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-md">
+                   Edit Listing Details & Photos
+                 </Link>
                </div>
             ) : (
               <ContactSeller 

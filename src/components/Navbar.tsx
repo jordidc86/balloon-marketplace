@@ -31,7 +31,7 @@ export default async function Navbar() {
           </div>
           
           <div className="hidden md:flex items-center space-x-6">
-            <Link href="/catalog?category=balloons" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Complete Balloons</Link>
+            <Link href="/catalog?category=complete" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Complete Balloons</Link>
             <Link href="/catalog?category=envelopes" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Envelopes</Link>
             <Link href="/catalog?category=baskets" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Baskets</Link>
             <Link href="/catalog?category=burners" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Burners</Link>

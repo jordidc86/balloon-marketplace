@@ -3,17 +3,20 @@
 import { useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
-import { UploadCloud, CheckCircle2, Loader2 } from 'lucide-react'
+import { UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 
-// Placeholder server action
+// Imported Actions
 import { submitListing } from '@/app/sell/actions'
+import { updateListing } from '@/app/catalog/[id]/actions'
 
-export default function SellForm({ userId }: { userId: string }) {
+export default function SellForm({ userId, initialData }: { userId: string; initialData?: any }) {
   const router = useRouter()
   const supabase = createClient()
-  
-  const [category, setCategory] = useState<string>('')
+  const isEditing = !!initialData
+
+  const [category, setCategory] = useState<string>(initialData?.category || '')
   const [images, setImages] = useState<File[]>([])
+  const [existingImages, setExistingImages] = useState<any[]>(initialData?.images || [])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
 
@@ -23,22 +26,20 @@ export default function SellForm({ userId }: { userId: string }) {
     }
   }
 
+  const handleRemoveExistingImage = (url: string) => {
+    setExistingImages(existingImages.filter(img => img.url !== url))
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsUploading(true)
     
     try {
-      // 1. Submit the text data to get the Listing ID
       const formData = new FormData(e.currentTarget)
-      
-      // In a real app we'd get the listing ID back, but since Server Actions don't 
-      // easily return data when redirecting, we'll construct the listing first.
-      
-      // This is MVP simplified logic. We'll upload images directly to a folder named by user id + timestamp
       const folderId = `${userId}/${Date.now()}`
-      
-      // 2. Upload Images
       const uploadedUrls = []
+      
+      // 1. Upload NEW Images (if any)
       for (let i = 0; i < images.length; i++) {
         const file = images[i]
         const fileExt = file.name.split('.').pop()
@@ -51,21 +52,28 @@ export default function SellForm({ userId }: { userId: string }) {
         if (error) {
           console.error('Error uploading image:', error)
         } else {
-          // Get public URL
           const { data: { publicUrl } } = supabase.storage
             .from('listing_images')
             .getPublicUrl(fileName)
-            
           uploadedUrls.push(publicUrl)
         }
-        setUploadProgress(Math.round(((i + 1) / images.length) * 100))
+        setUploadProgress(Math.round(((i + 1) / (images.length || 1)) * 100))
       }
       
-      // We'll pass the URLs as a hidden field (JSON string) to the server action
-      formData.append('image_urls', JSON.stringify(uploadedUrls))
+      // 2. Combine with preserved existing images
+      const finalImageUrls = [
+        ...existingImages.map(img => img.url),
+        ...uploadedUrls
+      ]
       
-      // 3. Submit the Server Action
-      await submitListing(formData)
+      formData.append('image_urls', JSON.stringify(finalImageUrls))
+      
+      if (isEditing) {
+        formData.append('id', initialData.id)
+        await updateListing(formData)
+      } else {
+        await submitListing(formData)
+      }
       
     } catch (err) {
       console.error(err)
@@ -104,7 +112,7 @@ export default function SellForm({ userId }: { userId: string }) {
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Condition *</label>
-            <select name="condition" required className="w-full px-3 py-2 border rounded-lg bg-input/50 focus:bg-background outline-none">
+            <select name="condition" required defaultValue={initialData?.condition || "Used-Good"} className="w-full px-3 py-2 border rounded-lg bg-input/50 focus:bg-background outline-none">
               <option value="New">New</option>
               <option value="Used-Excellent">Used - Excellent (Like New)</option>
               <option value="Used-Good">Used - Good (Normal Wear)</option>
@@ -119,6 +127,7 @@ export default function SellForm({ userId }: { userId: string }) {
             type="text" 
             name="title" 
             required 
+            defaultValue={initialData?.title || ''}
             placeholder="e.g. Cameron Z-105 with Aristocrat Basket"
             className="w-full px-3 py-2 border rounded-lg bg-input/50 focus:bg-background outline-none"
           />
@@ -130,6 +139,7 @@ export default function SellForm({ userId }: { userId: string }) {
             name="description" 
             required 
             rows={5}
+            defaultValue={initialData?.description || ''}
             placeholder="Describe the condition, history, included extras..."
             className="w-full px-3 py-2 border rounded-lg bg-input/50 focus:bg-background outline-none resize-none"
           />
@@ -146,27 +156,27 @@ export default function SellForm({ userId }: { userId: string }) {
               <>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Manufacturer</label>
-                  <input type="text" name="manufacturer" placeholder="e.g. Cameron Balloons" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <input type="text" name="manufacturer" defaultValue={initialData?.details?.manufacturer || ''} placeholder="e.g. Cameron Balloons" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Model / Volume</label>
-                  <input type="text" name="model" placeholder="e.g. Z-105 / 105,000 cu ft" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <input type="text" name="model" defaultValue={initialData?.details?.model || ''} placeholder="e.g. Z-105 / 105,000 cu ft" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Year of Manufacture</label>
-                  <input type="number" name="year" placeholder="2018" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <input type="number" name="year" defaultValue={initialData?.details?.year || ''} placeholder="2018" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-primary">Total Hours Flown *</label>
-                  <input type="number" name="hours" required placeholder="e.g. 145" className="w-full px-3 py-2 border border-primary/30 rounded-lg bg-input/50 outline-none" />
+                  <input type="number" name="hours" required defaultValue={initialData?.details?.hours || ''} placeholder="e.g. 145" className="w-full px-3 py-2 border border-primary/30 rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Registration</label>
-                  <input type="text" name="registration" placeholder="e.g. G-XXXX" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <input type="text" name="registration" defaultValue={initialData?.details?.registration || ''} placeholder="e.g. G-XXXX" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Serial Number</label>
-                  <input type="text" name="serial" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <input type="text" name="serial" defaultValue={initialData?.details?.serial || ''} className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
               </>
             )}
@@ -175,12 +185,12 @@ export default function SellForm({ userId }: { userId: string }) {
               <>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Dimensions</label>
-                  <input type="text" name="dimensions" placeholder="e.g. 1.10 x 1.50m Solid Floor" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <input type="text" name="dimensions" defaultValue={initialData?.details?.dimensions || ''} placeholder="e.g. 1.10 x 1.50m Solid Floor" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 {category === 'burners' && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Burner Type</label>
-                    <input type="text" name="type" placeholder="e.g. Shadow Double" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                    <input type="text" name="type" defaultValue={initialData?.details?.type || ''} placeholder="e.g. Shadow Double" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                   </div>
                 )}
               </>
@@ -196,11 +206,11 @@ export default function SellForm({ userId }: { userId: string }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Price *</label>
-            <input type="number" name="price" required min="0" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+            <input type="number" name="price" defaultValue={initialData?.price || ''} required min="0" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Currency *</label>
-            <select name="currency" required defaultValue="EUR" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none">
+            <select name="currency" required defaultValue={initialData?.currency || "EUR"} className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none">
               <option value="EUR">EUR (€)</option>
               <option value="GBP">GBP (£)</option>
               <option value="USD">USD ($)</option>
@@ -208,19 +218,19 @@ export default function SellForm({ userId }: { userId: string }) {
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Location (Country) *</label>
-            <input type="text" name="location_country" required placeholder="e.g. United Kingdom" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+            <input type="text" name="location_country" defaultValue={initialData?.location_country || ''} required placeholder="e.g. United Kingdom" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
            <div className="space-y-2">
             <label className="text-sm font-medium">Contact Email *</label>
-            <input type="email" name="contact_email" required placeholder="Your email for buyers" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+            <input type="email" name="contact_email" defaultValue={initialData?.contact_email || ''} required placeholder="Your email for buyers" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
             <p className="text-xs text-muted-foreground">Hidden behind "Contact Seller" button.</p>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Contact Phone</label>
-            <input type="text" name="contact_phone" placeholder="Optional" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+            <input type="text" name="contact_phone" defaultValue={initialData?.contact_phone || ''} placeholder="Optional" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
           </div>
         </div>
       </div>
@@ -228,6 +238,27 @@ export default function SellForm({ userId }: { userId: string }) {
       {/* SECTION 4: Photos */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold border-b pb-2">4. Photos</h2>
+        
+        {existingImages.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Existing Photos</label>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {existingImages.map((img, i) => (
+                <div key={i} className="shrink-0 w-24 h-24 bg-slate-200 rounded-xl overflow-hidden relative border shadow-sm group">
+                  <img src={img.url} className="w-full h-full object-cover" alt="" />
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveExistingImage(img.url)}
+                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="border-2 border-dashed border-border rounded-xl p-8 text-center flex flex-col items-center justify-center bg-muted/20">
           <UploadCloud className="w-10 h-10 text-muted-foreground mb-4" />
           <p className="text-sm font-medium mb-2">Drag and drop images here, or click to browse</p>
@@ -243,8 +274,7 @@ export default function SellForm({ userId }: { userId: string }) {
             <div className="mt-4 flex gap-2 overflow-x-auto w-full py-2">
               {images.map((img, i) => (
                 <div key={i} className="shrink-0 w-20 h-20 bg-slate-200 rounded-lg overflow-hidden relative">
-                   {/* Normally rendering URL.createObjectURL(img) here, keeping it dry */}
-                   <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-500 bg-slate-100">Image {i+1}</span>
+                   <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-500 bg-slate-100">+{existingImages.length > 0 ? i+1+existingImages.length : i+1}</span>
                 </div>
               ))}
             </div>
@@ -254,10 +284,12 @@ export default function SellForm({ userId }: { userId: string }) {
 
       {/* SUBMISSION */}
       <div className="pt-6 border-t flex flex-col items-center gap-4">
-        <label className="flex items-start gap-3 text-sm text-muted-foreground p-4 bg-muted/40 rounded-lg border">
-          <input type="checkbox" required className="mt-1" />
-          <span>I understand that AeroTrade does not intermediate this transaction and that upon payment of 5 EUR, my listing will be exclusively visible to Premium members for 48 hours before becoming public.</span>
-        </label>
+        {!isEditing && (
+          <label className="flex items-start gap-3 text-sm text-muted-foreground p-4 bg-muted/40 rounded-lg border">
+            <input type="checkbox" required className="mt-1" />
+            <span>I understand that AeroTrade does not intermediate this transaction and that upon payment of 5 EUR, my listing will be exclusively visible to Premium members for 48 hours before becoming public.</span>
+          </label>
+        )}
         
         <button 
           type="submit" 
@@ -267,11 +299,11 @@ export default function SellForm({ userId }: { userId: string }) {
           {isUploading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Uploading... {uploadProgress}%
+              {isEditing ? 'Saving...' : 'Uploading...'} {uploadProgress}%
             </>
           ) : (
             <>
-              Pay 5 EUR & Publish Listing
+              {isEditing ? 'Save Changes' : 'Pay 5 EUR & Publish Listing'}
               <CheckCircle2 className="w-5 h-5" />
             </>
           )}

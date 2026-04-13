@@ -2,6 +2,12 @@ import { createClient } from '@/utils/supabase/server'
 import { Check, Plane, Lock, Bell, Star } from 'lucide-react'
 import { createPremiumCheckout } from './actions'
 import { redirect } from 'next/navigation'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Pricing | AeroTrade Marketplace',
+  description: 'Join AeroTrade Premium to get a 48-hour head start on every single hot air balloon equipment listing worldwide.',
+}
 
 export default async function PricingPage() {
   const supabase = await createClient()

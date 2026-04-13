@@ -2,6 +2,12 @@ import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { Flame, Wind, Search, Lock, Filter } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Catalog | AeroTrade Marketplace',
+  description: 'Browse the latest hot air balloon equipment worldwide. Find balloons, envelopes, baskets, and burners.',
+}
 
 export default async function CatalogPage({
   searchParams,
@@ -73,7 +79,7 @@ export default async function CatalogPage({
               <div key={listing.id} className="rounded-2xl border bg-card overflow-hidden group flex flex-col h-full relative">
                 <div className="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center shrink-0">
                   {primaryImage && (
-                    <img src={primaryImage} alt={listing.title} className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-40" />
+                    <img src={primaryImage} alt={`Blurred preview of ${listing.title}`} className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-40" />
                   )}
                   <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-white px-4 text-center">
                     <Lock className="w-8 h-8 mb-2 text-accent" />

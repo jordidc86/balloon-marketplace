@@ -67,6 +67,7 @@ export async function signupWithDetails(formData: FormData) {
     const phone = formData.get('phone') as string
     const email = formData.get('email') as string
     const password = formData.get('password') as string
+    const isPremiumRequested = formData.get('is_premium') === 'on'
 
     const { data: authData, error } = await supabase.auth.signUp({
       email,
@@ -78,6 +79,43 @@ export async function signupWithDetails(formData: FormData) {
 
     if (error) {
       redirect('/signup?error=' + encodeURIComponent(error.message))
+    }
+
+    const userId = authData?.user?.id;
+
+    if (isPremiumRequested && userId) {
+      const { stripe } = await import('@/utils/stripe')
+      const headersList = await import('next/headers').then(m => m.headers())
+      const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: 'AeroTrade Premium Club',
+                description: '48-hour Early Access & Instant Alerts',
+              },
+              unit_amount: 999, // 9.99 EUR in cents
+              recurring: { interval: 'year' }
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          type: 'premium_subscription',
+          user_id: userId
+        },
+        mode: 'subscription',
+        success_url: `${origin}/login?message=Payment successful! Please check your email to verify your account and access your Premium Dashboard.`,
+        cancel_url: `${origin}/login?message=Account created! Please check your email to verify. You can upgrade to Premium in the dashboard anytime.`
+      })
+
+      if (session.url) {
+        redirect(session.url)
+      }
     }
 
     if (!authData?.session) {

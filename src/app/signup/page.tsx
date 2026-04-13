@@ -1,6 +1,12 @@
 import { signupWithDetails } from '../login/actions'
 import { AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Sign Up | AeroTrade Marketplace',
+  description: 'Create an AeroTrade pilot account to buy and sell hot air balloon equipment worldwide.',
+}
 
 export default async function SignupPage({
   searchParams,
@@ -80,6 +86,26 @@ export default async function SignupPage({
               placeholder="••••••••"
             />
           </div>
+
+          <div className="pt-2">
+            <div className="flex items-start gap-3 border p-4 rounded-xl bg-primary/10 border-primary/30">
+              <input
+                id="premium"
+                name="is_premium"
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <div>
+                <label htmlFor="premium" className="text-sm font-medium text-foreground">
+                  Join AeroTrade Premium Club (€9.99/year)
+                </label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Get 48-hour early access and alerts. Upgrade during registration!
+                </p>
+              </div>
+            </div>
+          </div>
+
 
           <div className="pt-4">
             <button

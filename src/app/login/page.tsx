@@ -1,6 +1,12 @@
 import { login, signup } from './actions'
 import { AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Log In | AeroTrade Marketplace',
+  description: 'Log in to your AeroTrade pilot account to buy and sell hot air balloon equipment.',
+}
 
 export default async function LoginPage({
 
