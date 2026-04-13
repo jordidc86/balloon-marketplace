@@ -117,3 +117,17 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- ADMIN POLICIES
+-- Give admins full access to all tables so the Admin Panel works
+create policy "Admins can do everything on users" on public.users for all
+  using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
+
+create policy "Admins can do everything on listings" on public.listings for all
+  using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
+
+create policy "Admins can do everything on images" on public.images for all
+  using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
+
+create policy "Admins can do everything on listing_events" on public.listing_events for all
+  using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));

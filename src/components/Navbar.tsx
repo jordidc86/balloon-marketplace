@@ -10,13 +10,15 @@ export default async function Navbar() {
   } = await supabase.auth.getUser()
 
   let isPremium = false
+  let isAdmin = false
   if (user) {
     const { data: profile } = await supabase
       .from('users')
-      .select('is_premium')
+      .select('is_premium, role')
       .eq('id', user.id)
       .single()
     isPremium = profile?.is_premium || false
+    isAdmin = profile?.role === 'admin'
   }
 
   return (
@@ -50,6 +52,7 @@ export default async function Navbar() {
                   List Item
                 </Link>
                 <div className="flex items-center gap-4 border-l pl-4 ml-2">
+                  {isAdmin && <Link href="/admin" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">Admin</Link>}
                   <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
                   <form action={signout}>
                     <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
