@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Flame, Wind, Clock, Lock, Plane } from "lucide-react";
+import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2 } from "lucide-react";
 import { createClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -25,7 +25,7 @@ export default async function Home() {
     `)
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
     .order('created_at', { ascending: false })
-    .limit(3);
+    .limit(6);
 
   const { data: allActiveListings } = await supabase
     .from('listings')
@@ -90,6 +90,11 @@ export default async function Home() {
             <button form="searchForm" type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-8 py-3 rounded-xl transition-colors mt-2 md:mt-0">
               Search
             </button>
+          </div>
+          <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-6 text-sm text-slate-400 font-medium tracking-wide">
+            <span className="flex items-center gap-2"><Lock className="w-4 h-4 text-emerald-400" /> Contact details strictly protected</span>
+            <span className="hidden md:block text-slate-600">•</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary" /> Every listing manually verified</span>
           </div>
         </div>
       </section>

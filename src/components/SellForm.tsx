@@ -38,6 +38,11 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
       return
     }
 
+    if (images.length === 0 && existingImages.length === 0) {
+      alert('A cover image is required to publish a listing.')
+      return
+    }
+
     setIsUploading(true)
     
     try {
