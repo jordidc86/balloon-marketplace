@@ -9,7 +9,7 @@ import { UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 import { submitListing } from '@/app/sell/actions'
 import { updateListing } from '@/app/catalog/[id]/actions'
 
-export default function SellForm({ userId, initialData }: { userId: string; initialData?: any }) {
+export default function SellForm({ userId, initialData }: { userId?: string | null; initialData?: any }) {
   const router = useRouter()
   const supabase = createClient()
   const isEditing = !!initialData
@@ -32,6 +32,12 @@ export default function SellForm({ userId, initialData }: { userId: string; init
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
+    if (!userId) {
+      router.push('/login?error=' + encodeURIComponent('Please log in or create an account to publish your hardware.'))
+      return
+    }
+
     setIsUploading(true)
     
     try {
@@ -303,7 +309,7 @@ export default function SellForm({ userId, initialData }: { userId: string; init
             </>
           ) : (
             <>
-              {isEditing ? 'Save Changes' : 'Pay 5 EUR & Publish Listing'}
+              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : 'Pay 5 EUR & Publish Listing')}
               <CheckCircle2 className="w-5 h-5" />
             </>
           )}

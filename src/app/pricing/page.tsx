@@ -86,6 +86,28 @@ export default async function PricingPage() {
         </div>
 
       </div>
+
+      <div className="mt-24 max-w-3xl mx-auto border-t pt-12">
+        <h3 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h3>
+        <div className="space-y-6">
+          <div>
+            <h4 className="font-semibold text-lg text-foreground">How does the 48-Hour Early Access work?</h4>
+            <p className="text-muted-foreground mt-1">Every new equipment listed on AeroTrade is locked in a "Premium Window" for the first 48 hours. Only Premium members can view the listing details, photos, and seller's contact information during this time. After 48 hours, the listing becomes visible to the general public.</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-lg text-foreground">What is "Secure Contact Info Reveal"?</h4>
+            <p className="text-muted-foreground mt-1">To protect sellers from spam and fraud, seller contact information (phone number and direct email) is hidden by default. Premium members can securely reveal this information with one click to contact the seller directly and arrange the purchase without any middlemen.</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-lg text-foreground">Do you charge commissions on sales?</h4>
+            <p className="text-muted-foreground mt-1">No. AeroTrade is an open marketplace directory, not a broker. We charge a flat fee for Premium access and a small one-time listing fee for sellers, but we never take a percentage of your equipment sale.</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-lg text-foreground">How do I cancel my subscription?</h4>
+            <p className="text-muted-foreground mt-1">You can cancel your subscription at any time directly from your Pilot Dashboard. Your premium access will remain active until the end of your current billing period, and you won't be charged again.</p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

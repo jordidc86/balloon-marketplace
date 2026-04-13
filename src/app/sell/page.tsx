@@ -13,10 +13,6 @@ export default async function SellPage() {
   
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login?error=' + encodeURIComponent('You must be logged in to post a listing.'))
-  }
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="mb-8 border-b pb-6">
@@ -32,7 +28,7 @@ export default async function SellPage() {
         </div>
       </div>
 
-      <SellForm userId={user.id} />
+      <SellForm userId={user?.id || null} />
     </div>
   )
 }

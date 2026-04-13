@@ -183,6 +183,15 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               {listing.details?.dimensions && (
                 <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Dimensions</span><span className="font-medium text-base">{listing.details.dimensions}</span></div>
               )}
+              {listing.details?.type && (
+                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Burner Type</span><span className="font-medium text-base">{listing.details.type}</span></div>
+              )}
+              {listing.details?.registration && (
+                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Registration</span><span className="font-medium text-base">{listing.details.registration}</span></div>
+              )}
+              {listing.details?.serial && (
+                <div className="col-span-2 md:col-span-1"><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Serial Number</span><span className="font-mono text-sm">{listing.details.serial}</span></div>
+              )}
             </div>
 
             <div className={`mt-8 ${!canViewFully ? 'blur-sm select-none opacity-60' : ''}`}>

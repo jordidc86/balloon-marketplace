@@ -20,9 +20,11 @@ export default async function LoginPage({
 
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-      <div className="w-full max-w-md p-8 bg-card rounded-2xl shadow-sm border">
-        <div className="mb-8 text-center">
+    <div className="flex min-h-screen bg-background">
+      {/* Left side: Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+        <div className="w-full max-w-md p-8 bg-card rounded-2xl shadow-sm border">
+          <div className="mb-8 text-center text-balance">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">AeroTrade Pilot Log In</h1>
           <p className="text-sm text-muted-foreground mt-2">Enter your email and password to access the marketplace.</p>
         </div>
@@ -87,8 +89,40 @@ export default async function LoginPage({
               </Link>
             </p>
           </div>
+        </div>
+      </div>
 
-        </form>
+      {/* Right side: Trust Signals Panel */}
+      <div className="hidden lg:flex flex-1 bg-slate-900 text-white items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1549448009-41a4a49c4aa0?q=80&w=2000')] opacity-20 bg-cover bg-center"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-slate-900/40"></div>
+        
+        <div className="max-w-md relative z-10 space-y-8">
+          <h2 className="text-4xl font-bold">The Global Exchange for Pilots.</h2>
+          <div className="space-y-6">
+            <div className="flex items-start gap-4">
+              <div className="bg-primary/20 p-3 rounded-full text-primary shrink-0"><CheckCircle className="w-6 h-6" /></div>
+              <div>
+                <h3 className="font-semibold text-lg">Verified Sellers & Buyers</h3>
+                <p className="text-slate-400 text-sm">Join a trusted community of hot air balloon professionals and enthusiasts.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="bg-primary/20 p-3 rounded-full text-primary shrink-0"><CheckCircle className="w-6 h-6" /></div>
+              <div>
+                <h3 className="font-semibold text-lg">Secure Transactions</h3>
+                <p className="text-slate-400 text-sm">We protect your contact information and ensure transparency across all listings.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="bg-primary/20 p-3 rounded-full text-primary shrink-0"><CheckCircle className="w-6 h-6" /></div>
+              <div>
+                <h3 className="font-semibold text-lg">Premium Market Access</h3>
+                <p className="text-slate-400 text-sm">Get 48-hour early access to rare and highly sought-after equipment.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
