@@ -126,8 +126,9 @@ export default async function SignupPage({
               </Link>
             </p>
           </div>
-        </div>
+        </form>
       </div>
+    </div>
 
       {/* Right side: Trust Signals Panel */}
       <div className="hidden lg:flex flex-1 bg-slate-900 text-white items-center justify-center p-12 relative overflow-hidden">
