@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
-import { forcePublishListing, deleteListing } from '../actions'
+import { forcePublishListing, deleteListing, markListingSold, promoteListing } from '../actions'
 import { formatDistanceToNow } from 'date-fns'
-import { Eye, Rocket, Trash2 } from 'lucide-react'
+import { Eye, Rocket, Trash2, CheckCircle2, Megaphone } from 'lucide-react'
 import Link from 'next/link'
 
 export default async function AdminListingsPage() {
@@ -65,7 +65,27 @@ export default async function AdminListingsPage() {
                            await forcePublishListing(l.id)
                          }}>
                            <button className="p-2 bg-accent/10 text-accent hover:bg-accent/20 rounded-lg transition-colors flex items-center gap-1.5 font-semibold text-xs" title="Bypass Stripe and Publish">
-                             <Rocket className="w-3.5 h-3.5" /> Force Publish
+                             <Rocket className="w-3.5 h-3.5" /> Publish
+                           </button>
+                         </form>
+                       )}
+                       {l.status !== 'SOLD' && (
+                         <form action={async () => {
+                           'use server'
+                           await markListingSold(l.id)
+                         }}>
+                           <button className="p-2 bg-green-500/10 text-green-600 hover:bg-green-500/20 rounded-lg transition-colors flex items-center gap-1.5 font-semibold text-xs" title="Mark as Sold">
+                             <CheckCircle2 className="w-3.5 h-3.5" /> Sold
+                           </button>
+                         </form>
+                       )}
+                       {l.status === 'ACTIVE_PREMIUM' && (
+                         <form action={async () => {
+                           'use server'
+                           await promoteListing(l.id)
+                         }}>
+                           <button className="p-2 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 rounded-lg transition-colors flex items-center gap-1.5 font-semibold text-xs" title="Email alert to premium users">
+                             <Megaphone className="w-3.5 h-3.5" /> Promote
                            </button>
                          </form>
                        )}
