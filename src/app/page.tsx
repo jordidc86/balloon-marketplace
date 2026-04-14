@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2 } from "lucide-react";
+import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2, Database, Package } from "lucide-react";
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -37,7 +37,9 @@ export default async function Home() {
     complete: 0,
     envelopes: 0,
     baskets: 0,
-    burners: 0
+    burners: 0,
+    cylinders: 0,
+    "other-equipment": 0
   };
 
   if (allActiveListings) {
@@ -87,6 +89,8 @@ export default async function Home() {
               <option value="envelopes">Envelopes</option>
               <option value="baskets">Baskets</option>
               <option value="burners">Burners</option>
+              <option value="cylinders">Cylinders</option>
+              <option value="other-equipment">Other Equipment</option>
             </select>
             <button form="searchForm" type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-8 py-3 rounded-xl transition-colors mt-2 md:mt-0">
               Search
@@ -127,6 +131,8 @@ export default async function Home() {
               { name: 'Envelopes', slug: 'envelopes', icon: Wind, count: counts.envelopes },
               { name: 'Baskets', slug: 'baskets', icon: Search, count: counts.baskets },
               { name: 'Burners', slug: 'burners', icon: Flame, count: counts.burners },
+              { name: 'Cylinders', slug: 'cylinders', icon: Database, count: counts.cylinders },
+              { name: 'Other Equipment', slug: 'other-equipment', icon: Package, count: counts["other-equipment"] },
             ].map((cat) => (
               <Link href={`/catalog?category=${cat.slug}`} key={cat.name} className="group p-6 rounded-2xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-center flex flex-col items-center">
                 <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">

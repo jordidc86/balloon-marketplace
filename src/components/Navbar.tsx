@@ -37,6 +37,8 @@ export default async function Navbar() {
             <Link href="/catalog?category=envelopes" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Envelopes</Link>
             <Link href="/catalog?category=baskets" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Baskets</Link>
             <Link href="/catalog?category=burners" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Burners</Link>
+            <Link href="/catalog?category=cylinders" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Cylinders</Link>
+            <Link href="/catalog?category=other-equipment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Other Equipment</Link>
           </div>
 
           <div className="flex items-center space-x-4">

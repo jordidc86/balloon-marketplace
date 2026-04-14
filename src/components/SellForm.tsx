@@ -9,7 +9,7 @@ import { UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 import { submitListing } from '@/app/sell/actions'
 import { updateListing } from '@/app/catalog/[id]/actions'
 
-export default function SellForm({ userId, initialData }: { userId?: string | null; initialData?: any }) {
+export default function SellForm({ userId, initialData, isPremium }: { userId?: string | null; initialData?: any; isPremium?: boolean }) {
   const router = useRouter()
   const supabase = createClient()
   const isEditing = !!initialData
@@ -117,7 +117,8 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
               <option value="envelopes">Envelope Only</option>
               <option value="baskets">Basket</option>
               <option value="burners">Burner</option>
-              <option value="accessories">Accessory / Other</option>
+              <option value="cylinders">Cylinders</option>
+              <option value="other-equipment">Other Equipment</option>
             </select>
           </div>
 
@@ -295,7 +296,7 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
 
       {/* SUBMISSION */}
       <div className="pt-6 border-t flex flex-col items-center gap-4">
-        {!isEditing && (
+        {!isEditing && !isPremium && (
           <label className="flex items-start gap-3 text-sm text-muted-foreground p-4 bg-muted/40 rounded-lg border">
             <input type="checkbox" required className="mt-1" />
             <span>I understand that AeroTrade does not intermediate this transaction and that upon payment of 5 EUR, my listing will be exclusively visible to Premium members for 48 hours before becoming public.</span>
@@ -314,7 +315,7 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
             </>
           ) : (
             <>
-              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : 'Pay 5 EUR & Publish Listing')}
+              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : (isPremium ? 'Publish Listing (Free)' : 'Pay 5 EUR & Publish Listing'))}
               <CheckCircle2 className="w-5 h-5" />
             </>
           )}

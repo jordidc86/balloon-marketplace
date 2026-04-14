@@ -63,6 +63,8 @@ export default async function CatalogPage({
           <Link href="/catalog?category=envelopes" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'envelopes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Envelopes</Link>
           <Link href="/catalog?category=baskets" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'baskets' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Baskets</Link>
           <Link href="/catalog?category=burners" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'burners' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Burners</Link>
+          <Link href="/catalog?category=cylinders" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'cylinders' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Cylinders</Link>
+          <Link href="/catalog?category=other-equipment" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'other-equipment' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Other Equipment</Link>
         </div>
       </div>
 

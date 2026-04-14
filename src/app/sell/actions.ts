@@ -12,6 +12,9 @@ export async function submitListing(formData: FormData) {
     throw new Error('Not authenticated')
   }
 
+  const { data: profile } = await supabase.from('users').select('is_premium').eq('id', user.id).single()
+  const isPremium = profile?.is_premium || false
+
   const category = formData.get('category') as string
   const details: any = {}
   
@@ -43,7 +46,8 @@ export async function submitListing(formData: FormData) {
     contact_email: formData.get('contact_email') as string,
     contact_phone: formData.get('contact_phone') as string,
     details,
-    status: 'DRAFT', // It stays DRAFT until Stripe payment completes
+    status: isPremium ? 'ACTIVE_PREMIUM' : 'DRAFT',
+    public_at: isPremium ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null,
   }
 
   const { data: listing, error } = await supabase
@@ -55,6 +59,13 @@ export async function submitListing(formData: FormData) {
   if (error) {
     console.error("Error creating listing:", error)
     throw new Error('Could not create listing')
+  }
+
+  if (isPremium) {
+    // Skip Stripe and redirect directly to success for Premium users
+    const headersList = await import('next/headers').then(m => m.headers())
+    const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    redirect(`${origin}/catalog/${listing.id}?success=true`)
   }
 
   // Use Stripe to charge the 5 EUR listing fee

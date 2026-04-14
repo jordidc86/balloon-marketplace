@@ -24,6 +24,8 @@ export default function Footer() {
               <li><Link href="/catalog?category=envelopes" className="hover:text-primary transition-colors">Envelopes</Link></li>
               <li><Link href="/catalog?category=baskets" className="hover:text-primary transition-colors">Baskets</Link></li>
               <li><Link href="/catalog?category=burners" className="hover:text-primary transition-colors">Burners</Link></li>
+              <li><Link href="/catalog?category=cylinders" className="hover:text-primary transition-colors">Cylinders</Link></li>
+              <li><Link href="/catalog?category=other-equipment" className="hover:text-primary transition-colors">Other Equipment</Link></li>
             </ul>
           </div>
 
