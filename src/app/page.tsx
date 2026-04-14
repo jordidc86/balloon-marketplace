@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2 } from "lucide-react";
-import { createClient } from '@/utils/supabase/server';
+import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
 
 import { Metadata } from "next";
@@ -16,8 +16,9 @@ export const metadata: Metadata = {
 
 export default async function Home() {
   const supabase = await createClient()
+  const supabaseAdmin = await createAdminClient()
 
-  const { data: listings } = await supabase
+  const { data: listings } = await supabaseAdmin
     .from('listings')
     .select(`
       *,
@@ -27,7 +28,7 @@ export default async function Home() {
     .order('created_at', { ascending: false })
     .limit(6);
 
-  const { data: allActiveListings } = await supabase
+  const { data: allActiveListings } = await supabaseAdmin
     .from('listings')
     .select('category')
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']);

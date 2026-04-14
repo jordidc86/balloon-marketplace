@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { createClient } from '@/utils/supabase/server'
+import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { Flame, Wind, Search, Lock, Filter } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Metadata } from 'next'
@@ -15,6 +15,7 @@ export default async function CatalogPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const supabase = await createClient()
+  const supabaseAdmin = await createAdminClient()
   const params = await searchParams
   
   const categoryFilter = typeof params.category === 'string' ? params.category : null
@@ -28,7 +29,7 @@ export default async function CatalogPage({
   }
 
   // Fetch active listings
-  let query = supabase
+  let query = supabaseAdmin
     .from('listings')
     .select(`
       *,

@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { Lock, MapPin, Tag, Calendar, Activity, CheckCircle2 } from 'lucide-react'
@@ -8,8 +8,8 @@ import { Metadata } from 'next'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: listing } = await supabase.from('listings').select('title, description').eq('id', id).single()
+  const supabaseAdmin = await createAdminClient()
+  const { data: listing } = await supabaseAdmin.from('listings').select('title, description').eq('id', id).single()
 
   if (!listing) {
     return { title: 'Listing Not Found | AeroTrade' }
@@ -24,6 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const supabaseAdmin = await createAdminClient()
 
   // Get current user
   const { data: { user } } = await supabase.auth.getUser()
@@ -34,7 +35,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   }
 
   // Fetch Listing
-  const { data: listing, error } = await supabase
+  const { data: listing, error } = await supabaseAdmin
     .from('listings')
     .select('*, images(url, is_primary)')
     .eq('id', id)
