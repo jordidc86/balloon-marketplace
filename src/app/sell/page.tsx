@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 export default async function SellPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   
   let isPremium = false
   if (user) {
