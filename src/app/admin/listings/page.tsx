@@ -3,13 +3,14 @@ import { forcePublishListing, deleteListing, markListingSold, promoteListing } f
 import { formatDistanceToNow } from 'date-fns'
 import { Eye, Rocket, Trash2, CheckCircle2, Megaphone } from 'lucide-react'
 import Link from 'next/link'
+import ExportInstagramButton from '@/components/admin/ExportInstagramButton'
 
 export default async function AdminListingsPage() {
   const supabase = await createClient()
 
   const { data: listings, error } = await supabase
     .from('listings')
-    .select('*, users(email)')
+    .select('*, users(email), images(url)')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -59,6 +60,7 @@ export default async function AdminListingsPage() {
                        <Link href={`/catalog/${l.id}`} target="_blank" className="p-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors" title="View Listing">
                          <Eye className="w-4 h-4" />
                        </Link>
+                       <ExportInstagramButton listing={l as any} />
                        {l.status === 'DRAFT' && (
                          <form action={async () => {
                            'use server'
