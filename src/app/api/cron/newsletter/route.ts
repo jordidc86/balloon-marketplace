@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
     if (
       process.env.NODE_ENV === 'production' && 
-      authHeader !== \`Bearer \${process.env.CRON_SECRET}\`
+      authHeader !== `Bearer ${process.env.CRON_SECRET}`
     ) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
@@ -132,14 +132,14 @@ export async function GET(request: Request) {
            // Delay slightly to respect rate limits if needed
            await new Promise(res => setTimeout(res, 100)); 
          } catch (e) {
-           console.error(\`Failed to send to \${user.email}\`, e);
+           console.error(`Failed to send to ${user.email}`, e);
          }
       }
     }
 
     return NextResponse.json({ 
       success: true, 
-      message: \`Newsletter sent to \${sentCount} users detailing \${recentListings.length} listings.\` 
+      message: `Newsletter sent to ${sentCount} users detailing ${recentListings.length} listings.` 
     });
 
   } catch (error) {
