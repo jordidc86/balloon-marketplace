@@ -1,10 +1,12 @@
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/server'
 import { togglePremiumStatus } from '../actions'
 import { formatDistanceToNow } from 'date-fns'
 import { Star, Shield, ShieldOff } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminUsersPage() {
-  const supabase = await createClient()
+  const supabase = await createAdminClient()
 
   const { data: users, error } = await supabase
     .from('users')

@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { sendEmail } from '@/utils/resend'
 
@@ -12,7 +12,7 @@ async function checkAdmin() {
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') throw new Error('Not authorized')
   
-  return supabase
+  return createAdminClient()
 }
 
 export async function togglePremiumStatus(userId: string, currentStatus: boolean) {
