@@ -5,6 +5,8 @@ import { Eye, Rocket, Trash2, CheckCircle2, Megaphone } from 'lucide-react'
 import Link from 'next/link'
 import ExportInstagramButton from '@/components/admin/ExportInstagramButton'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminListingsPage() {
   const supabase = await createClient()
 

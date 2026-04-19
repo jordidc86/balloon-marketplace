@@ -24,12 +24,10 @@ export async function togglePremiumStatus(userId: string, currentStatus: boolean
 
 export async function forcePublishListing(listingId: string) {
   const supabase = await checkAdmin()
-  const publicAt = new Date()
-  publicAt.setHours(publicAt.getHours() + 48) // Grant 48-hour premium window
   
   const { error } = await supabase.from('listings').update({ 
-    status: 'ACTIVE_PREMIUM',
-    public_at: publicAt.toISOString()
+    status: 'ACTIVE_PUBLIC',
+    public_at: new Date().toISOString()
   }).eq('id', listingId)
   
   if (error) throw new Error('Failed to publish listing')
