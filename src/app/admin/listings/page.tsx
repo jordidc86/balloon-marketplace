@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/server'
 import { forcePublishListing, deleteListing, markListingSold, promoteListing } from '../actions'
 import { formatDistanceToNow } from 'date-fns'
 import { Eye, Rocket, Trash2, CheckCircle2, Megaphone } from 'lucide-react'
@@ -8,7 +8,7 @@ import ExportInstagramButton from '@/components/admin/ExportInstagramButton'
 export const dynamic = 'force-dynamic'
 
 export default async function AdminListingsPage() {
-  const supabase = await createClient()
+  const supabase = await createAdminClient()
 
   const { data: listings, error } = await supabase
     .from('listings')

@@ -1,8 +1,10 @@
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/server'
 import { Users, Tag, AlertCircle, DollarSign } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminPage() {
-  const supabase = await createClient()
+  const supabase = await createAdminClient()
 
   // Fetch KPI data
   const { count: usersCount } = await supabase.from('users').select('*', { count: 'exact', head: true })
