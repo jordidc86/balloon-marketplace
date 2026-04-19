@@ -1,0 +1,15 @@
+name: Send Bi-Weekly Newsletter Cron
+
+on:
+  schedule:
+    - cron: '0 9 */14 * *' # A las 09:00 cada 14 días
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  dispatch_newsletter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger next.js API Route for Newsletter
+        run: |
+          curl -X GET "\${{ secrets.PRODUCTION_URL }}/api/cron/newsletter" \
+               -H "Authorization: Bearer \${{ secrets.CRON_SECRET }}"
