@@ -2,6 +2,7 @@ import { login, signup } from './actions'
 import { AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { Metadata } from 'next'
+import { ResendButton } from './ResendButton'
 
 export const metadata: Metadata = {
   title: 'Log In | AeroTrade Marketplace',
@@ -32,7 +33,12 @@ export default async function LoginPage({
         {error && (
           <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3 text-destructive">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <p className="text-sm">{error}</p>
+            <div className="flex-1">
+              <p className="text-sm">{error}</p>
+              {error === 'Email not confirmed' && (
+                <ResendButton email={(params.email as string) || ''} />
+              )}
+            </div>
           </div>
         )}
 

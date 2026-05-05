@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2, Database, Package } from "lucide-react";
+import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2, Database, Package, Layers } from "lucide-react";
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -38,6 +38,7 @@ export default async function Home() {
     envelopes: 0,
     baskets: 0,
     burners: 0,
+    "bottom-end": 0,
     cylinders: 0,
     "other-equipment": 0
   };
@@ -89,6 +90,7 @@ export default async function Home() {
               <option value="envelopes">Envelopes</option>
               <option value="baskets">Baskets</option>
               <option value="burners">Burners</option>
+              <option value="bottom-end">Bottom Ends</option>
               <option value="cylinders">Cylinders</option>
               <option value="other-equipment">Other Equipment</option>
             </select>
@@ -131,6 +133,7 @@ export default async function Home() {
               { name: 'Envelopes', slug: 'envelopes', icon: Wind, count: counts.envelopes },
               { name: 'Baskets', slug: 'baskets', icon: Search, count: counts.baskets },
               { name: 'Burners', slug: 'burners', icon: Flame, count: counts.burners },
+              { name: 'Bottom Ends', slug: 'bottom-end', icon: Layers, count: counts["bottom-end"] },
               { name: 'Cylinders', slug: 'cylinders', icon: Database, count: counts.cylinders },
               { name: 'Other Equipment', slug: 'other-equipment', icon: Package, count: counts["other-equipment"] },
             ].map((cat) => (

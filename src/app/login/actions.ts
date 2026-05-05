@@ -20,7 +20,7 @@ export async function login(formData: FormData) {
     const { error } = await supabase.auth.signInWithPassword(data)
 
     if (error) {
-      redirect('/login?error=' + encodeURIComponent(error.message))
+      redirect(`/login?error=${encodeURIComponent(error.message)}&email=${encodeURIComponent(data.email)}`)
     }
 
     revalidatePath('/', 'layout')
@@ -127,6 +127,24 @@ export async function signupWithDetails(formData: FormData) {
   } catch (error: any) {
     if (isRedirectError(error)) throw error
     redirect('/signup?error=' + encodeURIComponent(error.message || 'An unexpected error occurred'))
+  }
+}
+
+export async function resendConfirmationEmail(email: string) {
+  try {
+    const supabase = await createClient()
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+    })
+
+    if (error) {
+       return { error: error.message }
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    return { error: error.message || 'An unexpected error occurred' }
   }
 }
 

@@ -93,7 +93,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
   }
 
   const needsFlightData = ['complete', 'envelopes'].includes(category)
-  const needsDimensions = ['baskets', 'burners'].includes(category)
+  const needsDimensions = ['baskets', 'burners', 'bottom-end'].includes(category)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 bg-card p-6 sm:p-8 rounded-2xl border shadow-sm">
@@ -117,6 +117,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
               <option value="envelopes">Envelope Only</option>
               <option value="baskets">Basket</option>
               <option value="burners">Burner</option>
+              <option value="bottom-end">Bottom End (Basket + Burner)</option>
               <option value="cylinders">Cylinders</option>
               <option value="other-equipment">Other Equipment</option>
             </select>

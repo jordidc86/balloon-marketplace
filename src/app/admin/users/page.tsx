@@ -29,7 +29,8 @@ export default async function AdminUsersPage() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="px-6 py-4 font-semibold">Email</th>
+                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-xs">Name</th>
+                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-xs">Email</th>
                 <th className="px-6 py-4 font-semibold">Joined</th>
                 <th className="px-6 py-4 font-semibold">Role</th>
                 <th className="px-6 py-4 font-semibold">Premium Status</th>
@@ -39,7 +40,11 @@ export default async function AdminUsersPage() {
             <tbody className="divide-y">
               {users?.map((u) => (
                 <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 font-medium">{u.email}</td>
+                  <td className="px-6 py-4">
+                    <div className="font-semibold text-foreground">{u.name || '—'}</div>
+                    <div className="text-xs text-muted-foreground">{u.phone || 'No phone'}</div>
+                  </td>
+                  <td className="px-6 py-4 text-muted-foreground">{u.email}</td>
                   <td className="px-6 py-4 text-muted-foreground">
                     {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}
                   </td>

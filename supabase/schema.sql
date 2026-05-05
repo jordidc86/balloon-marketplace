@@ -10,6 +10,8 @@ create table public.users (
   stripe_customer_id text,
   stripe_subscription_id text,
   is_premium boolean default false,
+  name text,
+  phone text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -108,8 +110,13 @@ create policy "Users can insert their own events" on public.listing_events for i
 create function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.users (id, email)
-  values (new.id, new.email);
+  insert into public.users (id, email, name, phone)
+  values (
+    new.id, 
+    new.email, 
+    new.raw_user_meta_data->>'name', 
+    new.raw_user_meta_data->>'phone'
+  );
   return new;
 end;
 $$ language plpgsql security definer;

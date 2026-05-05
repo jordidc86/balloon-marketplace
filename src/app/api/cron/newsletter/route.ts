@@ -35,7 +35,10 @@ const generateNewsletterHtml = (listings: any[]) => {
           </div>
           
           <p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 32px;">
-            Hello from AeroTrade! Here are the latest hot air balloons and equipment listed in the past two weeks. Don't miss out on these great deals!
+            Welcome to the first AeroTrade newsletter! We are excited to have you as part of our growing ballooning community.
+          </p>
+          <p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 32px;">
+            Here are the latest hot air balloons and equipment currently available in the marketplace. Don't miss out on these great deals!
           </p>
 
           ${listingsHtml}
@@ -78,12 +81,12 @@ export async function GET(request: Request) {
 
     // 2. Fetch Listings from the last 15 days
     const fifteenDaysAgo = new Date();
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15); 
 
     const { data: recentListings, error: listingsError } = await supabase
       .from('listings')
       .select('*, images(url, is_primary)')
-      .eq('status', 'ACTIVE_PUBLIC')
+      .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
       .gte('created_at', fifteenDaysAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(10); // Keep email size reasonable

@@ -13,7 +13,7 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
   if (resend) {
     try {
       const data = await resend.emails.send({
-        from: 'AeroTrade <noreply@aerotrade.com>', // Update with verified domain later
+        from: 'AeroTrade <noreply@aerotrade.app>', // Updated with verified domain
         to,
         subject,
         html,

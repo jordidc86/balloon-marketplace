@@ -96,14 +96,24 @@ export async function POST(req: Request) {
     } 
     else if (session.metadata?.type === 'premium_subscription') {
       const userId = session.metadata.user_id;
+      const stripeCustomerId = session.customer as string;
+      const stripeSubscriptionId = session.subscription as string;
+      
+      console.log(`[Stripe Webhook] Updating premium status for user ${userId}`);
       
       const { error } = await supabaseAdmin
         .from('users')
-        .update({ is_premium: true })
+        .update({ 
+          is_premium: true,
+          stripe_customer_id: stripeCustomerId,
+          stripe_subscription_id: stripeSubscriptionId
+        })
         .eq('id', userId);
 
       if (error) {
-        console.error('Failed to update user premium status', error);
+        console.error(`[Stripe Webhook] Failed to update user premium status for ${userId}:`, error);
+      } else {
+        console.log(`[Stripe Webhook] Successfully updated premium status for ${userId}`);
       }
     }
   }
