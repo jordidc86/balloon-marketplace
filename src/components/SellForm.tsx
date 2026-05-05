@@ -15,6 +15,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
   const isEditing = !!initialData
 
   const [category, setCategory] = useState<string>(initialData?.category || '')
+  const [inquirePrice, setInquirePrice] = useState<boolean>(initialData?.price === 0)
   const [images, setImages] = useState<File[]>([])
   const [existingImages, setExistingImages] = useState<any[]>(initialData?.images || [])
   const [isUploading, setIsUploading] = useState(false)
@@ -218,16 +219,24 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Price *</label>
-            <input type="number" name="price" defaultValue={initialData?.price || ''} required min="0" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium">Price *</label>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                <input type="checkbox" checked={inquirePrice} onChange={(e) => setInquirePrice(e.target.checked)} />
+                Inquire for Pricing
+              </label>
+            </div>
+            <input type="number" name="price" defaultValue={initialData?.price || ''} required={!inquirePrice} disabled={inquirePrice} min="0" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none disabled:opacity-50" />
+            {inquirePrice && <input type="hidden" name="price" value="0" />}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Currency *</label>
-            <select name="currency" required defaultValue={initialData?.currency || "EUR"} className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none">
+            <select name="currency" required={!inquirePrice} disabled={inquirePrice} defaultValue={initialData?.currency || "EUR"} className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none disabled:opacity-50">
               <option value="EUR">EUR (€)</option>
               <option value="GBP">GBP (£)</option>
               <option value="USD">USD ($)</option>
             </select>
+            {inquirePrice && <input type="hidden" name="currency" value="EUR" />}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Location (Country) *</label>

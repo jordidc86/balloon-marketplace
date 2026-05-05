@@ -187,7 +187,7 @@ export default async function Home() {
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{listing.category}</span>
                       </div>
                       <h3 className="font-bold text-lg mb-1 line-clamp-2 blur-sm select-none text-muted">{listing.title}</h3>
-                      <p className="text-xl font-extrabold text-foreground mb-4 blur-sm select-none text-muted">€ {listing.price}</p>                    </div>
+                      <p className="text-xl font-extrabold text-foreground mb-4 blur-sm select-none text-muted">{listing.price === 0 ? "Inquire for Pricing" : `€ ${listing.price}`}</p>                    </div>
                   </div>
                 )
               }
@@ -212,7 +212,7 @@ export default async function Home() {
                         <span className="text-xs font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{listing.condition}</span>
                     </div>
                     <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
-                    <p className="text-xl font-extrabold text-foreground mb-4">€ {listing.price.toLocaleString()}</p>
+                    <p className="text-xl font-extrabold text-foreground mb-4">{listing.price === 0 ? "Inquire for Pricing" : `€ ${listing.price.toLocaleString()}`}</p>
                     <div className="mt-auto w-full pt-4 border-t flex items-center justify-between text-sm text-muted-foreground">
                       <span>{listing.location_country}</span>
                       <span>{formatDistanceToNow(new Date(listing.created_at))} ago</span>

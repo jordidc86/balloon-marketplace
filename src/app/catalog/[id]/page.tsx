@@ -158,7 +158,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             </h1>
             
             <p className={`text-4xl font-black text-foreground ${!canViewFully ? 'blur-sm select-none opacity-80' : ''}`}>
-              {listing.price.toLocaleString()} {listing.currency}
+              {listing.price === 0 ? "Inquire for Pricing" : `${listing.price.toLocaleString()} ${listing.currency}`}
             </p>
             <p className="text-muted-foreground flex items-center mt-2">
               <MapPin className="w-4 h-4 mr-1" /> {listing.location_country}

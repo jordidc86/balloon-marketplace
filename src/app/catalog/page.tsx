@@ -98,7 +98,7 @@ export default async function CatalogPage({
                   </div>
                   {/* Masking Title & Precise Price */}
                   <h3 className="font-bold text-lg mb-1 line-clamp-2 blur-[4px] select-none text-muted">{listing.title}</h3>
-                  <p className="text-xl font-extrabold text-foreground mb-4 blur-[4px] select-none text-muted">€ {listing.price}</p>
+                  <p className="text-xl font-extrabold text-foreground mb-4 blur-[4px] select-none text-muted">{listing.price === 0 ? "Inquire for Pricing" : `€ ${listing.price}`}</p>
                   <div className="mt-auto pt-4 flex items-center justify-between border-t border-dashed">
                     <span className="text-xs text-muted-foreground">{listing.location_country}</span>
                     <Link href={`/catalog/${listing.id}`} className="text-accent font-semibold hover:underline text-sm flex items-center gap-1">
@@ -131,7 +131,7 @@ export default async function CatalogPage({
                   <span className="text-xs font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{listing.condition}</span>
                 </div>
                 <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
-                <p className="text-xl font-extrabold text-foreground mb-4">{listing.price.toLocaleString()} {listing.currency}</p>
+                <p className="text-xl font-extrabold text-foreground mb-4">{listing.price === 0 ? "Inquire for Pricing" : `${listing.price.toLocaleString()} ${listing.currency}`}</p>
                 
                 <div className="mt-auto w-full pt-4 border-t flex items-center justify-between text-sm text-muted-foreground">
                   <span className="truncate pr-2">{listing.location_country}</span>
