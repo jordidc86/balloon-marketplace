@@ -118,25 +118,27 @@ export async function GET(request: Request) {
     // 4. Generate HTML and Dispatch
     const htmlBody = generateNewsletterHtml(recentListings);
     
+    // Prepare emails for batch sending
+    const emailBatch = users
+      .filter(user => user.email)
+      .map(user => ({
+        to: user.email,
+        subject: '🔥 New Hot Air Balloons on AeroTrade - Bi-Weekly Update',
+        html: htmlBody
+      }));
+
     let sentCount = 0;
     
-    // Send in batches or one-by-one. 
-    // Resend currently supports up to 50 recipients in a single API call if we use batch API, 
-    // but a loop is safer for smaller lists to start with.
-    for (const user of users) {
-      if (user.email) {
-         try {
-           await sendEmail(
-             user.email,
-             '🔥 New Hot Air Balloons on AeroTrade - Bi-Weekly Update',
-             htmlBody
-           );
-           sentCount++;
-           // Delay slightly to respect rate limits if needed
-           await new Promise(res => setTimeout(res, 100)); 
-         } catch (e) {
-           console.error(`Failed to send to ${user.email}`, e);
-         }
+    if (emailBatch.length > 0) {
+      // Import sendEmailBatch from our resend utility
+      const { sendEmailBatch } = await import('@/utils/resend');
+      
+      const result = await sendEmailBatch(emailBatch);
+      if (result.success) {
+        sentCount = emailBatch.length;
+      } else {
+        console.error('Failed to send newsletter batch', result.error);
+        return new NextResponse('Error sending newsletter batch', { status: 500 });
       }
     }
 

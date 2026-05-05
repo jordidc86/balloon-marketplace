@@ -77,19 +77,26 @@ export async function POST(req: Request) {
         // For demonstration of the strategic feature:
         if (premiumUsers && premiumUsers.length > 0) {
           console.log(`Sending alerts to ${premiumUsers.length} premium members...`);
-          // In production, batch these to avoid limits
+          // Batch emails
           const alertHtml = `
             <h3>🔥 New Premium Exclusive Listing!</h3>
             <p>A new <strong>${listingData.category.toUpperCase()}</strong> was just listed on AeroTrade.</p>
             <p><strong>${listingData.title}</strong> - ${listingData.price} ${listingData.currency}</p>
             <p>Because you are a Premium Club member, you have exclusive access to view photos and contact the seller 48 hours before the public.</p>
-            <p><a href="${process.env.NEXT_PUBLIC_SITE_URL}/catalog/${listingData.id}">View Listing Now</a></p>
+            <p><a href="https://aerotrade.app/catalog/${listingData.id}">View Listing Now</a></p>
           `;
           
-          for (const pUser of premiumUsers) {
-             if(pUser.email) {
-               await sendEmail(pUser.email, '🔥 AeroTrade Premium Alert: New Gear Listed', alertHtml);
-             }
+          const emailBatch = premiumUsers
+            .filter(pUser => pUser.email)
+            .map(pUser => ({
+              to: pUser.email,
+              subject: '🔥 AeroTrade Premium Alert: New Gear Listed',
+              html: alertHtml
+            }));
+
+          if (emailBatch.length > 0) {
+            const { sendEmailBatch } = await import('@/utils/resend');
+            await sendEmailBatch(emailBatch);
           }
         }
       }

@@ -33,3 +33,33 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
     return { success: true, mocked: true };
   }
 }
+
+export const sendEmailBatch = async (emails: { to: string; subject: string; html: string }[]) => {
+  if (resend) {
+    try {
+      // Map to Resend's batch format
+      const batchData = emails.map(email => ({
+        from: 'AeroTrade <noreply@aerotrade.app>',
+        to: email.to,
+        subject: email.subject,
+        html: email.html,
+      }));
+      
+      const data = await resend.batch.send(batchData);
+      return { success: true, data };
+    } catch (error) {
+      console.error('Failed to send email batch via Resend:', error);
+      return { success: false, error };
+    }
+  } else {
+    // Development fallback
+    console.log(`\n--- 📧 BATCH EMAIL MOCKED (${emails.length} emails) ---`);
+    if (emails.length > 0) {
+      console.log(`First email TO: ${emails[0].to}`);
+      console.log(`SUBJECT: ${emails[0].subject}`);
+      console.log(`CONTENT: ${emails[0].html.substring(0, 100)}...`);
+    }
+    console.log('----------------------------------------\n');
+    return { success: true, mocked: true };
+  }
+}

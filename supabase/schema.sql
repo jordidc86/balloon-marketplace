@@ -37,6 +37,7 @@ create table public.listings (
   status text default 'DRAFT' check (status in ('DRAFT', 'PENDING_PAYMENT', 'ACTIVE_PREMIUM', 'ACTIVE_PUBLIC', 'SOLD', 'ARCHIVED', 'FLAGGED')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   public_at timestamp with time zone, -- Will be set to created_at + 48h when payment succeeds
+  instagram_posted boolean default false, -- Tracks if listing was posted to Instagram 48h after public_at
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

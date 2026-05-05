@@ -31,6 +31,14 @@ export async function forcePublishListing(listingId: string) {
   }).eq('id', listingId)
   
   if (error) throw new Error('Failed to publish listing')
+  
+  // Instantly alert premium users about the new published listing
+  try {
+    await promoteListing(listingId);
+  } catch (err) {
+    console.error('Failed to send premium alerts during force publish:', err);
+  }
+  
   revalidatePath('/admin/listings')
 }
 
@@ -80,18 +88,21 @@ export async function promoteListing(listingId: string) {
     <p><strong>Category:</strong> ${listing.category}</p>
     <p><strong>Price:</strong> ${listing.price.toLocaleString()} ${listing.currency}</p>
     <br/>
-    <a href="https://aerotrade-mvp-app.netlify.app/catalog/${listingId}">View Listing on AeroTrade</a>
+    <a href="https://aerotrade.app/catalog/${listingId}">View Listing on AeroTrade</a>
   `
 
-  const promises = premiumUsers.map(user => 
-    sendEmail(
-      user.email, 
-      `Premium Alert: ${listing.title} is now available`, 
-      htmlContent
-    )
-  )
-  
-  await Promise.all(promises)
+  const emailBatch = premiumUsers
+    .filter(user => user.email)
+    .map(user => ({
+      to: user.email,
+      subject: `Premium Alert: ${listing.title} is now available`,
+      html: htmlContent
+    }))
+
+  if (emailBatch.length > 0) {
+    const { sendEmailBatch } = await import('@/utils/resend');
+    await sendEmailBatch(emailBatch);
+  }
   
   return { success: true, count: premiumUsers.length }
 }
