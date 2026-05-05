@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { sendEmail } from '@/utils/resend'
 // Note: Stripe will be integrated here later for the 5 EUR checkout
 
 export async function submitListing(formData: FormData) {
@@ -59,6 +60,22 @@ export async function submitListing(formData: FormData) {
   if (error) {
     console.error("Error creating listing:", error)
     throw new Error('Could not create listing')
+  }
+
+  try {
+    await sendEmail(
+      'jordi.diaz.casaubon@gmail.com',
+      'Nuevo anuncio en AeroTrade',
+      `<p>Se ha creado un nuevo anuncio:</p>
+      <p>Título: ${listing.title}</p>
+      <p>Categoría: ${listing.category}</p>
+      <p>Precio: ${listing.price}</p>
+      <p>Usuario ID: ${user.id}</p>
+      <p>Email contacto: ${listing.contact_email}</p>
+      <p>Status: ${listing.status}</p>`
+    )
+  } catch (e) {
+    console.error("Error sending notification:", e)
   }
 
   if (isPremium) {

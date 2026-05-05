@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { sendEmail } from '@/utils/resend'
 
 function isRedirectError(error: any): boolean {
   return typeof error === 'object' && error !== null && 'digest' in error && typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')
@@ -46,6 +47,16 @@ export async function signup(formData: FormData) {
       redirect('/login?error=' + encodeURIComponent(error.message))
     }
 
+    try {
+      await sendEmail(
+        'jordi.diaz.casaubon@gmail.com',
+        'Nuevo usuario en AeroTrade',
+        `<p>Se ha registrado un nuevo usuario:</p><p>Email: ${authData.email}</p>`
+      )
+    } catch (e) {
+      console.error("Error sending notification:", e)
+    }
+
     if (!data?.session) {
       redirect('/login?message=' + encodeURIComponent('Please check your email to verify your account.'))
     }
@@ -79,6 +90,16 @@ export async function signupWithDetails(formData: FormData) {
 
     if (error) {
       redirect('/signup?error=' + encodeURIComponent(error.message))
+    }
+
+    try {
+      await sendEmail(
+        'jordi.diaz.casaubon@gmail.com',
+        'Nuevo usuario en AeroTrade',
+        `<p>Se ha registrado un nuevo usuario:</p><p>Email: ${email}</p><p>Nombre: ${name}</p><p>Teléfono: ${phone}</p><p>Premium: ${isPremiumRequested ? 'Sí' : 'No'}</p>`
+      )
+    } catch (e) {
+      console.error("Error sending notification:", e)
     }
 
     const userId = authData?.user?.id;
