@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2, Database, Package, Layers } from "lucide-react";
+import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2, Database, Package, Layers, SlidersHorizontal } from "lucide-react";
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -18,6 +18,7 @@ export default async function Home() {
   const supabase = await createClient()
   const supabaseAdmin = await createAdminClient()
 
+  // Increase limit to 18 to show more latest listings
   const { data: listings } = await supabaseAdmin
     .from('listings')
     .select(`
@@ -26,7 +27,7 @@ export default async function Home() {
     `)
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
     .order('created_at', { ascending: false })
-    .limit(6);
+    .limit(18);
 
   const { data: allActiveListings } = await supabaseAdmin
     .from('listings')
@@ -58,111 +59,89 @@ export default async function Home() {
     isPremium = profile?.is_premium || false
   }
 
+  const categories = [
+    { name: 'Complete', slug: 'complete', icon: Plane, count: counts.complete },
+    { name: 'Envelopes', slug: 'envelopes', icon: Wind, count: counts.envelopes },
+    { name: 'Baskets', slug: 'baskets', icon: Search, count: counts.baskets },
+    { name: 'Burners', slug: 'burners', icon: Flame, count: counts.burners },
+    { name: 'Bottom Ends', slug: 'bottom-end', icon: Layers, count: counts["bottom-end"] },
+    { name: 'Cylinders', slug: 'cylinders', icon: Database, count: counts.cylinders },
+    { name: 'Other', slug: 'other-equipment', icon: Package, count: counts["other-equipment"] },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* HERO SECTION */}
-      <section className="relative w-full h-[600px] flex items-center justify-center bg-slate-900 border-b overflow-hidden">
-        {/* Abstract/Dark background for the hero instead of an image to keep MVP fast, uses nice gradients */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 z-0 opacity-90" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent z-0" />
-        
-        <div className="relative z-10 w-full max-w-4xl px-4 text-center">
-          <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight text-balance mb-6">
-            The Global Market for Used Hot Air Balloon Equipment.
-          </h1>
-          <p className="text-lg md:text-xl text-slate-300 mb-10 max-w-2xl mx-auto text-balance">
-            Discover rare envelopes, premium baskets, and trusted burners. Join the private exchange where the best gear moves first.
-          </p>
-          
-          <div className="bg-background/95 backdrop-blur-md p-2 rounded-2xl shadow-xl flex flex-col md:flex-row gap-2 max-w-3xl mx-auto">
-            <form action="/catalog" method="GET" id="searchForm" className="flex-1 flex items-center px-4 bg-muted/50 rounded-xl">
-              <Search className="w-5 h-5 text-muted-foreground mr-2" />
+    <div className="flex flex-col min-h-screen bg-slate-50">
+      
+      {/* COMPACT SEARCH & FILTER HEADER */}
+      <section className="bg-white border-b sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            
+            {/* Search Input */}
+            <form action="/catalog" method="GET" id="searchForm" className="w-full md:max-w-md flex items-center px-4 py-2.5 bg-slate-100 rounded-full border border-slate-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+              <Search className="w-5 h-5 text-slate-400 mr-2 shrink-0" />
               <input 
                 type="text" 
                 name="q"
-                placeholder="Search 'Cameron Z-105' or 'Double Burner'..." 
-                className="w-full bg-transparent border-none focus:ring-0 py-3 text-foreground outline-none"
+                placeholder="Search listings..." 
+                className="w-full bg-transparent border-none focus:ring-0 text-foreground outline-none placeholder:text-slate-500 text-sm"
               />
+              <button type="submit" className="hidden"></button>
             </form>
-            <select name="category" form="searchForm" className="px-4 py-3 bg-muted/50 rounded-xl text-foreground font-medium md:w-48 outline-none border-t md:border-t-0 md:border-l border-border mt-2 md:mt-0">
-              <option value="">All Categories</option>
-              <option value="complete">Complete</option>
-              <option value="envelopes">Envelopes</option>
-              <option value="baskets">Baskets</option>
-              <option value="burners">Burners</option>
-              <option value="bottom-end">Bottom Ends</option>
-              <option value="cylinders">Cylinders</option>
-              <option value="other-equipment">Other Equipment</option>
-            </select>
-            <button form="searchForm" type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-8 py-3 rounded-xl transition-colors mt-2 md:mt-0">
-              Search
-            </button>
-          </div>
-          <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-6 text-sm text-slate-400 font-medium tracking-wide">
-            <span className="flex items-center gap-2"><Lock className="w-4 h-4 text-emerald-400" /> Contact details strictly protected</span>
-            <span className="hidden md:block text-slate-600">•</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary" /> Every listing manually verified</span>
+
+            {/* Category Pills (Desktop & Scrollable Mobile) */}
+            <div className="w-full md:w-auto overflow-x-auto pb-2 md:pb-0 scrollbar-hide flex items-center gap-2">
+              <Link 
+                href="/catalog" 
+                className="flex items-center gap-2 px-4 py-2 rounded-full border bg-white hover:bg-slate-50 text-sm font-medium whitespace-nowrap transition-colors"
+              >
+                <SlidersHorizontal className="w-4 h-4" /> All
+              </Link>
+              {categories.map((cat) => (
+                <Link 
+                  href={`/catalog?category=${cat.slug}`} 
+                  key={cat.name} 
+                  className="flex items-center gap-2 px-4 py-2 rounded-full border bg-white hover:bg-slate-50 text-sm font-medium whitespace-nowrap transition-colors"
+                >
+                  <cat.icon className="w-4 h-4 text-primary" />
+                  {cat.name}
+                  <span className="bg-slate-100 text-slate-600 text-xs px-1.5 py-0.5 rounded-full ml-1">{cat.count}</span>
+                </Link>
+              ))}
+            </div>
+
           </div>
         </div>
       </section>
 
       {/* PREMIUM BANNER */}
-      <section className="bg-accent/10 border-b border-accent/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <section className="bg-amber-50/80 border-b border-amber-200/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-8 w-8 rounded-full bg-accent/20 items-center justify-center shrink-0">
-              <Clock className="w-4 h-4 text-accent-foreground" />
+            <span className="flex h-7 w-7 rounded-full bg-amber-500/20 items-center justify-center shrink-0">
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
             </span>
-            <p className="text-sm font-medium text-foreground">
-              <strong className="text-accent-foreground">The Unfair Advantage:</strong> Premium members get 48 hours early access to all new listings.
+            <p className="text-sm font-medium text-slate-700">
+              <strong className="text-amber-800">Premium Advantage:</strong> Members get 48 hours early access to all new gear.
             </p>
           </div>
-          <Link href="/pricing" className="text-sm font-semibold text-accent-foreground hover:bg-accent/20 px-4 py-2 rounded-full transition-colors whitespace-nowrap">
-            Unlock Premium Access &rarr;
+          <Link href="/pricing" className="text-sm font-bold text-amber-700 hover:bg-amber-500/10 px-4 py-1.5 rounded-full transition-colors whitespace-nowrap">
+            Unlock Premium &rarr;
           </Link>
         </div>
       </section>
 
-      {/* CATEGORIES GRID */}
-      <section className="py-16 bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold mb-8">Browse Categories</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { name: 'Complete Balloons', slug: 'complete', icon: Plane, count: counts.complete },
-              { name: 'Envelopes', slug: 'envelopes', icon: Wind, count: counts.envelopes },
-              { name: 'Baskets', slug: 'baskets', icon: Search, count: counts.baskets },
-              { name: 'Burners', slug: 'burners', icon: Flame, count: counts.burners },
-              { name: 'Bottom Ends', slug: 'bottom-end', icon: Layers, count: counts["bottom-end"] },
-              { name: 'Cylinders', slug: 'cylinders', icon: Database, count: counts.cylinders },
-              { name: 'Other Equipment', slug: 'other-equipment', icon: Package, count: counts["other-equipment"] },
-            ].map((cat) => (
-              <Link href={`/catalog?category=${cat.slug}`} key={cat.name} className="group p-6 rounded-2xl border bg-card hover:border-primary/50 hover:shadow-sm transition-all text-center flex flex-col items-center">
-                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <cat.icon className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold">{cat.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">{cat.count} Active</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* RECENT / FEATURED LISTINGS */}
-      <section className="py-16 bg-muted/30">
+      {/* LATEST LISTINGS */}
+      <section className="py-10 flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-8">
             <div>
-              <h2 className="text-2xl font-bold">Recently Added Gear</h2>
-              <p className="text-muted-foreground mt-1 text-sm">The latest equipment listed by pilots worldwide.</p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Latest Arrivals</h1>
+              <p className="text-slate-500 mt-2">Discover the newest equipment hitting the global market.</p>
             </div>
-            <Link href="/catalog" className="text-sm font-medium text-primary hover:underline">
-              View All &rarr;
-            </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {listings?.map((listing: any) => {
               const isPremiumExclusive = new Date() < new Date(listing.public_at)
               const isOwner = user?.id === listing.seller_id
@@ -171,51 +150,52 @@ export default async function Home() {
 
               if (!canViewFully) {
                 return (
-                  <div key={listing.id} className="rounded-2xl border bg-card overflow-hidden group flex flex-col h-full relative">
-                    <div className="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center shrink-0">
+                  <div key={listing.id} className="rounded-2xl border bg-white overflow-hidden group flex flex-col h-full relative shadow-sm">
+                    <div className="h-56 bg-slate-200 relative overflow-hidden flex items-center justify-center shrink-0">
                       {primaryImage && (
                         <img src={primaryImage} alt="Blurred decorative background" className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-40" />
                       )}
                       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-white px-4 text-center">
-                        <Lock className="w-8 h-8 mb-2 text-accent" />
-                        <span className="font-bold tracking-tight text-sm">PREMIUM EXCLUSIVE</span>
+                        <Lock className="w-8 h-8 mb-2 text-amber-400" />
+                        <span className="font-bold tracking-tight text-sm text-amber-400">PREMIUM EXCLUSIVE</span>
                         <p className="text-xs mt-1 text-slate-300">Public in {formatDistanceToNow(new Date(listing.public_at))}</p>
                       </div>
                     </div>
                     <div className="p-5 flex-1 flex flex-col">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{listing.category}</span>
+                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{listing.category.replace('-', ' ')}</span>
                       </div>
-                      <h3 className="font-bold text-lg mb-1 line-clamp-2 blur-sm select-none text-muted">{listing.title}</h3>
-                      <p className="text-xl font-extrabold text-foreground mb-4 blur-sm select-none text-muted">{listing.price === 0 ? "Inquire for Pricing" : `€ ${listing.price}`}</p>                    </div>
+                      <h3 className="font-bold text-lg mb-1 line-clamp-2 blur-sm select-none text-slate-400">{listing.title}</h3>
+                      <p className="text-xl font-extrabold text-slate-900 mb-4 blur-sm select-none text-slate-400">{listing.price === 0 ? "Inquire for Pricing" : `€ ${listing.price}`}</p>
+                    </div>
                   </div>
                 )
               }
 
               return (
-                <Link href={`/catalog/${listing.id}`} key={listing.id} className="rounded-2xl border bg-card overflow-hidden group hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full">
-                  <div className="h-48 bg-muted relative overflow-hidden flex items-center justify-center shrink-0">
+                <Link href={`/catalog/${listing.id}`} key={listing.id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
+                  <div className="h-56 bg-slate-100 relative overflow-hidden flex items-center justify-center shrink-0">
                     {primaryImage ? (
                       <img src={primaryImage} alt={listing.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
-                      <Search className="w-8 h-8 text-muted-foreground/30" />
+                      <Search className="w-8 h-8 text-slate-300" />
                     )}
                     {isPremiumExclusive && (
-                      <div className="absolute top-2 right-2 bg-accent text-accent-foreground text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
+                      <div className="absolute top-3 right-3 bg-amber-400 text-amber-900 text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm uppercase tracking-wider">
                         Premium Active
                       </div>
                     )}
                   </div>
                   <div className="p-5 flex-1 flex flex-col">
-                    <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{listing.category}</span>
-                        <span className="text-xs font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{listing.condition}</span>
+                    <div className="flex justify-between items-start mb-3">
+                        <span className="text-xs font-bold text-primary uppercase tracking-wider">{listing.category.replace('-', ' ')}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-1 rounded-md">{listing.condition}</span>
                     </div>
-                    <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
-                    <p className="text-xl font-extrabold text-foreground mb-4">{listing.price === 0 ? "Inquire for Pricing" : `€ ${listing.price.toLocaleString()}`}</p>
-                    <div className="mt-auto w-full pt-4 border-t flex items-center justify-between text-sm text-muted-foreground">
-                      <span>{listing.location_country}</span>
-                      <span>{formatDistanceToNow(new Date(listing.created_at))} ago</span>
+                    <h3 className="font-bold text-lg leading-tight mb-2 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
+                    <p className="text-2xl font-extrabold text-slate-900 mb-4">{listing.price === 0 ? "Inquire" : `€${listing.price.toLocaleString()}`}</p>
+                    <div className="mt-auto w-full pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500">
+                      <span className="truncate pr-4">{listing.location_country}</span>
+                      <span className="whitespace-nowrap shrink-0">{formatDistanceToNow(new Date(listing.created_at))} ago</span>
                     </div>
                   </div>
                 </Link>
@@ -223,14 +203,39 @@ export default async function Home() {
             })}
 
             {listings?.length === 0 && (
-              <div className="col-span-full py-20 text-center flex flex-col items-center">
-                <p className="text-muted-foreground">No dynamic listings found.</p>
-                <Link href="/sell" className="mt-4 text-primary font-medium hover:underline">Add yours now!</Link>
+              <div className="col-span-full py-20 text-center flex flex-col items-center bg-white rounded-2xl border border-dashed border-slate-300">
+                <Search className="w-12 h-12 text-slate-300 mb-4" />
+                <h3 className="text-lg font-bold text-slate-900">No listings found</h3>
+                <p className="text-slate-500 max-w-sm mt-1 mb-6">There are currently no active listings on the marketplace.</p>
+                <Link href="/sell" className="bg-primary hover:bg-primary/90 text-white font-medium px-6 py-2.5 rounded-full transition-colors shadow-sm">List Your Equipment</Link>
               </div>
             )}
           </div>
+          
+          {listings && listings.length >= 18 && (
+            <div className="mt-12 flex justify-center">
+              <Link href="/catalog" className="bg-white border border-slate-200 hover:border-primary hover:text-primary text-slate-700 font-medium px-8 py-3 rounded-full transition-all shadow-sm">
+                View All Equipment
+              </Link>
+            </div>
+          )}
         </div>
       </section>
+
+      {/* FOOTER INFO SECTION */}
+      <section className="bg-slate-900 text-white py-12 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-8 text-sm text-slate-400 font-medium tracking-wide">
+            <span className="flex items-center gap-2"><Lock className="w-5 h-5 text-emerald-400" /> Contact details strictly protected</span>
+            <span className="hidden md:block text-slate-700">•</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-blue-400" /> Every listing manually verified</span>
+          </div>
+          <p className="mt-8 text-slate-500 text-xs">
+            © {new Date().getFullYear()} AeroTrade. The private global exchange for lighter-than-air aviation.
+          </p>
+        </div>
+      </section>
+
     </div>
   );
 }
