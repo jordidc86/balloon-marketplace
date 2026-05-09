@@ -10,9 +10,30 @@ interface ListingForExport {
   title: string
   price: number
   currency: string
-  details?: any
+  details?: {
+    hours?: string | number
+  }
   condition?: string
-  images?: { url: string }[]
+  images?: { url: string; is_primary?: boolean }[]
+}
+
+const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=2000&auto=format&fit=crop'
+
+const waitForImage = (src: string) =>
+  new Promise<void>((resolve) => {
+    const image = new Image()
+    image.crossOrigin = 'anonymous'
+    image.onload = () => resolve()
+    image.onerror = () => resolve()
+    image.src = src
+  })
+
+const getExportImageUrl = (url: string) => {
+  if (!url.startsWith('http')) {
+    return url
+  }
+
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
 export default function ExportInstagramButton({ listing }: { listing: ListingForExport }) {
@@ -24,17 +45,13 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
     setIsExporting(true)
     
     try {
-      // Small timeout to ensure fonts/images block is parsed
-      await new Promise(res => setTimeout(res, 300))
+      await waitForImage(exportImage)
       
       const dataUrl = await toPng(nodeRef.current, {
         cacheBust: true,
         width: 1080,
         height: 1080,
-        pixelRatio: 1, // Standard for 1080px export
-        style: {
-          display: 'flex', // override the hidden display during render
-        }
+        pixelRatio: 1,
       })
       
       const link = document.createElement('a')
@@ -49,9 +66,9 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
     }
   }
 
-  const bgImage = listing.images && listing.images.length > 0 
-    ? listing.images[0].url 
-    : 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=2000&auto=format&fit=crop'
+  const primaryImage = listing.images?.find((image) => image.is_primary)
+  const bgImage = primaryImage?.url || listing.images?.[0]?.url || fallbackImageUrl
+  const exportImage = getExportImageUrl(bgImage)
   
   const displayHours = listing.details?.hours || 'N/A'
   const displayCondition = listing.condition || 'Used'
@@ -67,22 +84,21 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
         {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Instagram className="w-4 h-4" />}
       </button>
 
-      {/* Hidden 1080x1080 Template */}
+      {/* Off-screen 1080x1080 Template */}
       <div 
-        className="fixed top-0 left-0 pointer-events-none -z-50 opacity-0 overflow-hidden" 
+        className="fixed top-0 -left-[2000px] pointer-events-none overflow-hidden" 
         style={{ width: '1080px', height: '1080px' }}
+        aria-hidden="true"
       >
         <div 
           ref={nodeRef} 
           className="relative w-[1080px] h-[1080px] bg-slate-900 flex flex-col items-center justify-center p-12 overflow-hidden font-sans"
-          style={{ display: 'none' }} // to-png forces style display block overrides via opts
         >
-          {/* Background Image with slight dark overlay */}
-          <div 
-            className="absolute inset-0 z-0 bg-cover bg-center"
-            style={{ 
-              backgroundImage: `url(${bgImage})`,
-            }}
+          <img
+            src={exportImage}
+            alt=""
+            crossOrigin="anonymous"
+            className="absolute inset-0 z-0 h-full w-full object-cover"
           />
           <div className="absolute inset-0 z-0 bg-black/30" />
 
