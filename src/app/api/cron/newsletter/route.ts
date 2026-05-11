@@ -104,6 +104,7 @@ export async function GET(request: Request) {
     const dryRun = url.searchParams.get('dryRun') === 'true';
     const testEmail = url.searchParams.get('testEmail');
     const daysParam = url.searchParams.get('days');
+    const mixWithLatest = url.searchParams.get('mix') === 'true';
 
     // 1. Verify Vercel CRON Secret
     const authHeader = request.headers.get('authorization');
@@ -143,13 +144,14 @@ export async function GET(request: Request) {
 
     // 3. Fetch latest public listings. Optionally restrict with ?days=15, ?days=30, etc.
 
-    let listingsQuery = supabase
+    const baseListingsQuery = () => supabase
       .from('listings')
       .select('*, images(url, is_primary)')
       .eq('status', 'ACTIVE_PUBLIC')
       .lte('public_at', now)
-      .order('created_at', { ascending: false })
-      .limit(10); // Keep email size reasonable
+      .order('created_at', { ascending: false });
+
+    let listingsQuery = baseListingsQuery().limit(10); // Keep email size reasonable
 
     if (days && Number.isFinite(days) && days > 0) {
       const since = new Date();
@@ -157,11 +159,29 @@ export async function GET(request: Request) {
       listingsQuery = listingsQuery.gte('created_at', since.toISOString());
     }
 
-    const { data: recentListings, error: listingsError } = await listingsQuery;
+    const { data: primaryListings, error: listingsError } = await listingsQuery;
 
     if (listingsError) {
       console.error('Error fetching listings:', listingsError);
       return new NextResponse('Error fetching listings', { status: 500 });
+    }
+
+    let recentListings = (primaryListings || []) as NewsletterListing[];
+    const primaryListingCount = recentListings.length;
+
+    if (mixWithLatest && recentListings.length < 10) {
+      const existingIds = new Set(recentListings.map((listing) => listing.id));
+      const { data: fallbackListings, error: fallbackError } = await baseListingsQuery().limit(10);
+
+      if (fallbackError) {
+        console.error('Error fetching fallback listings:', fallbackError);
+        return new NextResponse('Error fetching fallback listings', { status: 500 });
+      }
+
+      const fallbackMix = ((fallbackListings || []) as NewsletterListing[])
+        .filter((listing) => !existingIds.has(listing.id));
+
+      recentListings = [...recentListings, ...fallbackMix].slice(0, 10);
     }
 
     if (!recentListings || recentListings.length === 0) {
@@ -192,8 +212,10 @@ export async function GET(request: Request) {
         dryRun: true,
         recipients: recipientEmails.length,
         daysFilter: days,
+        mixWithLatest,
+        primaryListingCount,
         upgradedExpiredPremiumListings: upgradedListings?.length || 0,
-        listings: (recentListings as NewsletterListing[]).map(listing => ({
+        listings: recentListings.map(listing => ({
           id: listing.id,
           title: listing.title,
           imageUrl: getPrimaryImageUrl(listing),
