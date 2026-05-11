@@ -17,14 +17,23 @@ interface ListingForExport {
   images?: { url: string; is_primary?: boolean }[]
 }
 
-const waitForImage = (src: string) =>
+const waitForDomImage = (image: HTMLImageElement, src: string) =>
   new Promise<void>((resolve) => {
-    const image = new Image()
-    image.crossOrigin = 'anonymous'
-    image.onload = () => resolve()
-    image.onerror = () => resolve()
+    const finish = () => resolve()
+
+    image.onload = finish
+    image.onerror = finish
     image.src = src
+
+    if (image.complete && image.naturalWidth > 0) {
+      resolve()
+    }
   })
+
+const addCacheBuster = (url: string) => {
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}t=${Date.now()}`
+}
 
 const getExportImageUrl = (url: string, listingId: string) => {
   if (!url.startsWith('http')) {
@@ -37,16 +46,18 @@ const getExportImageUrl = (url: string, listingId: string) => {
 export default function ExportInstagramButton({ listing }: { listing: ListingForExport }) {
   const [isExporting, setIsExporting] = useState(false)
   const nodeRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
 
   const handleExport = async () => {
-    if (!nodeRef.current || !exportImage) return
+    if (!nodeRef.current || !imageRef.current || !exportImage) return
     setIsExporting(true)
     
     try {
-      await waitForImage(exportImage)
+      const freshExportImage = addCacheBuster(exportImage)
+      await waitForDomImage(imageRef.current, freshExportImage)
       
       const dataUrl = await toPng(nodeRef.current, {
-        cacheBust: true,
+        cacheBust: false,
         width: 1080,
         height: 1080,
         pixelRatio: 1,
@@ -93,6 +104,7 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
           className="relative w-[1080px] h-[1080px] bg-slate-900 flex flex-col items-center justify-center p-12 overflow-hidden font-sans"
         >
           <img
+            ref={imageRef}
             src={exportImage || ''}
             alt=""
             crossOrigin="anonymous"
