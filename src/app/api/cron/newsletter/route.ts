@@ -125,9 +125,23 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 2. Fetch latest public listings. Optionally restrict with ?days=15, ?days=30, etc.
+    // 2. Make expired Premium-window listings public before building the newsletter.
     const now = new Date().toISOString();
     const days = daysParam ? Number(daysParam) : null;
+
+    const { data: upgradedListings, error: upgradeError } = await supabase
+      .from('listings')
+      .update({ status: 'ACTIVE_PUBLIC' })
+      .eq('status', 'ACTIVE_PREMIUM')
+      .lte('public_at', now)
+      .select('id, title');
+
+    if (upgradeError) {
+      console.error('Error upgrading premium listings before newsletter:', upgradeError);
+      return new NextResponse('Error upgrading listings', { status: 500 });
+    }
+
+    // 3. Fetch latest public listings. Optionally restrict with ?days=15, ?days=30, etc.
 
     let listingsQuery = supabase
       .from('listings')
@@ -154,7 +168,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'No public listings. Skip sending email.' });
     }
 
-    // 3. Fetch subscriber emails
+    // 4. Fetch subscriber emails
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('email');
@@ -178,6 +192,7 @@ export async function GET(request: Request) {
         dryRun: true,
         recipients: recipientEmails.length,
         daysFilter: days,
+        upgradedExpiredPremiumListings: upgradedListings?.length || 0,
         listings: (recentListings as NewsletterListing[]).map(listing => ({
           id: listing.id,
           title: listing.title,
@@ -186,7 +201,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // 4. Generate HTML and dispatch
+    // 5. Generate HTML and dispatch
     const htmlBody = generateNewsletterHtml(recentListings);
     
     // Prepare emails for batch sending
