@@ -1,25 +1,58 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendEmail } from '@/utils/resend';
+
+type NewsletterImage = {
+  url: string
+  is_primary?: boolean
+}
+
+type NewsletterListing = {
+  id: string
+  title: string
+  price: number
+  currency: string
+  location_country: string
+  condition: string
+  images?: NewsletterImage[]
+}
+
+type NewsletterUser = {
+  email: string | null
+}
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://aerotrade.app';
+const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
+
+const escapeHtml = (value: unknown) =>
+  String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+
+const getPrimaryImageUrl = (listing: NewsletterListing) => {
+  const primaryImage = listing.images?.find((image) => image.is_primary);
+  return primaryImage?.url || listing.images?.[0]?.url || fallbackImageUrl;
+};
 
 // Helper to generate the HTML for the email
-const generateNewsletterHtml = (listings: any[]) => {
+const generateNewsletterHtml = (listings: NewsletterListing[]) => {
   const listingsHtml = listings.map(listing => {
-    const imageUrl = listing.images && listing.images[0]?.url 
-      ? listing.images[0].url 
-      : 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
+    const imageUrl = getPrimaryImageUrl(listing);
+    const listingUrl = `${siteUrl}/catalog/${listing.id}`;
     
     return `
       <div style="margin-bottom: 32px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; font-family: sans-serif;">
-        <img src="${imageUrl}" style="width: 100%; height: 250px; object-fit: cover;" alt="${listing.title}" />
+        <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 250px; object-fit: cover;" alt="${escapeHtml(listing.title)}" />
         <div style="padding: 24px;">
-          <h2 style="margin: 0 0 8px 0; font-size: 20px; color: #0f172a;">${listing.title}</h2>
-          <p style="margin: 0 0 16px 0; font-size: 24px; font-weight: bold; color: #2563eb;">${listing.price} ${listing.currency}</p>
+          <h2 style="margin: 0 0 8px 0; font-size: 20px; color: #0f172a;">${escapeHtml(listing.title)}</h2>
+          <p style="margin: 0 0 16px 0; font-size: 24px; font-weight: bold; color: #2563eb;">${Number(listing.price).toLocaleString()} ${escapeHtml(listing.currency)}</p>
           <div style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
-            <p style="margin: 0 0 4px 0;">📍 Location: ${listing.location_country}</p>
-            <p style="margin: 0;">✨ Condition: ${listing.condition}</p>
+            <p style="margin: 0 0 4px 0;">Location: ${escapeHtml(listing.location_country)}</p>
+            <p style="margin: 0;">Condition: ${escapeHtml(listing.condition)}</p>
           </div>
-          <a href="https://aerotrade.app/catalog/${listing.id}" style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">View Listing</a>
+          <a href="${escapeHtml(listingUrl)}" style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">View Listing</a>
         </div>
       </div>
     `;
@@ -35,10 +68,10 @@ const generateNewsletterHtml = (listings: any[]) => {
           </div>
           
           <p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 32px;">
-            Welcome to the first AeroTrade newsletter! We are excited to have you as part of our growing ballooning community.
+            Here are the latest hot air balloons and equipment currently available on AeroTrade.
           </p>
           <p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 32px;">
-            Here are the latest hot air balloons and equipment currently available in the marketplace. Don't miss out on these great deals!
+            These public listings are ready to view now.
           </p>
 
           ${listingsHtml}
@@ -59,6 +92,10 @@ const generateNewsletterHtml = (listings: any[]) => {
 
 export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const dryRun = url.searchParams.get('dryRun') === 'true';
+    const testEmail = url.searchParams.get('testEmail');
+
     // 1. Verify Vercel CRON Secret
     const authHeader = request.headers.get('authorization');
     if (
@@ -79,14 +116,16 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 2. Fetch Listings from the last 15 days
+    // 2. Fetch public listings from the last 15 days
     const fifteenDaysAgo = new Date();
     fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15); 
+    const now = new Date().toISOString();
 
     const { data: recentListings, error: listingsError } = await supabase
       .from('listings')
       .select('*, images(url, is_primary)')
-      .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+      .eq('status', 'ACTIVE_PUBLIC')
+      .lte('public_at', now)
       .gte('created_at', fifteenDaysAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(10); // Keep email size reasonable
@@ -100,8 +139,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'No recent listings. Skip sending email.' });
     }
 
-    // 3. Fetch Subscriber Emails
-    // We assume public.users table contains the emails
+    // 3. Fetch subscriber emails
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('email');
@@ -115,15 +153,31 @@ export async function GET(request: Request) {
        return NextResponse.json({ message: 'No users to send email to.' });
     }
 
-    // 4. Generate HTML and Dispatch
+    const recipientEmails = testEmail
+      ? [testEmail]
+      : Array.from(new Set((users as NewsletterUser[]).map(user => user.email).filter(Boolean))) as string[];
+
+    if (dryRun) {
+      return NextResponse.json({
+        success: true,
+        dryRun: true,
+        recipients: recipientEmails.length,
+        listings: (recentListings as NewsletterListing[]).map(listing => ({
+          id: listing.id,
+          title: listing.title,
+          imageUrl: getPrimaryImageUrl(listing),
+        })),
+      });
+    }
+
+    // 4. Generate HTML and dispatch
     const htmlBody = generateNewsletterHtml(recentListings);
     
     // Prepare emails for batch sending
-    const emailBatch = users
-      .filter(user => user.email)
-      .map(user => ({
-        to: user.email,
-        subject: '🔥 New Hot Air Balloons on AeroTrade - Bi-Weekly Update',
+    const emailBatch = recipientEmails
+      .map(email => ({
+        to: email,
+        subject: 'New Hot Air Balloons on AeroTrade - Bi-Weekly Update',
         html: htmlBody
       }));
 
