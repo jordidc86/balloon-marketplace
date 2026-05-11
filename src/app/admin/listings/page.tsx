@@ -12,7 +12,7 @@ export default async function AdminListingsPage() {
 
   const { data: listings, error } = await supabase
     .from('listings')
-    .select('*, users(email), images(url)')
+    .select('*, users(email), images(url, is_primary, created_at)')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -62,7 +62,16 @@ export default async function AdminListingsPage() {
                        <Link href={`/catalog/${l.id}`} target="_blank" className="p-2 bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors" title="View Listing">
                          <Eye className="w-4 h-4" />
                        </Link>
-                       <ExportInstagramButton listing={l as any} />
+                       <ExportInstagramButton
+                         listing={{
+                           ...(l as any),
+                           images: ((l.images as any[]) || []).sort((a, b) => {
+                             if (a.is_primary && !b.is_primary) return -1
+                             if (!a.is_primary && b.is_primary) return 1
+                             return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+                           }),
+                         }}
+                       />
                        {l.status === 'DRAFT' && (
                          <form action={async () => {
                            'use server'

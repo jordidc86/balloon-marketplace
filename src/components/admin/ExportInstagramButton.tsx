@@ -17,8 +17,6 @@ interface ListingForExport {
   images?: { url: string; is_primary?: boolean }[]
 }
 
-const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=2000&auto=format&fit=crop'
-
 const waitForImage = (src: string) =>
   new Promise<void>((resolve) => {
     const image = new Image()
@@ -41,7 +39,7 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
   const nodeRef = useRef<HTMLDivElement>(null)
 
   const handleExport = async () => {
-    if (!nodeRef.current) return
+    if (!nodeRef.current || !exportImage) return
     setIsExporting(true)
     
     try {
@@ -67,8 +65,8 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
   }
 
   const primaryImage = listing.images?.find((image) => image.is_primary)
-  const bgImage = primaryImage?.url || listing.images?.[0]?.url || fallbackImageUrl
-  const exportImage = getExportImageUrl(bgImage)
+  const bgImage = primaryImage?.url || listing.images?.[0]?.url
+  const exportImage = bgImage ? getExportImageUrl(bgImage) : null
   
   const displayHours = listing.details?.hours || 'N/A'
   const displayCondition = listing.condition || 'Used'
@@ -77,9 +75,9 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
     <>
       <button 
         onClick={handleExport}
-        disabled={isExporting}
+        disabled={isExporting || !exportImage}
         className="p-2 bg-pink-500/10 text-pink-600 hover:bg-pink-500/20 rounded-lg transition-colors flex items-center gap-1.5 font-semibold text-xs disabled:opacity-50" 
-        title="Export for Instagram (1080x1080)"
+        title={exportImage ? 'Export for Instagram (1080x1080)' : 'No cover image found for this listing'}
       >
         {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Instagram className="w-4 h-4" />}
       </button>
@@ -95,7 +93,7 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
           className="relative w-[1080px] h-[1080px] bg-slate-900 flex flex-col items-center justify-center p-12 overflow-hidden font-sans"
         >
           <img
-            src={exportImage}
+            src={exportImage || ''}
             alt=""
             crossOrigin="anonymous"
             className="absolute inset-0 z-0 h-full w-full object-cover"

@@ -62,6 +62,27 @@ export async function submitListing(formData: FormData) {
     throw new Error('Could not create listing')
   }
 
+  const imageUrlsJson = formData.get('image_urls') as string | null
+  if (imageUrlsJson) {
+    const imageUrls = JSON.parse(imageUrlsJson) as string[]
+    const inserts = imageUrls
+      .filter(Boolean)
+      .map((url, index) => ({
+        listing_id: listing.id,
+        url,
+        is_primary: index === 0,
+      }))
+
+    if (inserts.length > 0) {
+      const { error: imageError } = await supabase.from('images').insert(inserts)
+
+      if (imageError) {
+        console.error("Error saving listing images:", imageError)
+        throw new Error('Could not save listing images')
+      }
+    }
+  }
+
   try {
     await sendEmail(
       'jordi.diaz.casaubon@gmail.com',
