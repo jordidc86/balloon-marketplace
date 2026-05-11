@@ -36,6 +36,14 @@ const getPrimaryImageUrl = (listing: NewsletterListing) => {
   return primaryImage?.url || listing.images?.[0]?.url || fallbackImageUrl;
 };
 
+const formatListingPrice = (listing: NewsletterListing) => {
+  if (Number(listing.price) === 0) {
+    return 'Price on request';
+  }
+
+  return `${Number(listing.price).toLocaleString()} ${listing.currency}`;
+};
+
 // Helper to generate the HTML for the email
 const generateNewsletterHtml = (listings: NewsletterListing[]) => {
   const listingsHtml = listings.map(listing => {
@@ -47,7 +55,7 @@ const generateNewsletterHtml = (listings: NewsletterListing[]) => {
         <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 250px; object-fit: cover;" alt="${escapeHtml(listing.title)}" />
         <div style="padding: 24px;">
           <h2 style="margin: 0 0 8px 0; font-size: 20px; color: #0f172a;">${escapeHtml(listing.title)}</h2>
-          <p style="margin: 0 0 16px 0; font-size: 24px; font-weight: bold; color: #2563eb;">${Number(listing.price).toLocaleString()} ${escapeHtml(listing.currency)}</p>
+          <p style="margin: 0 0 16px 0; font-size: 24px; font-weight: bold; color: #2563eb;">${escapeHtml(formatListingPrice(listing))}</p>
           <div style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
             <p style="margin: 0 0 4px 0;">Location: ${escapeHtml(listing.location_country)}</p>
             <p style="margin: 0;">Condition: ${escapeHtml(listing.condition)}</p>
