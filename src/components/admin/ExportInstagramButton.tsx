@@ -26,12 +26,12 @@ const waitForImage = (src: string) =>
     image.src = src
   })
 
-const getExportImageUrl = (url: string) => {
+const getExportImageUrl = (url: string, listingId: string) => {
   if (!url.startsWith('http')) {
     return url
   }
 
-  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+  return `/api/image-proxy?listing=${encodeURIComponent(listingId)}&url=${encodeURIComponent(url)}`
 }
 
 export default function ExportInstagramButton({ listing }: { listing: ListingForExport }) {
@@ -66,7 +66,7 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
 
   const primaryImage = listing.images?.find((image) => image.is_primary)
   const bgImage = primaryImage?.url || listing.images?.[0]?.url
-  const exportImage = bgImage ? getExportImageUrl(bgImage) : null
+  const exportImage = bgImage ? getExportImageUrl(bgImage, listing.id) : null
   
   const displayHours = listing.details?.hours || 'N/A'
   const displayCondition = listing.condition || 'Used'

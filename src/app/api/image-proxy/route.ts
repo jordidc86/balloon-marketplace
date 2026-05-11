@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const maxImageBytes = 10 * 1024 * 1024
 
 export async function GET(request: NextRequest) {
@@ -22,6 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   const imageResponse = await fetch(parsedUrl, {
+    cache: 'no-store',
     headers: {
       Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
     },
@@ -51,7 +55,9 @@ export async function GET(request: NextRequest) {
   return new NextResponse(imageBuffer, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=86400',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      Pragma: 'no-cache',
+      Expires: '0',
     },
   })
 }
