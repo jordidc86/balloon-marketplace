@@ -103,6 +103,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const dryRun = url.searchParams.get('dryRun') === 'true';
     const testEmail = url.searchParams.get('testEmail');
+    const daysParam = url.searchParams.get('days');
 
     // 1. Verify Vercel CRON Secret
     const authHeader = request.headers.get('authorization');
@@ -124,19 +125,25 @@ export async function GET(request: Request) {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 2. Fetch public listings from the last 15 days
-    const fifteenDaysAgo = new Date();
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15); 
+    // 2. Fetch latest public listings. Optionally restrict with ?days=15, ?days=30, etc.
     const now = new Date().toISOString();
+    const days = daysParam ? Number(daysParam) : null;
 
-    const { data: recentListings, error: listingsError } = await supabase
+    let listingsQuery = supabase
       .from('listings')
       .select('*, images(url, is_primary)')
       .eq('status', 'ACTIVE_PUBLIC')
       .lte('public_at', now)
-      .gte('created_at', fifteenDaysAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(10); // Keep email size reasonable
+
+    if (days && Number.isFinite(days) && days > 0) {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      listingsQuery = listingsQuery.gte('created_at', since.toISOString());
+    }
+
+    const { data: recentListings, error: listingsError } = await listingsQuery;
 
     if (listingsError) {
       console.error('Error fetching listings:', listingsError);
@@ -144,7 +151,7 @@ export async function GET(request: Request) {
     }
 
     if (!recentListings || recentListings.length === 0) {
-      return NextResponse.json({ message: 'No recent listings. Skip sending email.' });
+      return NextResponse.json({ message: 'No public listings. Skip sending email.' });
     }
 
     // 3. Fetch subscriber emails
@@ -170,6 +177,7 @@ export async function GET(request: Request) {
         success: true,
         dryRun: true,
         recipients: recipientEmails.length,
+        daysFilter: days,
         listings: (recentListings as NewsletterListing[]).map(listing => ({
           id: listing.id,
           title: listing.title,
