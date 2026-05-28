@@ -1,0 +1,3 @@
+-- Baseline placeholder for a migration that already exists in the remote
+-- Supabase migration history. Keep this file so local migration history
+-- remains aligned with production.

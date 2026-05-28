@@ -55,7 +55,12 @@ export default async function AdminUsersPage() {
                   </td>
                   <td className="px-6 py-4">
                     {u.is_premium ? (
-                      <span className="flex items-center gap-1.5 text-accent font-semibold"><Star className="w-4 h-4" /> Active</span>
+                      <div className="space-y-1">
+                        <span className="flex items-center gap-1.5 text-accent font-semibold"><Star className="w-4 h-4" /> Active</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {u.premium_source === 'stripe' ? 'Stripe paid' : u.premium_source === 'admin' ? 'Admin grant' : 'Legacy/manual'}
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-muted-foreground">Basic</span>
                     )}
@@ -65,10 +70,10 @@ export default async function AdminUsersPage() {
                       'use server'
                       await togglePremiumStatus(u.id, u.is_premium)
                     }}>
-                      <button 
+                      <button
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                          u.is_premium 
-                            ? 'bg-destructive/10 text-destructive hover:bg-destructive/20' 
+                          u.is_premium
+                            ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
                             : 'bg-primary text-primary-foreground hover:bg-primary/90'
                         }`}
                       >
