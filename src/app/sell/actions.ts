@@ -1,8 +1,9 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { sendEmail } from '@/utils/resend'
+import { sendPremiumListingAlert } from '@/utils/premium-alerts'
 // Note: Stripe will be integrated here later for the 5 EUR checkout
 
 export async function submitListing(formData: FormData) {
@@ -17,21 +18,25 @@ export async function submitListing(formData: FormData) {
   const isPremium = profile?.is_premium || false
 
   const category = formData.get('category') as string
-  const details: any = {}
+  const getTextValue = (name: string) => {
+    const value = formData.get(name)
+    return typeof value === 'string' ? value : null
+  }
+  const details: Record<string, string | null> = {}
   
   // Extract common details based on category
   if (['complete', 'envelopes'].includes(category)) {
-    details.manufacturer = formData.get('manufacturer')
-    details.model = formData.get('model')
-    details.year = formData.get('year')
-    details.hours = formData.get('hours')
-    details.registration = formData.get('registration')
-    details.serial = formData.get('serial')
+    details.manufacturer = getTextValue('manufacturer')
+    details.model = getTextValue('model')
+    details.year = getTextValue('year')
+    details.hours = getTextValue('hours')
+    details.registration = getTextValue('registration')
+    details.serial = getTextValue('serial')
   }
 
   if (category === 'baskets' || category === 'burners') {
-    details.dimensions = formData.get('dimensions')
-    details.type = formData.get('type') // burner type
+    details.dimensions = getTextValue('dimensions')
+    details.type = getTextValue('type') // burner type
   }
 
   // Generate a random ID for the listing
@@ -100,6 +105,14 @@ export async function submitListing(formData: FormData) {
   }
 
   if (isPremium) {
+    try {
+      const adminSupabase = await createAdminClient()
+      const alertResult = await sendPremiumListingAlert(adminSupabase, listing.id)
+      console.log('Premium listing alert sent after direct premium listing creation:', alertResult)
+    } catch (err) {
+      console.error('Failed to send premium listing alert after direct creation:', err)
+    }
+
     // Skip Stripe and redirect directly to success for Premium users
     const headersList = await import('next/headers').then(m => m.headers())
     const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'

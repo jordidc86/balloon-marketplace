@@ -1,4 +1,4 @@
-export default async () => {
+const newsletterScheduled = async () => {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || 'https://aerotrade.app'
   const cronSecret = process.env.CRON_SECRET
 
@@ -24,6 +24,4 @@ export default async () => {
   return new Response(body)
 }
 
-export const config = {
-  schedule: '0 9 1,16 * *',
-}
+export default newsletterScheduled

@@ -22,6 +22,7 @@ type NewsletterUser = {
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://aerotrade.app';
 const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const escapeHtml = (value: unknown) =>
   String(value ?? '')
@@ -42,6 +43,20 @@ const formatListingPrice = (listing: NewsletterListing) => {
   }
 
   return `${Number(listing.price).toLocaleString()} ${listing.currency}`;
+};
+
+const parseDaysFilter = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const days = Number(value);
+  return Number.isFinite(days) && days > 0 ? days : null;
+};
+
+const normalizeEmail = (email: string | null) => {
+  const normalizedEmail = email?.trim().toLowerCase();
+  return normalizedEmail && emailPattern.test(normalizedEmail) ? normalizedEmail : null;
 };
 
 // Helper to generate the HTML for the email
@@ -103,11 +118,16 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const dryRun = url.searchParams.get('dryRun') === 'true';
     const testEmail = url.searchParams.get('testEmail');
-    const daysParam = url.searchParams.get('days');
+    const days = parseDaysFilter(url.searchParams.get('days'));
     const mixWithLatest = url.searchParams.get('mix') === 'true';
 
-    // 1. Verify Vercel CRON Secret
+    // 1. Verify cron secret
     const authHeader = request.headers.get('authorization');
+    if (process.env.NODE_ENV === 'production' && !process.env.CRON_SECRET) {
+      console.error('CRON_SECRET is missing; newsletter cron cannot authenticate requests.');
+      return new NextResponse('Server configuration error', { status: 500 });
+    }
+
     if (
       process.env.NODE_ENV === 'production' && 
       authHeader !== `Bearer ${process.env.CRON_SECRET}`
@@ -128,7 +148,6 @@ export async function GET(request: Request) {
 
     // 2. Make expired Premium-window listings public before building the newsletter.
     const now = new Date().toISOString();
-    const days = daysParam ? Number(daysParam) : null;
 
     const { data: upgradedListings, error: upgradeError } = await supabase
       .from('listings')
@@ -203,14 +222,30 @@ export async function GET(request: Request) {
     }
 
     const recipientEmails = testEmail
-      ? [testEmail]
-      : Array.from(new Set((users as NewsletterUser[]).map(user => user.email).filter(Boolean))) as string[];
+      ? [normalizeEmail(testEmail)].filter(Boolean) as string[]
+      : Array.from(new Set(
+          (users as NewsletterUser[])
+            .map(user => normalizeEmail(user.email))
+            .filter(Boolean)
+        )) as string[];
+
+    const skippedInvalidRecipients = testEmail
+      ? Number(recipientEmails.length === 0)
+      : users.length - recipientEmails.length;
+
+    if (recipientEmails.length === 0) {
+      return NextResponse.json({
+        message: 'No valid recipient emails to send newsletter to.',
+        skippedInvalidRecipients,
+      });
+    }
 
     if (dryRun) {
       return NextResponse.json({
         success: true,
         dryRun: true,
         recipients: recipientEmails.length,
+        skippedInvalidRecipients,
         daysFilter: days,
         mixWithLatest,
         primaryListingCount,
@@ -235,6 +270,7 @@ export async function GET(request: Request) {
       }));
 
     let sentCount = 0;
+    let failedCount = 0;
     
     if (emailBatch.length > 0) {
       // Import sendEmailBatch from our resend utility
@@ -242,7 +278,8 @@ export async function GET(request: Request) {
       
       const result = await sendEmailBatch(emailBatch);
       if (result.success) {
-        sentCount = emailBatch.length;
+        sentCount = result.sentCount ?? emailBatch.length;
+        failedCount = result.failedCount ?? 0;
       } else {
         console.error('Failed to send newsletter batch', result.error);
         return new NextResponse('Error sending newsletter batch', { status: 500 });
@@ -251,7 +288,13 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Newsletter sent to ${sentCount} users detailing ${recentListings.length} listings.` 
+      message: `Newsletter sent to ${sentCount} users detailing ${recentListings.length} listings.`,
+      recipients: recipientEmails.length,
+      sentCount,
+      failedCount,
+      skippedInvalidRecipients,
+      listings: recentListings.length,
+      upgradedExpiredPremiumListings: upgradedListings?.length || 0,
     });
 
   } catch (error) {
