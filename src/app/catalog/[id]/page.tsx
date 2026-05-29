@@ -1,7 +1,7 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
-import { Lock, MapPin, Tag, Calendar, Activity, CheckCircle2 } from 'lucide-react'
+import { Lock, MapPin, Calendar, Activity, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import ContactSeller from './ContactSeller'
 import { Metadata } from 'next'
@@ -102,9 +102,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Left: Images */}
-        <div className="space-y-4">
+        <div className="space-y-4 order-2 lg:order-1">
           <div className="relative aspect-video sm:aspect-square lg:aspect-[4/3] bg-muted rounded-2xl overflow-hidden border">
             {images.length > 0 ? (
               <img 
@@ -146,7 +146,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Right: Details */}
-        <div className="flex flex-col">
+        <div className="flex flex-col order-1 lg:order-2">
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground bg-muted px-3 py-1 rounded-full">{listing.category}</span>
