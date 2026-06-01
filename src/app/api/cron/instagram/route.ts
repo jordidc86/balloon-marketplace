@@ -5,7 +5,14 @@ import { sendEmail } from '@/utils/resend';
 export async function GET(request: Request) {
   try {
     // 1. Verify Vercel/Netlify CRON Secret
+    const requestUrl = new URL(request.url);
+    const dryRun = requestUrl.searchParams.get('dryRun') === '1' || requestUrl.searchParams.get('dryRun') === 'true';
     const authHeader = request.headers.get('authorization');
+    if (process.env.NODE_ENV === 'production' && !process.env.CRON_SECRET) {
+      console.error('CRON_SECRET is missing; Instagram cron cannot authenticate requests.');
+      return new NextResponse('Server configuration error', { status: 500 });
+    }
+
     if (
       process.env.NODE_ENV === 'production' && 
       authHeader !== `Bearer ${process.env.CRON_SECRET}`
@@ -27,12 +34,20 @@ export async function GET(request: Request) {
     const now = new Date().toISOString();
     
     // First, upgrade ACTIVE_PREMIUM to ACTIVE_PUBLIC if 48h has passed
-    const { data: upgradedListings, error: upgradeError } = await supabase
+    const expiredPremiumQuery = () => supabase
       .from('listings')
-      .update({ status: 'ACTIVE_PUBLIC' })
+      .select('id')
       .eq('status', 'ACTIVE_PREMIUM')
-      .lte('public_at', now)
-      .select('id');
+      .lte('public_at', now);
+
+    const { data: upgradedListings, error: upgradeError } = dryRun
+      ? await expiredPremiumQuery()
+      : await supabase
+        .from('listings')
+        .update({ status: 'ACTIVE_PUBLIC' })
+        .eq('status', 'ACTIVE_PREMIUM')
+        .lte('public_at', now)
+        .select('id');
       
     if (upgradeError) {
       console.error('Error upgrading premium listings to public:', upgradeError);
@@ -56,7 +71,29 @@ export async function GET(request: Request) {
     }
 
     if (!listingsForIg || listingsForIg.length === 0) {
-      return NextResponse.json({ message: 'No listings require Instagram publication at this time.' });
+      return NextResponse.json({
+        success: true,
+        dryRun,
+        message: 'No listings require Instagram publication at this time.',
+        upgradedExpiredPremiumListings: dryRun ? 0 : upgradedListings?.length || 0,
+        wouldUpgradeExpiredPremiumListings: dryRun ? upgradedListings?.length || 0 : 0,
+        candidates: [],
+      });
+    }
+
+    if (dryRun) {
+      return NextResponse.json({
+        success: true,
+        dryRun: true,
+        message: `Dry run found ${listingsForIg.length} listings ready for Instagram reminder.`,
+        upgradedExpiredPremiumListings: 0,
+        wouldUpgradeExpiredPremiumListings: upgradedListings?.length || 0,
+        candidates: listingsForIg.map(listing => ({
+          id: listing.id,
+          title: listing.title,
+          public_at: listing.public_at,
+        })),
+      });
     }
 
     let processedCount = 0;

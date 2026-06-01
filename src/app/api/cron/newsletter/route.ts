@@ -149,12 +149,20 @@ export async function GET(request: Request) {
     // 2. Make expired Premium-window listings public before building the newsletter.
     const now = new Date().toISOString();
 
-    const { data: upgradedListings, error: upgradeError } = await supabase
+    const expiredPremiumQuery = () => supabase
       .from('listings')
-      .update({ status: 'ACTIVE_PUBLIC' })
+      .select('id, title')
       .eq('status', 'ACTIVE_PREMIUM')
-      .lte('public_at', now)
-      .select('id, title');
+      .lte('public_at', now);
+
+    const { data: upgradedListings, error: upgradeError } = dryRun
+      ? await expiredPremiumQuery()
+      : await supabase
+        .from('listings')
+        .update({ status: 'ACTIVE_PUBLIC' })
+        .eq('status', 'ACTIVE_PREMIUM')
+        .lte('public_at', now)
+        .select('id, title');
 
     if (upgradeError) {
       console.error('Error upgrading premium listings before newsletter:', upgradeError);
@@ -249,7 +257,8 @@ export async function GET(request: Request) {
         daysFilter: days,
         mixWithLatest,
         primaryListingCount,
-        upgradedExpiredPremiumListings: upgradedListings?.length || 0,
+        upgradedExpiredPremiumListings: 0,
+        wouldUpgradeExpiredPremiumListings: upgradedListings?.length || 0,
         listings: recentListings.map(listing => ({
           id: listing.id,
           title: listing.title,

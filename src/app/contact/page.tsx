@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { Mail, MessageCircle, Clock } from 'lucide-react'
+import { supportEmail } from '@/utils/site'
 
 export const metadata: Metadata = {
   title: 'Contact Us | AeroTrade Marketplace',
@@ -11,7 +12,7 @@ export default function ContactPage() {
     <div className="max-w-4xl mx-auto px-4 py-16 sm:py-24">
       <div className="text-center mb-16">
         <h1 className="text-4xl font-extrabold tracking-tight mb-4">Contact AeroTrade</h1>
-        <p className="text-xl text-muted-foreground">We're here to help keep you flying.</p>
+        <p className="text-xl text-muted-foreground">We are here to help keep you flying.</p>
       </div>
       
       <div className="grid md:grid-cols-2 gap-12">
@@ -24,8 +25,8 @@ export default function ContactPage() {
             <p className="text-muted-foreground mb-4">
               For questions about the platform, feedback, or general support, reach out to us via email.
             </p>
-            <a href="mailto:support@aerotrade.example.com" className="font-semibold text-foreground hover:text-primary transition-colors">
-              support@aerotrade.example.com
+            <a href={`mailto:${supportEmail}`} className="font-semibold text-foreground hover:text-primary transition-colors">
+              {supportEmail}
             </a>
           </div>
 
@@ -42,38 +43,17 @@ export default function ContactPage() {
           </div>
         </div>
 
-        {/* Contact Form */}
         <div className="bg-card border p-8 rounded-2xl shadow-sm">
-          <h2 className="text-2xl font-bold mb-6">Send a Message</h2>
-          <form className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground">Name</label>
-              <input type="text" className="w-full px-3 py-2 border rounded-lg bg-input/50 focus:ring-2 focus:ring-primary focus:outline-none" placeholder="Your Name" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground">Email</label>
-              <input type="email" className="w-full px-3 py-2 border rounded-lg bg-input/50 focus:ring-2 focus:ring-primary focus:outline-none" placeholder="you@example.com" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground">Subject</label>
-              <select className="w-full px-3 py-2 border rounded-lg bg-input/50 focus:ring-2 focus:ring-primary focus:outline-none">
-                <option>Questions about Premium</option>
-                <option>Help with a Listing</option>
-                <option>Report an Issue/Scam</option>
-                <option>Other</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground">Message</label>
-              <textarea rows={4} className="w-full px-3 py-2 border rounded-lg bg-input/50 focus:ring-2 focus:ring-primary focus:outline-none" placeholder="How can we help?"></textarea>
-            </div>
-            <button type="button" className="w-full bg-primary text-primary-foreground font-bold py-3 rounded-lg hover:bg-primary/90 transition-colors">
-              Send Message
-            </button>
-            <p className="text-xs text-center text-muted-foreground mt-4">
-              This form is for demonstration purposes in the MVP.
-            </p>
-          </form>
+          <h2 className="text-2xl font-bold mb-4">Send a Message</h2>
+          <p className="text-muted-foreground mb-6">
+            Email is the fastest way to reach us. Include your listing URL, account email, or balloon details so we can respond with useful context.
+          </p>
+          <a
+            href={`mailto:${supportEmail}?subject=AeroTrade%20support%20request`}
+            className="inline-flex w-full items-center justify-center bg-primary text-primary-foreground font-bold py-3 rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Email AeroTrade Support
+          </a>
         </div>
       </div>
     </div>
