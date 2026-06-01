@@ -1,6 +1,352 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { Jimp, JimpMime, loadFont, measureTextHeight } from 'jimp';
+import https from 'node:https';
+import {
+  SANS_32_BLACK,
+  SANS_32_WHITE,
+  SANS_64_WHITE,
+} from 'jimp/fonts';
+import type { BmFont } from '@jimp/plugin-print';
 import { sendEmail } from '@/utils/resend';
+import {
+  canPublishToFacebook,
+  canPublishToInstagram,
+  publishFacebookPhotoPost,
+  publishFacebookPhotoStory,
+  publishInstagramImagePost,
+  publishInstagramImageStory,
+} from '@/utils/meta-social';
+import { siteUrl } from '@/utils/site';
+import { getSocialCardUrl } from '@/utils/social-card';
+
+type ListingForInstagram = {
+  id: string
+  title: string
+  category: string
+  description?: string | null
+  price: number
+  currency: string
+  condition: string
+  location_country: string
+  details?: {
+    hours?: string | number
+    manufacturer?: string
+    year?: string | number
+    model?: string
+  } | null
+  images?: { url: string; is_primary?: boolean }[]
+}
+
+type SocialListing = ListingForInstagram & {
+  instagram_posted?: boolean
+  facebook_posted?: boolean
+  social_last_posted_at?: string | null
+}
+
+type JimpImage = Awaited<ReturnType<typeof Jimp.read>>
+
+const getListingUrl = (listing: ListingForInstagram) => `${siteUrl}/catalog/${listing.id}`
+
+const httpsRequestBuffer = async (
+  url: string,
+  options: https.RequestOptions,
+  body?: Buffer
+) => new Promise<Buffer>((resolve, reject) => {
+  const request = https.request(url, options, (response) => {
+    const chunks: Buffer[] = []
+    response.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
+    response.on('end', () => {
+      const responseBuffer = Buffer.concat(chunks)
+
+      if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+        reject(new Error(`HTTPS request failed with ${response.statusCode}: ${responseBuffer.toString('utf8').slice(0, 300)}`))
+        return
+      }
+
+      resolve(responseBuffer)
+    })
+  })
+
+  request.on('error', reject)
+
+  if (body) {
+    request.write(body)
+  }
+
+  request.end()
+})
+
+const getPrimaryImageUrl = (listing: ListingForInstagram) => {
+  const primaryImage = listing.images?.find((image) => image.is_primary)
+  return primaryImage?.url || listing.images?.[0]?.url || 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=1600&auto=format&fit=crop'
+}
+
+const getOptimizedSourceImageUrl = (imageUrl: string, width: number, height: number) => {
+  try {
+    const parsedUrl = new URL(imageUrl)
+
+    if (parsedUrl.pathname.includes('/storage/v1/object/public/')) {
+      parsedUrl.pathname = parsedUrl.pathname.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
+      parsedUrl.searchParams.set('width', String(width))
+      parsedUrl.searchParams.set('height', String(height))
+      parsedUrl.searchParams.set('resize', 'cover')
+      parsedUrl.searchParams.set('quality', '82')
+      return parsedUrl.toString()
+    }
+  } catch {
+    return imageUrl
+  }
+
+  return imageUrl
+}
+
+const loadImageFromUrl = async (
+  imageUrl: string,
+) => {
+  const imageBuffer = await httpsRequestBuffer(imageUrl, { method: 'GET' })
+
+  return Jimp.read(imageBuffer)
+}
+
+const drawText = (
+  image: JimpImage,
+  font: BmFont,
+  x: number,
+  y: number,
+  text: string,
+  maxWidth?: number
+) => {
+  image.print({
+    font,
+    x,
+    y,
+    text,
+    maxWidth,
+  })
+}
+
+const fitTextToLines = (
+  font: BmFont,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+) => {
+  const cleanText = text.replace(/\s+/g, ' ').trim();
+  const maxHeight = font.common.lineHeight * maxLines;
+
+  if (measureTextHeight(font, cleanText, maxWidth) <= maxHeight) {
+    return cleanText;
+  }
+
+  const words = cleanText.split(' ');
+  let candidate = '';
+
+  for (const word of words) {
+    const nextCandidate = candidate ? `${candidate} ${word}` : word;
+    const nextText = `${nextCandidate}...`;
+
+    if (measureTextHeight(font, nextText, maxWidth) > maxHeight) {
+      break;
+    }
+
+    candidate = nextCandidate;
+  }
+
+  if (candidate) {
+    return `${candidate}...`;
+  }
+
+  let characterCandidate = '';
+
+  for (const character of cleanText) {
+    const nextText = `${characterCandidate}${character}...`;
+
+    if (measureTextHeight(font, nextText, maxWidth) > maxHeight) {
+      break;
+    }
+
+    characterCandidate += character;
+  }
+
+  return `${characterCandidate.trim()}...`;
+};
+
+const createSocialCardJpegBuffer = async (listing: ListingForInstagram, format: 'post' | 'story') => {
+  const width = 1080
+  const height = format === 'story' ? 1920 : 1080
+  const background = await loadImageFromUrl(
+    getOptimizedSourceImageUrl(getPrimaryImageUrl(listing), width, height),
+  )
+  background.cover({ w: width, h: height })
+
+  const wash = new Jimp({ width, height, color: 0x0f172a55 })
+  background.composite(wash, 0, 0)
+
+  const [fontWhite32, fontWhite64, fontBlack32] = await Promise.all([
+    loadFont(SANS_32_WHITE),
+    loadFont(SANS_64_WHITE),
+    loadFont(SANS_32_BLACK),
+  ])
+
+  const badge = new Jimp({ width: 360, height: 108, color: 0xfffffff0 })
+  background.composite(badge, 116, 116)
+  const icon = new Jimp({ width: 58, height: 58, color: 0x020617ff })
+  background.composite(icon, 144, 141)
+  drawText(background, fontWhite32, 164, 154, 'A')
+  drawText(background, fontBlack32, 222, 139, 'AEROTRADE')
+  drawText(background, fontBlack32, 222, 179, 'Marketplace')
+
+  const panelTop = format === 'story' ? 1210 : 470
+  const panelHeight = format === 'story' ? 570 : 520
+  const panel = new Jimp({ width: 850, height: panelHeight, color: 0x0f172aaa })
+  background.composite(panel, 116, panelTop)
+
+  const pill = new Jimp({ width: 210, height: 58, color: 0xffffffff })
+  background.composite(pill, 166, panelTop + 48)
+  drawText(background, fontBlack32, 198, panelTop + 60, 'FOR SALE')
+
+  const maxTextWidth = 760
+  const title = fitTextToLines(fontWhite64, listing.title, maxTextWidth, 2)
+  const price = Number(listing.price) <= 0
+    ? 'Price on request'
+    : `${Number(listing.price).toLocaleString('de-DE')} ${listing.currency}`
+  const condition = listing.condition || 'Used'
+  const hours = listing.details?.hours ? String(listing.details.hours) : null
+  const titleY = panelTop + 138
+  const titleHeight = measureTextHeight(fontWhite64, title, maxTextWidth)
+  const priceY = titleY + titleHeight + 26
+  const factsStartY = priceY + 90
+
+  drawText(background, fontWhite64, 166, titleY, title, maxTextWidth)
+  drawText(background, fontWhite64, 166, priceY, price, maxTextWidth)
+
+  let factY = factsStartY
+  if (hours) {
+    drawText(background, fontWhite32, 166, factY, `Hours: ${hours}`)
+    factY += 48
+  }
+  drawText(background, fontWhite32, 166, factY, `Condition: ${condition}`)
+
+  drawText(background, fontWhite32, format === 'story' ? 610 : 710, format === 'story' ? 1810 : 1000, '@balloonconsulting')
+
+  return background.getBuffer(JimpMime.jpeg, { quality: 90 })
+}
+
+const getPublicJpegSocialImageUrl = async (
+  listing: Pick<ListingForInstagram, 'id'>,
+  format: 'post' | 'story'
+) => {
+  const jpegBuffer = await createSocialCardJpegBuffer(listing as ListingForInstagram, format);
+  const storagePath = `social-cards/${format}/${listing.id}-${Date.now()}.jpg`;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase upload configuration')
+  }
+
+  const uploadUrl = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/listing_images/${storagePath}`
+
+  await httpsRequestBuffer(uploadUrl, {
+    method: 'POST',
+    headers: {
+      apikey: serviceRoleKey,
+      authorization: `Bearer ${serviceRoleKey}`,
+      'content-type': 'image/jpeg',
+      'content-length': jpegBuffer.byteLength,
+      'x-upsert': 'true',
+    },
+  }, jpegBuffer)
+
+  return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/listing_images/${storagePath}`;
+}
+
+const formatCaption = (listing: ListingForInstagram) => {
+  const details = listing.details || {}
+  const facts = [
+    `${listing.price.toLocaleString()} ${listing.currency}`,
+    listing.location_country,
+    listing.condition,
+    details.hours ? `${details.hours} hours` : null,
+    details.manufacturer,
+    details.year ? `Year ${details.year}` : null,
+  ].filter(Boolean)
+
+  const description = listing.description
+    ? `\n\n${listing.description.substring(0, 450)}${listing.description.length > 450 ? '...' : ''}`
+    : ''
+
+  return [
+    `${listing.title}`,
+    '',
+    facts.join(' | '),
+    description,
+    '',
+    `View the full listing: ${getListingUrl(listing)}`,
+    '',
+    '#AeroTrade #HotAirBalloon #Ballooning #Aviation #ForSale',
+  ].join('\n')
+}
+
+const generateFailureHtml = (failures: { id: string; network: string; error: string }[]) => `
+  <h2>AeroTrade social publishing needs attention</h2>
+  <p>The daily social automation ran, but Meta rejected one or more publication requests.</p>
+  <ul>
+    ${failures.map(failure => `
+      <li>
+        <strong>${failure.network}</strong> for listing <code>${failure.id}</code><br/>
+        ${failure.error}
+      </li>
+    `).join('')}
+  </ul>
+  <p>Refresh the Meta long-lived token and update the production environment variables before the next scheduled run.</p>
+`;
+
+const emailPattern = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+const getAdminEmail = () => {
+  const configuredEmail = process.env.ADMIN_EMAIL?.trim();
+
+  return configuredEmail && emailPattern.test(configuredEmail)
+    ? configuredEmail
+    : 'jordi.diaz.casaubon@gmail.com';
+};
+
+const getSocialRunDate = (date: Date) => date.toISOString().slice(0, 10);
+
+const tryCreateDailySocialLock = async (
+  supabase: SupabaseClient,
+  listing: Pick<ListingForInstagram, 'id' | 'title'>,
+  runDate: string,
+) => {
+  const lockPath = `social-locks/${runDate}/${listing.id}.json`;
+  const lockBody = Buffer.from(JSON.stringify({
+    listingId: listing.id,
+    title: listing.title,
+    runDate,
+    createdAt: new Date().toISOString(),
+  }));
+
+  const { error } = await supabase.storage
+    .from('listing_images')
+    .upload(lockPath, lockBody, {
+      contentType: 'application/json',
+      upsert: false,
+    });
+
+  if (!error) {
+    return true;
+  }
+
+  const duplicateLock = /already exists|duplicate|resource already exists/i.test(error.message);
+
+  if (duplicateLock) {
+    console.log(`Skipping listing ${listing.id}; daily social lock already exists for ${runDate}.`);
+    return false;
+  }
+
+  throw error;
+};
 
 export async function GET(request: Request) {
   try {
@@ -33,37 +379,57 @@ export async function GET(request: Request) {
     // 2. Find listings that are past their 48h premium window OR are active public but haven't been posted to IG
     const now = new Date().toISOString();
     
-    // First, upgrade ACTIVE_PREMIUM to ACTIVE_PUBLIC if 48h has passed
-    const expiredPremiumQuery = () => supabase
-      .from('listings')
-      .select('id')
-      .eq('status', 'ACTIVE_PREMIUM')
-      .lte('public_at', now);
+    let upgradedListingCount = 0;
 
-    const { data: upgradedListings, error: upgradeError } = dryRun
-      ? await expiredPremiumQuery()
-      : await supabase
+    if (!dryRun) {
+      const { data: upgradedListings, error: upgradeError } = await supabase
         .from('listings')
         .update({ status: 'ACTIVE_PUBLIC' })
         .eq('status', 'ACTIVE_PREMIUM')
         .lte('public_at', now)
         .select('id');
-      
-    if (upgradeError) {
-      console.error('Error upgrading premium listings to public:', upgradeError);
-    } else if (upgradedListings && upgradedListings.length > 0) {
-      console.log(`Upgraded ${upgradedListings.length} premium listings to public.`);
+
+      if (upgradeError) {
+        console.error('Error upgrading premium listings to public:', upgradeError);
+      } else if (upgradedListings && upgradedListings.length > 0) {
+        upgradedListingCount = upgradedListings.length;
+        console.log(`Upgraded ${upgradedListingCount} premium listings to public.`);
+      }
     }
 
-    // 3. Find listings ready for Instagram (public_at passed, not yet posted)
+    const requestedLimit = Number(requestUrl.searchParams.get('limit') || '1');
+    const batchLimit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.floor(requestedLimit), 1), 5)
+      : 1;
+
+    const { error: facebookColumnError } = await supabase
+      .from('listings')
+      .select('facebook_posted')
+      .limit(1);
+    const hasFacebookPostedColumn = !facebookColumnError;
+
+    if (facebookColumnError && facebookColumnError.code !== '42703') {
+      console.warn('Unable to inspect facebook_posted column:', facebookColumnError);
+    }
+
+    const { error: socialLastPostedAtColumnError } = await supabase
+      .from('listings')
+      .select('social_last_posted_at')
+      .limit(1);
+    const hasSocialLastPostedAtColumn = !socialLastPostedAtColumnError;
+
+    if (socialLastPostedAtColumnError && socialLastPostedAtColumnError.code !== '42703') {
+      console.warn('Unable to inspect social_last_posted_at column:', socialLastPostedAtColumnError);
+    }
+
+    // 3. Find public, unsold listings ready for rotating daily social publication.
     const { data: listingsForIg, error: igError } = await supabase
       .from('listings')
       .select('*, images(url, is_primary), users(email, name)')
       .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
       .lte('public_at', now)
-      .eq('instagram_posted', false)
       .order('public_at', { ascending: true })
-      .limit(5); // Process in small batches
+      .limit(100);
 
     if (igError) {
       console.error('Error fetching listings for Instagram:', igError);
@@ -71,81 +437,202 @@ export async function GET(request: Request) {
     }
 
     if (!listingsForIg || listingsForIg.length === 0) {
-      return NextResponse.json({
-        success: true,
-        dryRun,
-        message: 'No listings require Instagram publication at this time.',
-        upgradedExpiredPremiumListings: dryRun ? 0 : upgradedListings?.length || 0,
-        wouldUpgradeExpiredPremiumListings: dryRun ? upgradedListings?.length || 0 : 0,
-        candidates: [],
-      });
+      return NextResponse.json({ message: 'No active listings require social publication at this time.' });
     }
 
-    if (dryRun) {
-      return NextResponse.json({
-        success: true,
-        dryRun: true,
-        message: `Dry run found ${listingsForIg.length} listings ready for Instagram reminder.`,
-        upgradedExpiredPremiumListings: 0,
-        wouldUpgradeExpiredPremiumListings: upgradedListings?.length || 0,
-        candidates: listingsForIg.map(listing => ({
+    const dayIndex = Math.floor(Date.UTC(
+      new Date(now).getUTCFullYear(),
+      new Date(now).getUTCMonth(),
+      new Date(now).getUTCDate()
+    ) / 86_400_000);
+    const startIndex = dayIndex % listingsForIg.length;
+    const rotatingListings = Array.from(
+      { length: Math.min(batchLimit, listingsForIg.length) },
+      (_, offset) => listingsForIg[(startIndex + offset) % listingsForIg.length]
+    );
+
+    let instagramCount = 0;
+    let instagramStoryCount = 0;
+    let facebookCount = 0;
+    let facebookStoryCount = 0;
+    let skippedLockedCount = 0;
+
+    // 4. Publish ready listings to configured Meta channels. If credentials are missing, email the admin instead.
+    const shouldPublishToInstagram = canPublishToInstagram();
+    const shouldPublishToFacebook = canPublishToFacebook();
+    const adminEmail = getAdminEmail();
+    const failures: { id: string; network: string; error: string }[] = [];
+    const planned: { id: string; title: string; networks: string[]; imageUrl: string; storyImageUrl: string }[] = [];
+
+    const runDate = getSocialRunDate(new Date(now));
+
+    for (const listing of rotatingListings as SocialListing[]) {
+      const plannedImageUrl = getSocialCardUrl(siteUrl, listing.id, 'post');
+      const plannedStoryImageUrl = getSocialCardUrl(siteUrl, listing.id, 'story');
+      const caption = formatCaption(listing);
+      const pendingNetworks = [
+        'Instagram post',
+        'Instagram story',
+        'Facebook post',
+        'Facebook story',
+      ];
+
+      if (dryRun) {
+        planned.push({
           id: listing.id,
           title: listing.title,
-          public_at: listing.public_at,
-        })),
-      });
+          networks: pendingNetworks,
+          imageUrl: plannedImageUrl,
+          storyImageUrl: plannedStoryImageUrl,
+        });
+        continue;
+      }
+
+      const lockCreated = await tryCreateDailySocialLock(supabase, listing, runDate);
+
+      if (!lockCreated) {
+        skippedLockedCount++;
+        continue;
+      }
+
+      const recordFailure = (network: string, err: unknown) => {
+        const error = err instanceof Error ? err.message : 'Unknown error';
+        failures.push({ id: listing.id, network, error });
+        console.error(`Failed to publish listing ${listing.id} to ${network}:`, err);
+      };
+
+      try {
+        const imageUrl = await getPublicJpegSocialImageUrl(listing, 'post');
+        const storyImageUrl = await getPublicJpegSocialImageUrl(listing, 'story');
+        let publishedToAnyNetwork = false;
+        let publishedToInstagram = false;
+        let publishedToFacebook = false;
+
+        if (shouldPublishToInstagram) {
+          try {
+            const instagramPost = await publishInstagramImagePost({
+              imageUrl,
+              caption,
+            });
+
+            instagramCount++;
+            publishedToAnyNetwork = true;
+            publishedToInstagram = true;
+            console.log(`Published listing ${listing.id} to Instagram as media ${instagramPost.mediaId}.`);
+          } catch (err) {
+            recordFailure('Instagram post', err);
+          }
+
+          try {
+            const instagramStory = await publishInstagramImageStory({
+              imageUrl: storyImageUrl,
+            });
+
+            instagramStoryCount++;
+            publishedToAnyNetwork = true;
+            publishedToInstagram = true;
+            console.log(`Published listing ${listing.id} to Instagram story as media ${instagramStory.mediaId}.`);
+          } catch (err) {
+            recordFailure('Instagram story', err);
+          }
+        } else {
+          recordFailure('Instagram post + story', new Error('Instagram credentials are not configured'));
+        }
+
+        if (shouldPublishToFacebook) {
+          try {
+            const facebookPost = await publishFacebookPhotoPost({
+              imageUrl,
+              caption,
+              linkUrl: getListingUrl(listing),
+            });
+
+            facebookCount++;
+            publishedToAnyNetwork = true;
+            publishedToFacebook = true;
+            console.log(`Published listing ${listing.id} to Facebook as post ${facebookPost.postId}.`);
+          } catch (err) {
+            recordFailure('Facebook post', err);
+          }
+
+          try {
+            const facebookStory = await publishFacebookPhotoStory({
+              imageUrl: storyImageUrl,
+            });
+
+            facebookStoryCount++;
+            publishedToAnyNetwork = true;
+            publishedToFacebook = true;
+            console.log(`Published listing ${listing.id} to Facebook story as post ${facebookStory.postId}.`);
+          } catch (err) {
+            recordFailure('Facebook story', err);
+          }
+        } else {
+          recordFailure('Facebook post + story', new Error('Facebook credentials are not configured'));
+        }
+
+        if (publishedToAnyNetwork) {
+          const updatePayload: {
+            instagram_posted?: boolean
+            facebook_posted?: boolean
+            social_last_posted_at?: string
+          } = {};
+
+          if (publishedToInstagram) {
+            updatePayload.instagram_posted = true;
+          }
+
+          if (hasFacebookPostedColumn && publishedToFacebook) {
+            updatePayload.facebook_posted = true;
+          }
+
+          if (hasSocialLastPostedAtColumn) {
+            updatePayload.social_last_posted_at = now;
+          }
+
+          await supabase
+            .from('listings')
+            .update(updatePayload)
+            .eq('id', listing.id);
+        }
+      } catch (err) {
+        const error = err instanceof Error ? err.message : 'Unknown error';
+        failures.push({ id: listing.id, network: 'image-generation', error });
+        console.error(`Failed to process Instagram publication for listing ${listing.id}`, err);
+      }
     }
 
-    let processedCount = 0;
-
-    // 4. Send email to admin to post them, and mark as posted
-    for (const listing of listingsForIg) {
-      const imageUrl = listing.images && listing.images[0]?.url 
-        ? listing.images[0].url 
-        : 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
-        
-      const htmlBody = `
-        <h2>🔔 Instagram Post Reminder</h2>
-        <p>The following listing has passed its 48h premium window and is ready to be published on Instagram.</p>
-        <hr/>
-        <h3>${listing.title}</h3>
-        <p><strong>Category:</strong> ${listing.category}</p>
-        <p><strong>Price:</strong> ${listing.price} ${listing.currency}</p>
-        <p><strong>Location:</strong> ${listing.location_country}</p>
-        <p><strong>Description:</strong> ${listing.description?.substring(0, 200)}...</p>
-        <br/>
-        <p><img src="${imageUrl}" alt="Listing Image" style="max-width: 400px; border-radius: 8px;"/></p>
-        <br/>
-        <a href="https://aerotrade.app/catalog/${listing.id}">View Listing</a>
-        <br/><br/>
-        <p><i>This listing has now been marked as 'instagram_posted = true' in the database.</i></p>
-      `;
-
-      // Assuming an admin email env var, or fallback
-      const adminEmail = process.env.ADMIN_EMAIL || 'jordi@balloonconsulting.com';
-      
+    if (!dryRun && failures.length > 0) {
       try {
         await sendEmail(
           adminEmail,
-          `Ready for Instagram: ${listing.title}`,
-          htmlBody
+          'AeroTrade social publishing failed',
+          generateFailureHtml(failures)
         );
-        
-        // Mark as posted
-        await supabase
-          .from('listings')
-          .update({ instagram_posted: true })
-          .eq('id', listing.id);
-          
-        processedCount++;
-      } catch (err) {
-        console.error(`Failed to process IG notification for listing ${listing.id}`, err);
+      } catch (emailError) {
+        console.error('Unable to send social publishing failure alert:', emailError);
       }
     }
 
     return NextResponse.json({ 
       success: true, 
-      message: `Processed ${processedCount} listings for Instagram publication.` 
+      mode: shouldPublishToInstagram || shouldPublishToFacebook ? 'api' : 'email-reminder',
+      dryRun,
+      batchLimit,
+      processed: instagramCount + instagramStoryCount + facebookCount + facebookStoryCount,
+      instagramPublished: instagramCount,
+      instagramStoriesPublished: instagramStoryCount,
+      facebookPublished: facebookCount,
+      facebookStoriesPublished: facebookStoryCount,
+      upgradedExpiredPremiumListings: upgradedListingCount,
+      facebookTrackingColumn: hasFacebookPostedColumn,
+      socialRotationColumn: hasSocialLastPostedAtColumn,
+      skippedLocked: skippedLockedCount,
+      planned,
+      failures,
+      message: shouldPublishToInstagram || shouldPublishToFacebook
+        ? `Published ${instagramCount} Instagram posts, ${instagramStoryCount} Instagram stories, ${facebookCount} Facebook posts, and ${facebookStoryCount} Facebook stories.`
+        : 'Meta credentials are missing; sent admin reminders instead.'
     });
 
   } catch (error) {
