@@ -1,5 +1,4 @@
 const defaultSiteUrl = 'https://aerotrade.app'
-const netlifySiteHost = 'aerotrade-mvp-app.netlify.app'
 
 const normalizePublicSiteUrl = (value: string | undefined) => {
   const candidate = value?.trim().replace(/\/+$/, '')
@@ -11,7 +10,7 @@ const normalizePublicSiteUrl = (value: string | undefined) => {
   try {
     const url = new URL(candidate)
 
-    if (url.hostname === netlifySiteHost) {
+    if (url.hostname.endsWith('.netlify.app')) {
       return defaultSiteUrl
     }
 

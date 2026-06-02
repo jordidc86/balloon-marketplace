@@ -40,7 +40,7 @@ const normalizePublicSiteUrl = (value) => {
 
   try {
     const url = new URL(candidate)
-    return url.hostname === 'aerotrade-mvp-app.netlify.app' ? fallback : url.origin
+    return url.hostname.endsWith('.netlify.app') ? fallback : url.origin
   } catch {
     return fallback
   }

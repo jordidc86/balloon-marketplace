@@ -5,6 +5,11 @@ import { Lock, MapPin, Calendar, Activity, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import ContactSeller from './ContactSeller'
 import { Metadata } from 'next'
+import { siteUrl } from '@/utils/site'
+
+type ListingImage = {
+  url: string
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -50,7 +55,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const isOwner = user?.id === listing.seller_id
   const canViewFully = !isPremiumExclusive || isPremium || isOwner
 
-  const images = listing.images?.map((img: any) => img.url) || []
+  const images = (listing.images as ListingImage[] | null | undefined)?.map((img) => img.url) || []
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -67,7 +72,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               "description": listing.description,
               "offers": {
                 "@type": "Offer",
-                "url": `https://aerotrade-mvp-app.netlify.app/catalog/${listing.id}`,
+                "url": `${siteUrl}/catalog/${listing.id}`,
                 "priceCurrency": listing.currency || "EUR",
                 "price": listing.price,
                 "itemCondition": "https://schema.org/UsedCondition",
