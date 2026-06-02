@@ -1,0 +1,164 @@
+import { Metadata } from 'next'
+import Link from 'next/link'
+import { ArrowRight, Brush, Factory, Send } from 'lucide-react'
+import { submitNewBalloonQuote } from './actions'
+
+export const metadata: Metadata = {
+  title: 'New Balloon Quote | AeroTrade Marketplace',
+  description: 'Request a new hot air balloon quote and visual concept if you cannot find the right used balloon.',
+}
+
+export default async function NewBalloonPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const params = await searchParams
+  const success = params.success === 'true'
+  const error = typeof params.error === 'string' ? params.error : null
+
+  return (
+    <div className="bg-secondary/40">
+      <section className="border-b bg-background">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-16">
+          <div className="flex flex-col justify-center">
+            <Link href="/catalog" className="mb-6 inline-flex w-fit items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80">
+              Marketplace <ArrowRight className="h-4 w-4" />
+            </Link>
+            <h1 className="max-w-2xl text-4xl font-extrabold tracking-tight sm:text-5xl">
+              Maybe a new balloon is closer than you think.
+            </h1>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
+              If the right used balloon is not available, ask us for a fast price indication and a first visual concept for a new Pasha or Schroeder balloon.
+            </p>
+
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <div className="border bg-card p-4">
+                <Factory className="mb-3 h-5 w-5 text-primary" />
+                <p className="text-sm font-bold">Pasha or Schroeder</p>
+                <p className="mt-1 text-xs text-muted-foreground">Choose one, or tell us you want advice.</p>
+              </div>
+              <div className="border bg-card p-4">
+                <Brush className="mb-3 h-5 w-5 text-primary" />
+                <p className="text-sm font-bold">Quick visual idea</p>
+                <p className="mt-1 text-xs text-muted-foreground">Share colours, logo or a rough style.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border bg-card p-6 shadow-sm sm:p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold">Request quote and visual</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                We will use this to prepare a first price direction and visual route.
+              </p>
+            </div>
+
+            {success && (
+              <div className="mb-6 border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-medium text-emerald-700">
+                Request received. We will review it and come back with next steps.
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-6 border border-destructive/30 bg-destructive/10 p-4 text-sm font-medium text-destructive">
+                {error}
+              </div>
+            )}
+
+            <form action={submitNewBalloonQuote} className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-1.5 text-sm font-medium">
+                  Name *
+                  <input name="name" required className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Email *
+                  <input name="email" type="email" required className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Phone
+                  <input name="phone" type="tel" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Country
+                  <input name="country" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-1.5 text-sm font-medium">
+                  Manufacturer preference
+                  <select name="manufacturer_preference" defaultValue="advice" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
+                    <option value="advice">Advise me</option>
+                    <option value="pasha">Pasha</option>
+                    <option value="schroeder">Schroeder</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Equipment type *
+                  <select name="equipment_type" required defaultValue="" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
+                    <option value="" disabled>Select one...</option>
+                    <option value="complete-balloon">Complete balloon</option>
+                    <option value="envelope-only">Envelope only</option>
+                    <option value="basket">Basket</option>
+                    <option value="burner">Burner</option>
+                    <option value="bottom-end">Bottom end</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Volume / capacity
+                  <input name="volume_or_capacity" placeholder="e.g. 105,000 cu ft / 4 passengers" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Intended use
+                  <select name="intended_use" defaultValue="private" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
+                    <option value="private">Private flying</option>
+                    <option value="commercial-rides">Commercial rides</option>
+                    <option value="advertising">Advertising / branded balloon</option>
+                    <option value="competition">Competition</option>
+                    <option value="training">Training</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Budget range
+                  <select name="budget_range" defaultValue="not-specified" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
+                    <option value="not-specified">Not specified</option>
+                    <option value="under-50k">Under 50k EUR</option>
+                    <option value="50k-100k">50k-100k EUR</option>
+                    <option value="100k-150k">100k-150k EUR</option>
+                    <option value="150k-plus">150k+ EUR</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Timeline
+                  <select name="timeline" defaultValue="exploring" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
+                    <option value="exploring">Just exploring</option>
+                    <option value="0-3-months">0-3 months</option>
+                    <option value="3-6-months">3-6 months</option>
+                    <option value="6-12-months">6-12 months</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="block space-y-1.5 text-sm font-medium">
+                Colours, branding or artwork idea
+                <textarea name="colors_or_branding" rows={3} placeholder="Colours, sponsor/logo idea, style references..." className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+              </label>
+
+              <label className="block space-y-1.5 text-sm font-medium">
+                Notes
+                <textarea name="notes" rows={4} placeholder="Anything else we should know?" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+              </label>
+
+              <button className="inline-flex w-full items-center justify-center gap-2 bg-primary px-5 py-3 font-bold text-primary-foreground hover:bg-primary/90">
+                <Send className="h-4 w-4" />
+                Request Quote & Visual Concept
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}

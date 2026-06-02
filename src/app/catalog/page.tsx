@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient, createAdminClient } from '@/utils/supabase/server'
-import { Flame, Wind, Search, Lock, Filter } from 'lucide-react'
+import { Search, Lock, Filter } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Metadata } from 'next'
+import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
 
 export const metadata: Metadata = {
   title: 'Catalog | AeroTrade Marketplace',
@@ -19,6 +21,7 @@ export default async function CatalogPage({
   const params = await searchParams
   
   const categoryFilter = typeof params.category === 'string' ? params.category : null
+  const searchQuery = typeof params.q === 'string' ? params.q.trim() : ''
 
   // Fetch current user & premium status
   const { data: { user } } = await supabase.auth.getUser()
@@ -28,11 +31,22 @@ export default async function CatalogPage({
     isPremium = profile?.is_premium || false
   }
 
-  // Fetch active listings
+  // Fetch active listings. Locked premium results are rendered with teaser-only fields.
   let query = supabaseAdmin
     .from('listings')
     .select(`
-      *,
+      id,
+      seller_id,
+      category,
+      title,
+      description,
+      price,
+      currency,
+      condition,
+      location_country,
+      status,
+      public_at,
+      created_at,
       images (url, is_primary)
     `)
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
@@ -42,7 +56,12 @@ export default async function CatalogPage({
     query = query.eq('category', categoryFilter)
   }
 
-  const { data: listings, error } = await query
+  if (searchQuery) {
+    const escapedQuery = searchQuery.replace(/[%_]/g, (value) => `\\${value}`)
+    query = query.or(`title.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,location_country.ilike.%${escapedQuery}%`)
+  }
+
+  const { data: rawListings, error } = await query
 
   if (error) {
     console.error(error)
@@ -70,25 +89,26 @@ export default async function CatalogPage({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {listings?.map((listing) => {
-          const isPremiumExclusive = new Date() < new Date(listing.public_at)
-          const isOwner = user?.id === listing.seller_id
-          const canViewFully = !isPremiumExclusive || isPremium || isOwner
-
-          const primaryImage = listing.images?.find((img: any) => img.is_primary)?.url || listing.images?.[0]?.url
+        {(rawListings as ListingWithImages[] | null)?.map((listing) => {
+          const { isPremiumExclusive, canViewFully } = getListingVisibility(listing, user?.id, isPremium)
+          const primaryImage = canViewFully ? getPrimaryImageUrl(listing) : null
+          const displayTitle = canViewFully ? listing.title : getPublicTeaserTitle(listing.category)
+          const displayPrice = canViewFully
+            ? listing.price === 0 ? 'Inquire for Pricing' : `${Number(listing.price).toLocaleString()} ${listing.currency}`
+            : 'Premium Exclusive'
+          const publicAtLabel = listing.public_at
+            ? formatDistanceToNow(new Date(listing.public_at))
+            : 'soon'
 
           if (!canViewFully) {
             // RENDER LOCKED / BLURRED CARD FOR NON-PREMIUM USERS
             return (
               <div key={listing.id} className="rounded-2xl border bg-card overflow-hidden group flex flex-col h-full relative">
                 <div className="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center shrink-0">
-                  {primaryImage && (
-                    <img src={primaryImage} alt={`Blurred preview of ${listing.title}`} className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-40" />
-                  )}
                   <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-white px-4 text-center">
                     <Lock className="w-8 h-8 mb-2 text-accent" />
                     <span className="font-bold tracking-tight text-sm">PREMIUM EXCLUSIVE</span>
-                    <p className="text-xs mt-1 text-slate-300">Public in {formatDistanceToNow(new Date(listing.public_at))}</p>
+                    <p className="text-xs mt-1 text-slate-300">Public in {publicAtLabel}</p>
                   </div>
                 </div>
                 <div className="p-5 flex-1 flex flex-col">
@@ -97,8 +117,8 @@ export default async function CatalogPage({
                     <span className="text-[10px] font-bold bg-accent/20 text-accent-foreground px-2 py-0.5 rounded-full ring-1 ring-accent/30">Locked</span>
                   </div>
                   {/* Masking Title & Precise Price */}
-                  <h3 className="font-bold text-lg mb-1 line-clamp-2 blur-[4px] select-none text-muted">{listing.title}</h3>
-                  <p className="text-xl font-extrabold text-foreground mb-4 blur-[4px] select-none text-muted">{listing.price === 0 ? "Inquire for Pricing" : `€ ${listing.price}`}</p>
+                  <h3 className="font-bold text-lg mb-1 line-clamp-2 text-muted">{displayTitle}</h3>
+                  <p className="text-xl font-extrabold text-foreground mb-4 text-muted">{displayPrice}</p>
                   <div className="mt-auto pt-4 flex items-center justify-between border-t border-dashed">
                     <span className="text-xs text-muted-foreground">{listing.location_country}</span>
                     <Link href={`/catalog/${listing.id}`} className="text-accent font-semibold hover:underline text-sm flex items-center gap-1">
@@ -115,7 +135,7 @@ export default async function CatalogPage({
             <Link href={`/catalog/${listing.id}`} key={listing.id} className="rounded-2xl border bg-card overflow-hidden group hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full">
               <div className="h-48 bg-muted relative overflow-hidden flex items-center justify-center shrink-0">
                 {primaryImage ? (
-                  <img src={primaryImage} alt={listing.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <Image src={primaryImage} alt={displayTitle} fill sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <Search className="w-8 h-8 text-muted-foreground/30" />
                 )}
@@ -130,8 +150,8 @@ export default async function CatalogPage({
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{listing.category}</span>
                   <span className="text-xs font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{listing.condition}</span>
                 </div>
-                <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
-                <p className="text-xl font-extrabold text-foreground mb-4">{listing.price === 0 ? "Inquire for Pricing" : `${listing.price.toLocaleString()} ${listing.currency}`}</p>
+                <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">{displayTitle}</h3>
+                <p className="text-xl font-extrabold text-foreground mb-4">{displayPrice}</p>
                 
                 <div className="mt-auto w-full pt-4 border-t flex items-center justify-between text-sm text-muted-foreground">
                   <span className="truncate pr-2">{listing.location_country}</span>
@@ -142,12 +162,17 @@ export default async function CatalogPage({
           )
         })}
 
-        {listings?.length === 0 && (
+        {rawListings?.length === 0 && (
           <div className="col-span-full py-20 text-center flex flex-col items-center">
             <Filter className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-medium text-foreground">No equipment found</h3>
             <p className="text-muted-foreground mt-1">Check back later or try a different category.</p>
-            <Link href="/sell" className="mt-6 text-primary hover:underline font-medium">Have something to sell?</Link>
+            <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
+              <Link href="/sell" className="text-primary hover:underline font-medium">Have something to sell?</Link>
+              <Link href="/new-balloon" className="bg-primary px-5 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">
+                Request a new balloon quote
+              </Link>
+            </div>
           </div>
         )}
       </div>

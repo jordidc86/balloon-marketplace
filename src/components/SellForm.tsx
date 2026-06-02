@@ -3,13 +3,33 @@
 import { useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 
 // Imported Actions
 import { submitListing } from '@/app/sell/actions'
 import { updateListing } from '@/app/catalog/[id]/actions'
 
-export default function SellForm({ userId, initialData, isPremium }: { userId?: string | null; initialData?: any; isPremium?: boolean }) {
+type ExistingImage = {
+  url: string
+}
+
+type SellFormInitialData = {
+  id: string
+  category?: string
+  price?: number
+  condition?: string
+  title?: string
+  description?: string
+  currency?: string
+  location_country?: string
+  contact_email?: string
+  contact_phone?: string
+  details?: Record<string, string | number | null | undefined>
+  images?: ExistingImage[]
+}
+
+export default function SellForm({ userId, initialData, isPremium }: { userId?: string | null; initialData?: SellFormInitialData; isPremium?: boolean }) {
   const router = useRouter()
   const supabase = createClient()
   const isEditing = !!initialData
@@ -17,7 +37,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
   const [category, setCategory] = useState<string>(initialData?.category || '')
   const [inquirePrice, setInquirePrice] = useState<boolean>(initialData?.price === 0)
   const [images, setImages] = useState<File[]>([])
-  const [existingImages, setExistingImages] = useState<any[]>(initialData?.images || [])
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>(initialData?.images || [])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
 
@@ -57,7 +77,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
         const fileExt = file.name.split('.').pop()
         const fileName = `${folderId}/${i}.${fileExt}`
         
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from('listing_images')
           .upload(fileName, file)
           
@@ -267,7 +287,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
             <div className="flex gap-4 overflow-x-auto pb-2">
               {existingImages.map((img, i) => (
                 <div key={i} className="shrink-0 w-24 h-24 bg-slate-200 rounded-xl overflow-hidden relative border shadow-sm group">
-                  <img src={img.url} className="w-full h-full object-cover" alt="" />
+                  <Image src={img.url} fill sizes="96px" className="object-cover" alt="" />
                   <button 
                     type="button" 
                     onClick={() => handleRemoveExistingImage(img.url)}
@@ -294,7 +314,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
           />
           {images.length > 0 && (
             <div className="mt-4 flex gap-2 overflow-x-auto w-full py-2">
-              {images.map((img, i) => (
+              {images.map((_img, i) => (
                 <div key={i} className="shrink-0 w-20 h-20 bg-slate-200 rounded-lg overflow-hidden relative">
                    <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-500 bg-slate-100">+{existingImages.length > 0 ? i+1+existingImages.length : i+1}</span>
                 </div>

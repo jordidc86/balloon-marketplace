@@ -1,4 +1,4 @@
-import { login, signup } from './actions'
+import { login } from './actions'
 import { AlertCircle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { Metadata } from 'next'

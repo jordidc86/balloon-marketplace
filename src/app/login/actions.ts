@@ -5,8 +5,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { sendEmail } from '@/utils/resend'
 
-function isRedirectError(error: any): boolean {
+function isRedirectError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'digest' in error && typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'An unexpected error occurred'
 }
 
 export async function login(formData: FormData) {
@@ -26,9 +30,9 @@ export async function login(formData: FormData) {
 
     revalidatePath('/', 'layout')
     redirect('/dashboard')
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (isRedirectError(error)) throw error
-    redirect('/login?error=' + encodeURIComponent(error.message || 'An unexpected error occurred'))
+    redirect('/login?error=' + encodeURIComponent(getErrorMessage(error)))
   }
 }
 
@@ -63,9 +67,9 @@ export async function signup(formData: FormData) {
 
     revalidatePath('/', 'layout')
     redirect('/dashboard')
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (isRedirectError(error)) throw error
-    redirect('/login?error=' + encodeURIComponent(error.message || 'An unexpected error occurred'))
+    redirect('/login?error=' + encodeURIComponent(getErrorMessage(error)))
   }
 }
 
@@ -145,9 +149,9 @@ export async function signupWithDetails(formData: FormData) {
 
     revalidatePath('/', 'layout')
     redirect('/dashboard')
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (isRedirectError(error)) throw error
-    redirect('/signup?error=' + encodeURIComponent(error.message || 'An unexpected error occurred'))
+    redirect('/signup?error=' + encodeURIComponent(getErrorMessage(error)))
   }
 }
 
@@ -164,8 +168,8 @@ export async function resendConfirmationEmail(email: string) {
     }
 
     return { success: true }
-  } catch (error: any) {
-    return { error: error.message || 'An unexpected error occurred' }
+  } catch (error: unknown) {
+    return { error: getErrorMessage(error) }
   }
 }
 

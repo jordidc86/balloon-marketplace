@@ -1,23 +1,38 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
 import { Lock, MapPin, Calendar, Activity, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import ContactSeller from './ContactSeller'
 import { Metadata } from 'next'
+import { getListingVisibility, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
 import { siteUrl } from '@/utils/site'
-
-type ListingImage = {
-  url: string
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const supabaseAdmin = await createAdminClient()
-  const { data: listing } = await supabaseAdmin.from('listings').select('title, description').eq('id', id).single()
+  const { data: listing } = await supabaseAdmin
+    .from('listings')
+    .select('title, description, category, status, public_at')
+    .eq('id', id)
+    .single()
 
   if (!listing) {
     return { title: 'Listing Not Found | AeroTrade' }
+  }
+
+  const isPremiumExclusive =
+    listing.status === 'ACTIVE_PREMIUM' &&
+    listing.public_at &&
+    new Date() < new Date(listing.public_at)
+
+  if (isPremiumExclusive) {
+    return {
+      title: `${getPublicTeaserTitle(listing.category)} | AeroTrade Marketplace`,
+      description: 'This AeroTrade listing is currently in the 48-hour Premium Exclusive window.',
+      robots: { index: false, follow: true },
+    }
   }
 
   return {
@@ -42,7 +57,23 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   // Fetch Listing
   const { data: listing, error } = await supabaseAdmin
     .from('listings')
-    .select('*, images(url, is_primary)')
+    .select(`
+      id,
+      seller_id,
+      category,
+      title,
+      description,
+      price,
+      currency,
+      condition,
+      location_country,
+      details,
+      status,
+      public_at,
+      created_at,
+      updated_at,
+      images(url, is_primary)
+    `)
     .eq('id', id)
     .single()
 
@@ -50,12 +81,23 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     notFound()
   }
 
-  // Determine visibility rights
-  const isPremiumExclusive = new Date() < new Date(listing.public_at) && listing.status === 'ACTIVE_PREMIUM'
-  const isOwner = user?.id === listing.seller_id
-  const canViewFully = !isPremiumExclusive || isPremium || isOwner
+  const typedListing = listing as ListingWithImages
 
-  const images = (listing.images as ListingImage[] | null | undefined)?.map((img) => img.url) || []
+  // Determine visibility rights
+  const { isPremiumExclusive, isOwner, canViewFully } = getListingVisibility(
+    typedListing,
+    user?.id,
+    isPremium
+  )
+
+  const images = canViewFully ? typedListing.images?.map((img) => img.url) || [] : []
+  const displayTitle = canViewFully ? typedListing.title : getPublicTeaserTitle(typedListing.category)
+  const displayPrice = canViewFully
+    ? typedListing.price === 0 ? 'Inquire for Pricing' : `${Number(typedListing.price).toLocaleString()} ${typedListing.currency}`
+    : 'Premium Exclusive'
+  const publicAtLabel = typedListing.public_at
+    ? formatDistanceToNow(new Date(typedListing.public_at))
+    : 'soon'
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -66,15 +108,15 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org/",
-              "@type": "Product",
-              "name": listing.title,
+                "@type": "Product",
+              "name": typedListing.title,
               "image": images,
-              "description": listing.description,
+              "description": typedListing.description,
               "offers": {
                 "@type": "Offer",
-                "url": `${siteUrl}/catalog/${listing.id}`,
-                "priceCurrency": listing.currency || "EUR",
-                "price": listing.price,
+                "url": `${siteUrl}/catalog/${typedListing.id}`,
+                "priceCurrency": typedListing.currency || "EUR",
+                "price": typedListing.price,
                 "itemCondition": "https://schema.org/UsedCondition",
                 "availability": "https://schema.org/InStock"
               }
@@ -89,7 +131,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <div className="flex items-center gap-3">
             <Lock className="w-5 h-5 shrink-0" />
             <p className="font-medium text-sm sm:text-base">
-              This listing is in the 48-hour Premium Exclusive window. It will be public in {formatDistanceToNow(new Date(listing.public_at))}.
+              This listing is in the 48-hour Premium Exclusive window. It will be public in {publicAtLabel}.
             </p>
           </div>
           <Link href="/pricing" className="bg-background text-foreground hover:bg-muted px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors">
@@ -112,10 +154,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <div className="space-y-4 order-2 lg:order-1">
           <div className="relative aspect-video sm:aspect-square lg:aspect-[4/3] bg-muted rounded-2xl overflow-hidden border">
             {images.length > 0 ? (
-              <img 
-                src={images[0]} 
-                alt={listing.title} 
-                className={`w-full h-full object-cover transition-all duration-700 ${!canViewFully ? 'blur-xl scale-110 opacity-60' : ''}`}
+              <Image
+                src={images[0]}
+                alt={displayTitle}
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover transition-all duration-700"
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/30">
@@ -123,7 +167,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 <p>No Image Available</p>
               </div>
             )}
-            
+
             {!canViewFully && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/20 backdrop-blur-[2px] text-center p-6">
                 <Lock className="w-12 h-12 text-accent mb-4" />
@@ -137,13 +181,13 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               </div>
             )}
           </div>
-          
+
           {/* Thumbnails */}
           {images.length > 1 && (
             <div className="flex gap-4 overflow-x-auto pb-2">
               {images.map((img: string, idx: number) => (
                 <div key={idx} className="w-24 h-24 shrink-0 rounded-xl overflow-hidden border bg-muted">
-                  <img src={img} className={`w-full h-full object-cover ${!canViewFully ? 'blur-md' : ''}`} alt={`Thumbnail ${idx + 1} for ${listing.title}`} />
+                  <Image src={img} fill sizes="96px" className="object-cover" alt={`Thumbnail ${idx + 1} for ${displayTitle}`} />
                 </div>
               ))}
             </div>
@@ -154,83 +198,90 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-col order-1 lg:order-2">
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground bg-muted px-3 py-1 rounded-full">{listing.category}</span>
-              <span className="text-xs font-bold text-secondary-foreground bg-secondary px-3 py-1 rounded-full">{listing.condition}</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground bg-muted px-3 py-1 rounded-full">{typedListing.category}</span>
+              {canViewFully && (
+                <span className="text-xs font-bold text-secondary-foreground bg-secondary px-3 py-1 rounded-full">{typedListing.condition}</span>
+              )}
             </div>
-            
-            <h1 className={`text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 ${!canViewFully ? 'blur-sm select-none opacity-80' : ''}`}>
-              {listing.title}
+
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
+              {displayTitle}
             </h1>
-            
-            <p className={`text-4xl font-black text-foreground ${!canViewFully ? 'blur-sm select-none opacity-80' : ''}`}>
-              {listing.price === 0 ? "Inquire for Pricing" : `${listing.price.toLocaleString()} ${listing.currency}`}
+
+            <p className="text-4xl font-black text-foreground">
+              {displayPrice}
             </p>
-            <p className="text-muted-foreground flex items-center mt-2">
-              <MapPin className="w-4 h-4 mr-1" /> {listing.location_country}
-            </p>
+            {canViewFully && (
+              <p className="text-muted-foreground flex items-center mt-2">
+                <MapPin className="w-4 h-4 mr-1" /> {typedListing.location_country}
+              </p>
+            )}
           </div>
 
           <div className="bg-card border rounded-2xl p-6 mb-8 flex-1">
             <h3 className="text-lg font-bold mb-4 border-b pb-2">Equipment Details</h3>
-            
-            <div className={`grid grid-cols-2 gap-y-4 gap-x-8 text-sm ${!canViewFully ? 'blur-sm select-none opacity-60' : ''}`}>
-              {listing.details?.manufacturer && (
-                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Manufacturer</span><span className="font-medium text-base">{listing.details.manufacturer}</span></div>
+
+            <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
+              {canViewFully && typedListing.details?.manufacturer && (
+                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Manufacturer</span><span className="font-medium text-base">{typedListing.details.manufacturer}</span></div>
               )}
-              {listing.details?.model && (
-                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Model/Volume</span><span className="font-medium text-base">{listing.details.model}</span></div>
+              {canViewFully && typedListing.details?.model && (
+                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Model/Volume</span><span className="font-medium text-base">{typedListing.details.model}</span></div>
               )}
-              {listing.details?.year && (
-                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1"><Calendar className="w-3 h-3 inline mr-1"/>Year</span><span className="font-medium text-base">{listing.details.year}</span></div>
+              {canViewFully && typedListing.details?.year && (
+                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1"><Calendar className="w-3 h-3 inline mr-1"/>Year</span><span className="font-medium text-base">{typedListing.details.year}</span></div>
               )}
-              {listing.details?.hours && (
-                <div><span className="text-primary block text-xs font-bold uppercase tracking-wider mb-1"><Activity className="w-3 h-3 inline mr-1"/>Total Hours</span><span className="font-bold text-base">{listing.details.hours}</span></div>
+              {canViewFully && typedListing.details?.hours && (
+                <div><span className="text-primary block text-xs font-bold uppercase tracking-wider mb-1"><Activity className="w-3 h-3 inline mr-1"/>Total Hours</span><span className="font-bold text-base">{typedListing.details.hours}</span></div>
               )}
-              {listing.details?.dimensions && (
-                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Dimensions</span><span className="font-medium text-base">{listing.details.dimensions}</span></div>
+              {canViewFully && typedListing.details?.dimensions && (
+                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Dimensions</span><span className="font-medium text-base">{typedListing.details.dimensions}</span></div>
               )}
-              {listing.details?.type && (
-                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Burner Type</span><span className="font-medium text-base">{listing.details.type}</span></div>
+              {canViewFully && typedListing.details?.type && (
+                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Burner Type</span><span className="font-medium text-base">{typedListing.details.type}</span></div>
               )}
-              {listing.details?.registration && (
-                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Registration</span><span className="font-medium text-base">{listing.details.registration}</span></div>
+              {canViewFully && typedListing.details?.registration && (
+                <div><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Registration</span><span className="font-medium text-base">{typedListing.details.registration}</span></div>
               )}
-              {listing.details?.serial && (
-                <div className="col-span-2 md:col-span-1"><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Serial Number</span><span className="font-mono text-sm">{listing.details.serial}</span></div>
+              {canViewFully && typedListing.details?.serial && (
+                <div className="col-span-2 md:col-span-1"><span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Serial Number</span><span className="font-mono text-sm">{typedListing.details.serial}</span></div>
               )}
             </div>
 
-            <div className={`mt-8 ${!canViewFully ? 'blur-sm select-none opacity-60' : ''}`}>
+            <div className="mt-8">
               <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-2">Description</span>
-              <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed">{listing.description}</p>
+              <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed">
+                {canViewFully ? typedListing.description : 'Full equipment details are available to Premium members during the exclusive window.'}
+              </p>
             </div>
           </div>
 
           {/* Contact Action */}
           <div className="mt-auto">
             {!canViewFully ? (
-              <Link href="/pricing" className="w-full flex justify-center items-center gap-2 bg-accent text-accent-foreground py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity">
-                <Lock className="w-5 h-5" />
-                Upgrade to Contact Seller
-              </Link>
+              <div className="space-y-3">
+                <Link href="/pricing" className="w-full flex justify-center items-center gap-2 bg-accent text-accent-foreground py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity">
+                  <Lock className="w-5 h-5" />
+                  Upgrade to Contact Seller
+                </Link>
+                <Link href="/new-balloon" className="w-full flex justify-center items-center gap-2 border border-primary/30 bg-primary/5 py-3 rounded-xl font-bold text-primary hover:bg-primary/10 transition-colors">
+                  Request a new balloon quote
+                </Link>
+              </div>
             ) : isOwner ? (
                <div className="space-y-3">
                  <div className="w-full text-center p-4 bg-muted text-muted-foreground rounded-xl font-medium border">
                    This is your listing.
                  </div>
-                 <Link href={`/catalog/${listing.id}/edit`} className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-md">
+                 <Link href={`/catalog/${typedListing.id}/edit`} className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-md">
                    Edit Listing Details & Photos
                  </Link>
                </div>
             ) : (
-              <ContactSeller 
-                listingId={listing.id} 
-                email={listing.contact_email} 
-                phone={listing.contact_phone} 
-              />
+              <ContactSeller listingId={typedListing.id} />
             )}
           </div>
-          
+
         </div>
       </div>
     </div>

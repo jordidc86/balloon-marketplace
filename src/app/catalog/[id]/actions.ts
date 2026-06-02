@@ -1,6 +1,20 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+type ListingDetailsForm = Record<string, FormDataEntryValue | null>
+
+const createAdminClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Server configuration error')
+  }
+
+  return createSupabaseClient(supabaseUrl, serviceRoleKey)
+}
 
 export async function logContactReveal(listingId: string) {
   const supabase = await createClient()
@@ -16,7 +30,7 @@ export async function logContactReveal(listingId: string) {
     .insert({
       listing_id: listingId,
       user_id: user.id,
-      event_type: 'contact_reveal'
+      event_type: 'CONTACT_REVEAL'
     })
 
   if (error) {
@@ -25,6 +39,59 @@ export async function logContactReveal(listingId: string) {
   }
 
   return true
+}
+
+export async function revealSellerContact(listingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error('Please log in to reveal seller contact details')
+  }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('is_premium')
+    .eq('id', user.id)
+    .single()
+
+  const supabaseAdmin = createAdminClient()
+  const { data: listing, error } = await supabaseAdmin
+    .from('listings')
+    .select('id, seller_id, status, public_at, contact_email, contact_phone')
+    .eq('id', listingId)
+    .single()
+
+  if (error || !listing) {
+    throw new Error('Listing not found')
+  }
+
+  const isPremiumExclusive =
+    listing.status === 'ACTIVE_PREMIUM' &&
+    listing.public_at &&
+    new Date() < new Date(listing.public_at)
+  const canReveal = !isPremiumExclusive || profile?.is_premium || listing.seller_id === user.id
+
+  if (!canReveal) {
+    throw new Error('Premium access is required to reveal this contact')
+  }
+
+  const { error: eventError } = await supabase
+    .from('listing_events')
+    .insert({
+      listing_id: listingId,
+      user_id: user.id,
+      event_type: 'CONTACT_REVEAL'
+    })
+
+  if (eventError) {
+    console.error('Failed to log contact reveal:', eventError)
+  }
+
+  return {
+    email: listing.contact_email as string,
+    phone: listing.contact_phone as string | null,
+  }
 }
 
 export async function updateListing(formData: FormData) {
@@ -52,7 +119,7 @@ export async function updateListing(formData: FormData) {
   }
 
   const category = formData.get('category') as string
-  const details: any = {}
+  const details: ListingDetailsForm = {}
   
   // Extract common details based on category
   if (['complete', 'envelopes'].includes(category)) {
@@ -190,4 +257,3 @@ export async function payListingFee(listingId: string) {
     throw new Error('Failed to create Stripe session')
   }
 }
-

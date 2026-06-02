@@ -7,6 +7,23 @@ import ExportInstagramButton from '@/components/admin/ExportInstagramButton'
 
 export const dynamic = 'force-dynamic'
 
+type AdminListingImage = {
+  url: string
+  is_primary?: boolean | null
+  created_at?: string | null
+}
+
+type AdminListing = {
+  id: string
+  title: string
+  price: number
+  currency: string
+  status: string
+  created_at: string
+  users?: { email?: string | null } | null
+  images?: AdminListingImage[] | null
+}
+
 export default async function AdminListingsPage() {
   const supabase = await createAdminClient()
 
@@ -14,6 +31,8 @@ export default async function AdminListingsPage() {
     .from('listings')
     .select('*, users(email), images(url, is_primary, created_at)')
     .order('created_at', { ascending: false })
+
+  const typedListings = listings as AdminListing[] | null
 
   if (error) {
     return <div className="p-4 bg-destructive/10 text-destructive rounded-xl">Error loading listings.</div>
@@ -40,10 +59,10 @@ export default async function AdminListingsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {listings?.map((l) => (
+              {typedListings?.map((l) => (
                 <tr key={l.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 font-medium max-w-[200px] truncate">{l.title}</td>
-                  <td className="px-6 py-4 text-muted-foreground">{(l.users as any)?.email || 'Unknown'}</td>
+                  <td className="px-6 py-4 text-muted-foreground">{l.users?.email || 'Unknown'}</td>
                   <td className="px-6 py-4 font-bold">{l.price.toLocaleString()} {l.currency}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-md text-xs font-bold tracking-wider ${
@@ -64,8 +83,8 @@ export default async function AdminListingsPage() {
                        </Link>
                        <ExportInstagramButton
                          listing={{
-                           ...(l as any),
-                           images: ((l.images as any[]) || []).sort((a, b) => {
+                           ...l,
+                           images: [...(l.images || [])].sort((a, b) => {
                              if (a.is_primary && !b.is_primary) return -1
                              if (!a.is_primary && b.is_primary) return 1
                              return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
@@ -114,7 +133,7 @@ export default async function AdminListingsPage() {
                   </td>
                 </tr>
               ))}
-              {listings?.length === 0 && (
+              {typedListings?.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No listings found.</td>
                 </tr>

@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import SellForm from '@/components/SellForm'
 import { Metadata } from 'next'

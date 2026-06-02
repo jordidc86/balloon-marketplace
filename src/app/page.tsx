@@ -1,7 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2, Database, Package, Layers, SlidersHorizontal } from "lucide-react";
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
+import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings';
 
 import { Metadata } from "next";
 
@@ -22,7 +24,17 @@ export default async function Home() {
   const { data: listings } = await supabaseAdmin
     .from('listings')
     .select(`
-      *,
+      id,
+      seller_id,
+      category,
+      title,
+      price,
+      currency,
+      condition,
+      location_country,
+      status,
+      public_at,
+      created_at,
       images (url, is_primary)
     `)
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
@@ -142,31 +154,33 @@ export default async function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {listings?.map((listing: any) => {
-              const isPremiumExclusive = new Date() < new Date(listing.public_at)
-              const isOwner = user?.id === listing.seller_id
-              const canViewFully = !isPremiumExclusive || isPremium || isOwner
-              const primaryImage = listing.images?.find((img: any) => img.is_primary)?.url || listing.images?.[0]?.url
+            {(listings as ListingWithImages[] | null)?.map((listing) => {
+              const { isPremiumExclusive, canViewFully } = getListingVisibility(listing, user?.id, isPremium)
+              const primaryImage = canViewFully ? getPrimaryImageUrl(listing) : null
+              const displayTitle = canViewFully ? listing.title : getPublicTeaserTitle(listing.category)
+              const displayPrice = canViewFully
+                ? listing.price === 0 ? 'Inquire' : `€${Number(listing.price).toLocaleString()}`
+                : 'Premium Exclusive'
+              const publicAtLabel = listing.public_at
+                ? formatDistanceToNow(new Date(listing.public_at))
+                : 'soon'
 
               if (!canViewFully) {
                 return (
                   <div key={listing.id} className="rounded-2xl border bg-white overflow-hidden group flex flex-col h-full relative shadow-sm">
                     <div className="h-56 bg-slate-200 relative overflow-hidden flex items-center justify-center shrink-0">
-                      {primaryImage && (
-                        <img src={primaryImage} alt="Blurred decorative background" className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-40" />
-                      )}
                       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-white px-4 text-center">
                         <Lock className="w-8 h-8 mb-2 text-amber-400" />
                         <span className="font-bold tracking-tight text-sm text-amber-400">PREMIUM EXCLUSIVE</span>
-                        <p className="text-xs mt-1 text-slate-300">Public in {formatDistanceToNow(new Date(listing.public_at))}</p>
+                        <p className="text-xs mt-1 text-slate-300">Public in {publicAtLabel}</p>
                       </div>
                     </div>
                     <div className="p-5 flex-1 flex flex-col">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{listing.category.replace('-', ' ')}</span>
                       </div>
-                      <h3 className="font-bold text-lg mb-1 line-clamp-2 blur-sm select-none text-slate-400">{listing.title}</h3>
-                      <p className="text-xl font-extrabold text-slate-900 mb-4 blur-sm select-none text-slate-400">{listing.price === 0 ? "Inquire for Pricing" : `€ ${listing.price}`}</p>
+                      <h3 className="font-bold text-lg mb-1 line-clamp-2 text-slate-400">{displayTitle}</h3>
+                      <p className="text-xl font-extrabold text-slate-900 mb-4 text-slate-400">{displayPrice}</p>
                     </div>
                   </div>
                 )
@@ -176,7 +190,7 @@ export default async function Home() {
                 <Link href={`/catalog/${listing.id}`} key={listing.id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
                   <div className="h-56 bg-slate-100 relative overflow-hidden flex items-center justify-center shrink-0">
                     {primaryImage ? (
-                      <img src={primaryImage} alt={listing.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <Image src={primaryImage} alt={displayTitle} fill sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <Search className="w-8 h-8 text-slate-300" />
                     )}
@@ -191,8 +205,8 @@ export default async function Home() {
                         <span className="text-xs font-bold text-primary uppercase tracking-wider">{listing.category.replace('-', ' ')}</span>
                         <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-1 rounded-md">{listing.condition}</span>
                     </div>
-                    <h3 className="font-bold text-lg leading-tight mb-2 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
-                    <p className="text-2xl font-extrabold text-slate-900 mb-4">{listing.price === 0 ? "Inquire" : `€${listing.price.toLocaleString()}`}</p>
+                    <h3 className="font-bold text-lg leading-tight mb-2 line-clamp-2 group-hover:text-primary transition-colors">{displayTitle}</h3>
+                    <p className="text-2xl font-extrabold text-slate-900 mb-4">{displayPrice}</p>
                     <div className="mt-auto w-full pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-500">
                       <span className="truncate pr-4">{listing.location_country}</span>
                       <span className="whitespace-nowrap shrink-0">{formatDistanceToNow(new Date(listing.created_at))} ago</span>

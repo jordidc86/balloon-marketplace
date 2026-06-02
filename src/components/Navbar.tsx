@@ -32,17 +32,14 @@ export default async function Navbar() {
             </Link>
           </div>
           
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href="/catalog?category=complete" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Complete Balloons</Link>
-            <Link href="/catalog?category=envelopes" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Envelopes</Link>
-            <Link href="/catalog?category=baskets" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Baskets</Link>
-            <Link href="/catalog?category=burners" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Burners</Link>
-            <Link href="/catalog?category=bottom-end" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Bottom Ends</Link>
-            <Link href="/catalog?category=cylinders" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Cylinders</Link>
-            <Link href="/catalog?category=other-equipment" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Other Equipment</Link>
+          <div className="hidden lg:flex items-center space-x-6">
+            <Link href="/catalog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Marketplace</Link>
+            <Link href="/sell" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sell Equipment</Link>
+            <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Premium</Link>
+            <Link href="/new-balloon" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">New Balloon Quote</Link>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             {user ? (
               <>
                 {isPremium && (
@@ -54,12 +51,16 @@ export default async function Navbar() {
                   <Plus className="h-4 w-4" />
                   List Item
                 </Link>
+                <Link href="/new-balloon" className="inline-flex items-center whitespace-nowrap bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+                  New Quote
+                </Link>
                 <div className="flex items-center gap-4 border-l pl-4 ml-2">
                   {isAdmin && <Link href="/admin" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">Admin</Link>}
-                  <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+                  <Link href="/dashboard" className="hidden sm:inline text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
                   <form action={signout}>
                     <button className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                      Log out
+                      <span className="hidden sm:inline">Log out</span>
+                      <span className="sm:hidden">Out</span>
                     </button>
                   </form>
                 </div>
@@ -68,6 +69,9 @@ export default async function Navbar() {
               <div className="flex items-center space-x-4 border-l pl-4 ml-2">
                 <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
                   Premium
+                </Link>
+                <Link href="/new-balloon" className="inline-flex items-center whitespace-nowrap bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+                  New Quote
                 </Link>
                 <Link href="/login" className="text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 px-4 py-2 rounded-lg transition-colors">
                   Log In

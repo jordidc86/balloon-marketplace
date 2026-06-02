@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
-import { Check, Plane, Lock, Bell, Star } from 'lucide-react'
+import { Check, Plane, Lock, Star } from 'lucide-react'
 import { createPremiumCheckout } from './actions'
 import { redirect } from 'next/navigation'
 import { Metadata } from 'next'
