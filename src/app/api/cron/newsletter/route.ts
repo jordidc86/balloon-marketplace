@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { escapeHtml } from '@/utils/html';
+import { siteUrl } from '@/utils/site';
 
 type NewsletterImage = {
   url: string
@@ -20,17 +22,8 @@ type NewsletterUser = {
   email: string | null
 }
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://aerotrade.app';
 const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const escapeHtml = (value: unknown) =>
-  String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 
 const getPrimaryImageUrl = (listing: NewsletterListing) => {
   const primaryImage = listing.images?.find((image) => image.is_primary);

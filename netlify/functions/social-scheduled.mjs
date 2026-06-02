@@ -1,5 +1,5 @@
 const socialScheduled = async () => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || 'https://aerotrade.app'
+  const siteUrl = normalizePublicSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)
   const cronSecret = process.env.CRON_SECRET
 
   if (!cronSecret) {
@@ -28,4 +28,20 @@ export default socialScheduled
 
 export const config = {
   schedule: '0 7 * * *',
+}
+
+const normalizePublicSiteUrl = (value) => {
+  const fallback = 'https://aerotrade.app'
+  const candidate = value?.trim().replace(/\/+$/, '')
+
+  if (!candidate) {
+    return fallback
+  }
+
+  try {
+    const url = new URL(candidate)
+    return url.hostname === 'aerotrade-mvp-app.netlify.app' ? fallback : url.origin
+  } catch {
+    return fallback
+  }
 }

@@ -1,5 +1,8 @@
 name: Send Bi-Weekly Newsletter Cron
 
+# Production newsletter scheduler.
+# Keep this as the single recurring newsletter trigger; do not add a duplicate
+# Netlify scheduled function unless the scheduler ownership changes.
 on:
   schedule:
     - cron: '0 9 1,16 * *'

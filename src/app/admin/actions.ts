@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient, createAdminClient } from '@/utils/supabase/server'
+import { escapeHtml } from '@/utils/html'
+import { siteUrl } from '@/utils/site'
 import { revalidatePath } from 'next/cache'
 
 async function checkAdmin() {
@@ -91,15 +93,18 @@ export async function promoteListing(listingId: string) {
     return { success: true, count: 0 }
   }
 
+  const formattedPrice = `${Number(listing.price).toLocaleString()} ${listing.currency}`
+  const listingUrl = `${siteUrl}/catalog/${listingId}`
+
   // Send emails using the resend utility
   const htmlContent = `
     <h2>AeroTrade Premium Alert</h2>
     <p>A new hot listing just hit the marketplace!</p>
-    <h3>${listing.title}</h3>
-    <p><strong>Category:</strong> ${listing.category}</p>
-    <p><strong>Price:</strong> ${listing.price.toLocaleString()} ${listing.currency}</p>
+    <h3>${escapeHtml(listing.title)}</h3>
+    <p><strong>Category:</strong> ${escapeHtml(listing.category)}</p>
+    <p><strong>Price:</strong> ${escapeHtml(formattedPrice)}</p>
     <br/>
-    <a href="https://aerotrade.app/catalog/${listingId}">View Listing on AeroTrade</a>
+    <a href="${escapeHtml(listingUrl)}">View Listing on AeroTrade</a>
   `
 
   const emailBatch = premiumUsers

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendEmailBatch } from '@/utils/resend';
+import { escapeHtml } from '@/utils/html';
+import { siteUrl } from '@/utils/site';
 
 type ListingImage = {
   url: string
@@ -19,16 +21,7 @@ type PremiumAlertUser = {
   email: string | null
 }
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://aerotrade.app';
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const escapeHtml = (value: unknown) =>
-  String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 
 const normalizeEmail = (email: string | null) => {
   const normalizedEmail = email?.trim().toLowerCase();
