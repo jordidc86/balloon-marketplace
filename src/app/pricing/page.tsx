@@ -24,7 +24,7 @@ export default async function PricingPage() {
       <div className="text-center mb-16">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">The unfair advantage.</h1>
         <p className="text-xl text-muted-foreground text-balance max-w-2xl mx-auto">
-          The best equipment never hits the public market. Join AeroTrade Premium to get a 48-hour head start on every single listing worldwide.
+          The best equipment often moves before everyone sees it. Join AeroTrade Premium to get a 48-hour head start on Premium listings worldwide.
         </p>
       </div>
 
@@ -37,7 +37,8 @@ export default async function PricingPage() {
           
           <ul className="space-y-4 mb-8 text-muted-foreground">
             <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-foreground" /> <span>Browse public listings</span></li>
-            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-foreground" /> <span>List items for sale (5€ fee)</span></li>
+            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-foreground" /> <span>Publish free listings</span></li>
+            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-foreground" /> <span>Optional 5 EUR Premium listing promotion</span></li>
             <li className="flex items-start gap-3 opacity-50"><Lock className="w-5 h-5 shrink-0" /> <span>No access to active premium listings</span></li>
             <li className="flex items-start gap-3 opacity-50"><Lock className="w-5 h-5 shrink-0" /> <span>No instant email alerts</span></li>
           </ul>
@@ -56,7 +57,7 @@ export default async function PricingPage() {
           <div className="text-5xl font-black mb-6 text-foreground">€ 9.99 <span className="text-lg text-muted-foreground font-medium">/ year</span></div>
           
           <ul className="space-y-4 mb-8 text-foreground font-medium">
-            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>48-Hour Early Access to all new listings</span></li>
+            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>48-Hour Early Access to Premium listings</span></li>
             <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>Instant Email Alerts for new gear</span></li>
             <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>Secure contact info reveal</span></li>
             <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>Premium badge on your profile</span></li>
