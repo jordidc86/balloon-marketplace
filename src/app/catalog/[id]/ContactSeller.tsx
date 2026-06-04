@@ -68,7 +68,7 @@ export default function ContactSeller({ listingId }: ContactSellerProps) {
         ) : (
           <>
             <Eye className="w-5 h-5" />
-            Reveal Contact Details
+            Show seller contact
           </>
         )}
       </button>

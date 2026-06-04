@@ -44,16 +44,13 @@ export async function logContactReveal(listingId: string) {
 export async function revealSellerContact(listingId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    throw new Error('Please log in to reveal seller contact details')
-  }
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('is_premium')
-    .eq('id', user.id)
-    .single()
+  const { data: profile } = user
+    ? await supabase
+      .from('users')
+      .select('is_premium')
+      .eq('id', user.id)
+      .single()
+    : { data: null }
 
   const supabaseAdmin = createAdminClient()
   const { data: listing, error } = await supabaseAdmin
@@ -70,19 +67,21 @@ export async function revealSellerContact(listingId: string) {
     listing.status === 'ACTIVE_PREMIUM' &&
     listing.public_at &&
     new Date() < new Date(listing.public_at)
-  const canReveal = !isPremiumExclusive || profile?.is_premium || listing.seller_id === user.id
+  const canReveal = !isPremiumExclusive || profile?.is_premium || listing.seller_id === user?.id
 
   if (!canReveal) {
     throw new Error('Premium access is required to reveal this contact')
   }
 
-  const { error: eventError } = await supabase
-    .from('listing_events')
-    .insert({
-      listing_id: listingId,
-      user_id: user.id,
-      event_type: 'CONTACT_REVEAL'
-    })
+  const { error: eventError } = user
+    ? await supabase
+      .from('listing_events')
+      .insert({
+        listing_id: listingId,
+        user_id: user.id,
+        event_type: 'CONTACT_REVEAL'
+      })
+    : { error: null }
 
   if (eventError) {
     console.error('Failed to log contact reveal:', eventError)
