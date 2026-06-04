@@ -66,8 +66,8 @@ export default async function AdminListingsPage() {
                   <td className="px-6 py-4 font-bold">{l.price.toLocaleString()} {l.currency}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-md text-xs font-bold tracking-wider ${
-                      l.status === 'DRAFT' ? 'bg-muted text-muted-foreground' : 
-                      l.status === 'ACTIVE_PREMIUM' ? 'bg-accent/20 text-accent' : 
+                      l.status === 'DRAFT' || l.status === 'PENDING_PAYMENT' ? 'bg-muted text-muted-foreground' :
+                      l.status === 'ACTIVE_PREMIUM' ? 'bg-accent/20 text-accent' :
                       'bg-primary/20 text-primary'
                     }`}>
                       {l.status}
@@ -91,7 +91,7 @@ export default async function AdminListingsPage() {
                            }),
                          }}
                        />
-                       {l.status === 'DRAFT' && (
+                       {(l.status === 'DRAFT' || l.status === 'PENDING_PAYMENT') && (
                          <form action={async () => {
                            'use server'
                            await forcePublishListing(l.id)

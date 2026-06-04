@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { escapeHtml } from '@/utils/html';
 import { siteUrl } from '@/utils/site';
+import { isPromotedListing } from '@/utils/listing-plans';
 
 type NewsletterImage = {
   url: string
@@ -15,6 +16,9 @@ type NewsletterListing = {
   currency: string
   location_country: string
   condition: string
+  details?: {
+    listing_plan?: string | null
+  } | null
   images?: NewsletterImage[]
 }
 
@@ -51,6 +55,9 @@ const normalizeEmail = (email: string | null) => {
   const normalizedEmail = email?.trim().toLowerCase();
   return normalizedEmail && emailPattern.test(normalizedEmail) ? normalizedEmail : null;
 };
+
+const getPromotedNewsletterListings = (listings: NewsletterListing[]) =>
+  listings.filter((listing) => isPromotedListing(listing.details));
 
 // Helper to generate the HTML for the email
 const generateNewsletterHtml = (listings: NewsletterListing[]) => {
@@ -171,7 +178,7 @@ export async function GET(request: Request) {
       .lte('public_at', now)
       .order('created_at', { ascending: false });
 
-    let listingsQuery = baseListingsQuery().limit(10); // Keep email size reasonable
+    let listingsQuery = baseListingsQuery().limit(25); // Filter out free listings while keeping email size reasonable.
 
     if (days && Number.isFinite(days) && days > 0) {
       const since = new Date();
@@ -186,19 +193,19 @@ export async function GET(request: Request) {
       return new NextResponse('Error fetching listings', { status: 500 });
     }
 
-    let recentListings = (primaryListings || []) as NewsletterListing[];
+    let recentListings = getPromotedNewsletterListings((primaryListings || []) as NewsletterListing[]).slice(0, 10);
     const primaryListingCount = recentListings.length;
 
     if (mixWithLatest && recentListings.length < 10) {
       const existingIds = new Set(recentListings.map((listing) => listing.id));
-      const { data: fallbackListings, error: fallbackError } = await baseListingsQuery().limit(10);
+      const { data: fallbackListings, error: fallbackError } = await baseListingsQuery().limit(25);
 
       if (fallbackError) {
         console.error('Error fetching fallback listings:', fallbackError);
         return new NextResponse('Error fetching fallback listings', { status: 500 });
       }
 
-      const fallbackMix = ((fallbackListings || []) as NewsletterListing[])
+      const fallbackMix = getPromotedNewsletterListings((fallbackListings || []) as NewsletterListing[])
         .filter((listing) => !existingIds.has(listing.id));
 
       recentListings = [...recentListings, ...fallbackMix].slice(0, 10);

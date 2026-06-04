@@ -26,7 +26,7 @@ export default function TermsPage() {
         </ul>
         
         <h2>4. Fees and Premium Limits</h2>
-        <p>AeroTrade charges a listing fee for sellers and an optional subscription fee ("Premium") for buyers. These fees are non-refundable unless otherwise required by law. The 48-Hour Premium window is provided "as is" and subject to system availability.</p>
+        <p>AeroTrade may offer free listings, paid Premium listing promotion for sellers, and an optional subscription fee ("Premium") for buyers. These fees are non-refundable unless otherwise required by law. The 48-Hour Premium window is provided "as is" and subject to system availability.</p>
         
         <h2>5. Limitation of Liability</h2>
         <p>AeroTrade makes no warranties regarding the condition, airworthiness, safety, or legality of any equipment listed. All transactions are at your own risk. AeroTrade shall not be liable for any indirect, incidental, or consequential damages arising from the use of the Platform.</p>

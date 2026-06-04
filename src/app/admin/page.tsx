@@ -10,7 +10,7 @@ export default async function AdminPage() {
   const { count: usersCount } = await supabase.from('users').select('*', { count: 'exact', head: true })
   const { count: premiumCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_premium', true)
   const { count: activeListings } = await supabase.from('listings').select('*', { count: 'exact', head: true }).in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
-  const { count: pendingListings } = await supabase.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'DRAFT')
+  const { count: pendingListings } = await supabase.from('listings').select('*', { count: 'exact', head: true }).in('status', ['DRAFT', 'PENDING_PAYMENT'])
 
   return (
     <div className="space-y-6">

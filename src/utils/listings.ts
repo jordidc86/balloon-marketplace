@@ -13,6 +13,7 @@ export type ListingDetails = {
   serial?: string | number | null
   dimensions?: string | number | null
   type?: string | number | null
+  listing_plan?: 'free' | 'premium' | null
 }
 
 export type ListingWithImages = {
@@ -83,4 +84,3 @@ export function formatListingPrice(price: number, currency: string) {
 
   return `${Number(price).toLocaleString()} ${currency}`
 }
-

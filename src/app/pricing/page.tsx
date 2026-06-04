@@ -92,15 +92,15 @@ export default async function PricingPage() {
         <div className="space-y-6">
           <div>
             <h4 className="font-semibold text-lg text-foreground">How does the 48-Hour Early Access work?</h4>
-            <p className="text-muted-foreground mt-1">Every new equipment listed on AeroTrade is locked in a "Premium Window" for the first 48 hours. Only Premium members can view the listing details, photos, and seller's contact information during this time. After 48 hours, the listing becomes visible to the general public.</p>
+            <p className="text-muted-foreground mt-1">Premium listings are locked in a "Premium Window" for the first 48 hours. Only Premium members can view the listing details, photos, and seller contact information during this time. After 48 hours, the listing becomes visible to the general public.</p>
           </div>
           <div>
             <h4 className="font-semibold text-lg text-foreground">What is "Secure Contact Info Reveal"?</h4>
-            <p className="text-muted-foreground mt-1">To protect sellers from spam and fraud, seller contact information (phone number and direct email) is hidden by default. Premium members can securely reveal this information with one click to contact the seller directly and arrange the purchase without any middlemen.</p>
+            <p className="text-muted-foreground mt-1">Seller contact information is hidden behind a reveal action to reduce casual scraping. Public listings can be contacted directly, while active Premium-window listings require Premium access until the window expires.</p>
           </div>
           <div>
             <h4 className="font-semibold text-lg text-foreground">Do you charge commissions on sales?</h4>
-            <p className="text-muted-foreground mt-1">No. AeroTrade is an open marketplace directory, not a broker. We charge a flat fee for Premium access and a small one-time listing fee for sellers, but we never take a percentage of your equipment sale.</p>
+            <p className="text-muted-foreground mt-1">No. AeroTrade is an open marketplace directory, not a broker. Sellers can publish free listings or choose a paid Premium listing promotion, but we never take a percentage of your equipment sale.</p>
           </div>
           <div>
             <h4 className="font-semibold text-lg text-foreground">How do I cancel my subscription?</h4>

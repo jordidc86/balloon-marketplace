@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
+import { Megaphone, UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 
 // Imported Actions
 import { submitListing } from '@/app/sell/actions'
@@ -40,6 +40,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
   const [existingImages, setExistingImages] = useState<ExistingImage[]>(initialData?.images || [])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [listingPlan, setListingPlan] = useState<'free' | 'premium'>('free')
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -326,11 +327,47 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
 
       {/* SUBMISSION */}
       <div className="pt-6 border-t flex flex-col items-center gap-4">
-        {!isEditing && !isPremium && (
-          <label className="flex items-start gap-3 text-sm text-muted-foreground p-4 bg-muted/40 rounded-lg border">
-            <input type="checkbox" required className="mt-1" />
-            <span>I understand that AeroTrade does not intermediate this transaction and that upon payment of 5 EUR, my listing will be exclusively visible to Premium members for 48 hours before becoming public.</span>
-          </label>
+        {!isEditing && (
+          <div className="w-full space-y-3">
+            <h2 className="text-xl font-semibold">5. Listing Plan</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors ${listingPlan === 'free' ? 'border-primary bg-primary/5' : 'bg-background hover:bg-muted/30'}`}>
+                <input
+                  type="radio"
+                  name="listing_plan"
+                  value="free"
+                  checked={listingPlan === 'free'}
+                  onChange={() => setListingPlan('free')}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-bold text-foreground">Free listing</span>
+                  <span className="block text-sm text-muted-foreground">Published directly in the public catalog with seller contact visible.</span>
+                </span>
+              </label>
+              <label className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors ${listingPlan === 'premium' ? 'border-accent bg-accent/10' : 'bg-background hover:bg-muted/30'}`}>
+                <input
+                  type="radio"
+                  name="listing_plan"
+                  value="premium"
+                  checked={listingPlan === 'premium'}
+                  onChange={() => setListingPlan('premium')}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="flex items-center gap-2 font-bold text-foreground">
+                    <Megaphone className="h-4 w-4 text-accent" />
+                    Premium listing - 5 EUR
+                  </span>
+                  <span className="block text-sm text-muted-foreground">48-hour Premium window, bi-weekly newsletter, social promotion until sold, and personal WhatsApp outreach.</span>
+                </span>
+              </label>
+            </div>
+            <label className="flex items-start gap-3 text-sm text-muted-foreground p-4 bg-muted/40 rounded-lg border">
+              <input type="checkbox" required className="mt-1" />
+              <span>I understand that AeroTrade does not intermediate this transaction. If I choose Premium, payment is required before the Premium promotion starts.</span>
+            </label>
+          </div>
         )}
         
         <button 
@@ -345,7 +382,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
             </>
           ) : (
             <>
-              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : (isPremium ? 'Publish Listing (Free)' : 'Pay 5 EUR & Publish Listing'))}
+              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : (listingPlan === 'premium' && !isPremium ? 'Pay 5 EUR & Publish Premium' : 'Publish Listing'))}
               <CheckCircle2 className="w-5 h-5" />
             </>
           )}

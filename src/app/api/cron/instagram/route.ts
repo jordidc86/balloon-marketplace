@@ -19,6 +19,7 @@ import {
 } from '@/utils/meta-social';
 import { siteUrl } from '@/utils/site';
 import { getSocialCardUrl } from '@/utils/social-card';
+import { isPromotedListing } from '@/utils/listing-plans';
 
 type ListingForInstagram = {
   id: string
@@ -34,6 +35,7 @@ type ListingForInstagram = {
     manufacturer?: string
     year?: string | number
     model?: string
+    listing_plan?: string | null
   } | null
   images?: { url: string; is_primary?: boolean }[]
 }
@@ -440,15 +442,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'No active listings require social publication at this time.' });
     }
 
+    const promotedListingsForIg = (listingsForIg as SocialListing[])
+      .filter((listing) => isPromotedListing(listing.details));
+
+    if (promotedListingsForIg.length === 0) {
+      return NextResponse.json({ message: 'No promoted listings require social publication at this time.' });
+    }
+
     const dayIndex = Math.floor(Date.UTC(
       new Date(now).getUTCFullYear(),
       new Date(now).getUTCMonth(),
       new Date(now).getUTCDate()
     ) / 86_400_000);
-    const startIndex = dayIndex % listingsForIg.length;
+    const startIndex = dayIndex % promotedListingsForIg.length;
     const rotatingListings = Array.from(
-      { length: Math.min(batchLimit, listingsForIg.length) },
-      (_, offset) => listingsForIg[(startIndex + offset) % listingsForIg.length]
+      { length: Math.min(batchLimit, promotedListingsForIg.length) },
+      (_, offset) => promotedListingsForIg[(startIndex + offset) % promotedListingsForIg.length]
     );
 
     let instagramCount = 0;

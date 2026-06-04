@@ -4,7 +4,8 @@ import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { sendEmail } from '@/utils/resend'
 import { sendPremiumListingAlert } from '@/utils/premium-alerts'
-// Note: Stripe will be integrated here later for the 5 EUR checkout
+import { escapeHtml } from '@/utils/html'
+import { getListingPlan, premiumListingFeeCents } from '@/utils/listing-plans'
 
 export async function submitListing(formData: FormData) {
   const supabase = await createClient()
@@ -16,6 +17,18 @@ export async function submitListing(formData: FormData) {
 
   const { data: profile } = await supabase.from('users').select('is_premium').eq('id', user.id).single()
   const isPremium = profile?.is_premium || false
+  const listingPlan = getListingPlan(formData.get('listing_plan'))
+  const shouldStartPremiumWindow = listingPlan === 'premium' && isPremium
+  const status = listingPlan === 'free'
+    ? 'ACTIVE_PUBLIC'
+    : shouldStartPremiumWindow
+      ? 'ACTIVE_PREMIUM'
+      : 'PENDING_PAYMENT'
+  const publicAt = listingPlan === 'free'
+    ? new Date().toISOString()
+    : shouldStartPremiumWindow
+      ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+      : null
 
   const category = formData.get('category') as string
   const getTextValue = (name: string) => {
@@ -34,10 +47,11 @@ export async function submitListing(formData: FormData) {
     details.serial = getTextValue('serial')
   }
 
-  if (category === 'baskets' || category === 'burners') {
+  if (category === 'baskets' || category === 'burners' || category === 'bottom-end') {
     details.dimensions = getTextValue('dimensions')
     details.type = getTextValue('type') // burner type
   }
+  details.listing_plan = listingPlan
 
   // Generate a random ID for the listing
   const listingData = {
@@ -52,8 +66,8 @@ export async function submitListing(formData: FormData) {
     contact_email: formData.get('contact_email') as string,
     contact_phone: formData.get('contact_phone') as string,
     details,
-    status: isPremium ? 'ACTIVE_PREMIUM' : 'DRAFT',
-    public_at: isPremium ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() : null,
+    status,
+    public_at: publicAt,
   }
 
   const { data: listing, error } = await supabase
@@ -93,18 +107,19 @@ export async function submitListing(formData: FormData) {
       'jordi.diaz.casaubon@gmail.com',
       'Nuevo anuncio en AeroTrade',
       `<p>Se ha creado un nuevo anuncio:</p>
-      <p>Título: ${listing.title}</p>
-      <p>Categoría: ${listing.category}</p>
-      <p>Precio: ${listing.price}</p>
-      <p>Usuario ID: ${user.id}</p>
-      <p>Email contacto: ${listing.contact_email}</p>
-      <p>Status: ${listing.status}</p>`
+      <p>Plan: ${escapeHtml(listingPlan)}</p>
+      <p>Título: ${escapeHtml(listing.title)}</p>
+      <p>Categoría: ${escapeHtml(listing.category)}</p>
+      <p>Precio: ${escapeHtml(listing.price)}</p>
+      <p>Usuario ID: ${escapeHtml(user.id)}</p>
+      <p>Email contacto: ${escapeHtml(listing.contact_email)}</p>
+      <p>Status: ${escapeHtml(listing.status)}</p>`
     )
   } catch (e) {
     console.error("Error sending notification:", e)
   }
 
-  if (isPremium) {
+  if (shouldStartPremiumWindow) {
     try {
       const adminSupabase = await createAdminClient()
       const alertResult = await sendPremiumListingAlert(adminSupabase, listing.id)
@@ -113,13 +128,19 @@ export async function submitListing(formData: FormData) {
       console.error('Failed to send premium listing alert after direct creation:', err)
     }
 
-    // Skip Stripe and redirect directly to success for Premium users
+    // Skip Stripe and redirect directly to success for Premium users choosing Premium listing.
     const headersList = await import('next/headers').then(m => m.headers())
     const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     redirect(`${origin}/catalog/${listing.id}?success=true`)
   }
 
-  // Use Stripe to charge the 5 EUR listing fee
+  if (listingPlan === 'free') {
+    const headersList = await import('next/headers').then(m => m.headers())
+    const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    redirect(`${origin}/catalog/${listing.id}?success=true&plan=free`)
+  }
+
+  // Use Stripe to charge the 5 EUR Premium listing fee.
   const { stripe } = await import('@/utils/stripe')
   const headersList = await import('next/headers').then(m => m.headers())
   const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
@@ -131,22 +152,23 @@ export async function submitListing(formData: FormData) {
         price_data: {
           currency: 'eur',
           product_data: {
-            name: 'Listing Fee: ' + listing.title,
-            description: '48-hour Premium Exclusive Window + Public Listing',
+            name: 'Premium Listing: ' + listing.title,
+            description: '48-hour Premium window, bi-weekly newsletter, social promotion and buyer outreach.',
           },
-          unit_amount: 500, // 5.00 EUR in cents
+          unit_amount: premiumListingFeeCents,
         },
         quantity: 1,
       },
     ],
     metadata: {
       type: 'listing_fee',
+      listing_plan: 'premium',
       listing_id: listing.id,
       user_id: user.id
     },
     mode: 'payment',
     success_url: `${origin}/catalog/${listing.id}?success=true`,
-    cancel_url: `${origin}/sell?canceled=true`,
+    cancel_url: `${origin}/catalog/${listing.id}?canceled=true`,
   })
 
   // Redirect to Stripe Checkout

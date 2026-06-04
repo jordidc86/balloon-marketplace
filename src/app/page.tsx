@@ -242,7 +242,7 @@ export default async function Home() {
           <div className="flex flex-col md:flex-row items-center justify-center gap-8 text-sm text-slate-400 font-medium tracking-wide">
             <span className="flex items-center gap-2"><Lock className="w-5 h-5 text-emerald-400" /> Contact details strictly protected</span>
             <span className="hidden md:block text-slate-700">•</span>
-            <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-blue-400" /> Every listing manually verified</span>
+            <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-blue-400" /> Listings can be reported and moderated</span>
           </div>
           <p className="mt-8 text-slate-500 text-xs">
             © {new Date().getFullYear()} AeroTrade. The private global exchange for lighter-than-air aviation.

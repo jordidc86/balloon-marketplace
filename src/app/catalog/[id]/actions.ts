@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { getStoredListingPlan, premiumListingFeeCents } from '@/utils/listing-plans'
 
 type ListingDetailsForm = Record<string, FormDataEntryValue | null>
 
@@ -109,7 +110,7 @@ export async function updateListing(formData: FormData) {
   // Verify ownership
   const { data: listing, error: fetchError } = await supabase
     .from('listings')
-    .select('seller_id')
+    .select('seller_id, details')
     .eq('id', listingId)
     .single()
 
@@ -130,9 +131,14 @@ export async function updateListing(formData: FormData) {
     details.serial = formData.get('serial')
   }
 
-  if (category === 'baskets' || category === 'burners') {
+  if (category === 'baskets' || category === 'burners' || category === 'bottom-end') {
     details.dimensions = formData.get('dimensions')
     details.type = formData.get('type')
+  }
+
+  const storedPlan = getStoredListingPlan(listing.details)
+  if (storedPlan) {
+    details.listing_plan = storedPlan
   }
 
   const listingData = {
@@ -216,7 +222,7 @@ export async function payListingFee(listingId: string) {
     throw new Error('Unauthorized')
   }
 
-  if (listing.status !== 'DRAFT') {
+  if (listing.status !== 'DRAFT' && listing.status !== 'PENDING_PAYMENT') {
     throw new Error('Listing is already active or being processed')
   }
 
@@ -231,16 +237,17 @@ export async function payListingFee(listingId: string) {
         price_data: {
           currency: 'eur',
           product_data: {
-            name: 'Listing Fee: ' + listing.title,
-            description: '48-hour Premium Exclusive Window + Public Listing',
+            name: 'Premium Listing: ' + listing.title,
+            description: '48-hour Premium window, bi-weekly newsletter, social promotion and buyer outreach.',
           },
-          unit_amount: 500,
+          unit_amount: premiumListingFeeCents,
         },
         quantity: 1,
       },
     ],
     metadata: {
       type: 'listing_fee',
+      listing_plan: 'premium',
       listing_id: listing.id,
       user_id: user.id
     },
@@ -255,4 +262,54 @@ export async function payListingFee(listingId: string) {
   } else {
     throw new Error('Failed to create Stripe session')
   }
+}
+
+export async function publishListingFree(listingId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error('Not authenticated')
+  }
+
+  const { data: listing, error } = await supabase
+    .from('listings')
+    .select('id, seller_id, status, details')
+    .eq('id', listingId)
+    .single()
+
+  if (error || !listing || listing.seller_id !== user.id) {
+    throw new Error('Unauthorized')
+  }
+
+  if (listing.status !== 'DRAFT' && listing.status !== 'PENDING_PAYMENT') {
+    throw new Error('Listing is already active')
+  }
+
+  const details = {
+    ...((listing.details || {}) as Record<string, unknown>),
+    listing_plan: 'free',
+  }
+
+  const { error: updateError } = await supabase
+    .from('listings')
+    .update({
+      status: 'ACTIVE_PUBLIC',
+      public_at: new Date().toISOString(),
+      details,
+    })
+    .eq('id', listingId)
+
+  if (updateError) {
+    console.error('Error publishing listing as free:', updateError)
+    throw new Error('Could not publish listing')
+  }
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath(`/catalog/${listingId}`)
+  revalidatePath('/catalog')
+  revalidatePath('/dashboard')
+
+  const { redirect: nextRedirect } = await import('next/navigation')
+  nextRedirect(`/catalog/${listingId}?success=true&plan=free`)
 }

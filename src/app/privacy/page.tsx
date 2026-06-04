@@ -13,7 +13,7 @@ export default function PrivacyPage() {
         <p><strong>Last Updated:</strong> April 2026</p>
         
         <h2>1. Information We Collect</h2>
-        <p>When you register for an AeroTrade account, we collect your name, email address, and optionally your phone number. When you subscribe to Premium or pay a listing fee, your payment information is securely processed by Stripe; we do not store your credit card details on our servers.</p>
+        <p>When you register for an AeroTrade account, we collect your name, email address, and optionally your phone number. When you subscribe to Premium or pay for Premium listing promotion, your payment information is securely processed by Stripe; we do not store your credit card details on our servers.</p>
         
         <h2>2. How We Use Your Information</h2>
         <ul>
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
         <h2>3. Information Sharing and Disclosure</h2>
         <p>AeroTrade does not sell or rent your personal information to third parties. We only share information in the following circumstances:</p>
         <ul>
-          <li><strong>To Buyers:</strong> If you are a seller, your contact information is shared with Premium users who choose to securely reveal it, and with public users after the 48-hour window expires, strictly for the purpose of facilitating the sale.</li>
+          <li><strong>To Buyers:</strong> If you are a seller, your contact information is shared with users who choose to reveal it on public listings, and with Premium users during an active 48-hour Premium window, strictly for the purpose of facilitating the sale.</li>
           <li><strong>Service Providers:</strong> We use third-party tools (like Stripe for payments and Resend for emails) which have access to limited data strictly to perform their functions.</li>
         </ul>
         

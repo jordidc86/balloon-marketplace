@@ -8,6 +8,7 @@ import ContactSeller from './ContactSeller'
 import { Metadata } from 'next'
 import { getListingVisibility, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
 import { siteUrl } from '@/utils/site'
+import { payListingFee, publishListingFree } from './actions'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -89,6 +90,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     user?.id,
     isPremium
   )
+  const isActiveListing = typedListing.status === 'ACTIVE_PUBLIC' || typedListing.status === 'ACTIVE_PREMIUM'
+
+  if (!isActiveListing && !isOwner) {
+    notFound()
+  }
 
   const images = canViewFully ? typedListing.images?.map((img) => img.url) || [] : []
   const displayTitle = canViewFully ? typedListing.title : getPublicTeaserTitle(typedListing.category)
@@ -145,6 +151,15 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <CheckCircle2 className="w-5 h-5 shrink-0" />
           <p className="font-medium text-sm">
             You are viewing this listing securely within the 48-hour Premium window.
+          </p>
+        </div>
+      )}
+
+      {typedListing.status === 'PENDING_PAYMENT' && isOwner && (
+        <div className="bg-accent/10 text-accent-foreground border border-accent/20 p-4 rounded-xl mb-8 flex items-center gap-3">
+          <Lock className="w-5 h-5 shrink-0" />
+          <p className="font-medium text-sm">
+            Premium payment is pending. Complete payment to start promotion, or publish this listing for free.
           </p>
         </div>
       )}
@@ -273,6 +288,26 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                  <div className="w-full text-center p-4 bg-muted text-muted-foreground rounded-xl font-medium border">
                    This is your listing.
                  </div>
+                 {typedListing.status === 'PENDING_PAYMENT' && (
+                   <div className="grid gap-3 sm:grid-cols-2">
+                     <form action={async () => {
+                       'use server'
+                       await payListingFee(typedListing.id)
+                     }}>
+                       <button className="w-full flex justify-center items-center gap-2 bg-accent text-accent-foreground py-4 rounded-xl font-bold text-base hover:opacity-90 transition-opacity">
+                         Complete Premium Payment
+                       </button>
+                     </form>
+                     <form action={async () => {
+                       'use server'
+                       await publishListingFree(typedListing.id)
+                     }}>
+                       <button className="w-full flex justify-center items-center gap-2 border border-primary/30 bg-primary/5 py-4 rounded-xl font-bold text-base text-primary hover:bg-primary/10 transition-colors">
+                         Publish Free Instead
+                       </button>
+                     </form>
+                   </div>
+                 )}
                  <Link href={`/catalog/${typedListing.id}/edit`} className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-md">
                    Edit Listing Details & Photos
                  </Link>
