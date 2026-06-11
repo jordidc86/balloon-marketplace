@@ -6,6 +6,16 @@ type MetaPostInput = {
   linkUrl?: string
 }
 
+type MetaCarouselInput = {
+  imageUrls: string[]
+  caption: string
+}
+
+type MetaReelInput = {
+  videoUrl: string
+  caption: string
+}
+
 type InstagramPublishResult = {
   creationId: string
   mediaId: string
@@ -15,6 +25,12 @@ type FacebookPublishResult = {
   postId: string
 }
 
+type InstagramCarouselPublishResult = InstagramPublishResult & {
+  childCreationIds: string[]
+}
+
+type InstagramReelPublishResult = InstagramPublishResult
+
 type InstagramStoryPublishResult = {
   creationId: string
   mediaId: string
@@ -23,6 +39,10 @@ type InstagramStoryPublishResult = {
 type FacebookStoryPublishResult = {
   photoId: string
   postId: string
+}
+
+type FacebookVideoPublishResult = {
+  videoId: string
 }
 
 type FacebookConfig = {
@@ -60,7 +80,7 @@ class MetaApiError extends Error {
 const graphApiVersion = process.env.META_GRAPH_API_VERSION || 'v24.0'
 const graphApiBaseUrl = `https://graph.facebook.com/${graphApiVersion}`
 const instagramContainerPollDelayMs = 2500
-const instagramContainerPollAttempts = 10
+const instagramContainerPollAttempts = 20
 
 const getUniqueTokenCandidates = (...tokens: Array<string | undefined>) => {
   const seen = new Set<string>()
@@ -357,6 +377,96 @@ export const publishInstagramImagePost = async ({
   })
 }
 
+export const publishInstagramImageCarousel = async ({
+  imageUrls,
+  caption,
+}: MetaCarouselInput): Promise<InstagramCarouselPublishResult> => {
+  const config = getInstagramConfig()
+
+  if (!config) {
+    throw new Error('Missing INSTAGRAM_USER_ID and INSTAGRAM_ACCESS_TOKEN, META_USER_ACCESS_TOKEN, or META_ACCESS_TOKEN')
+  }
+
+  if (imageUrls.length < 2) {
+    throw new Error('Instagram carousel publishing requires at least two images')
+  }
+
+  return withTokenFallback(config.accessTokens, async (accessToken) => {
+    const childCreationIds: string[] = []
+
+    for (const imageUrl of imageUrls) {
+      const child = await postToMeta<{ id: string }>(
+        `${config.instagramUserId}/media`,
+        {
+          image_url: imageUrl,
+          is_carousel_item: 'true',
+          access_token: accessToken,
+        }
+      )
+
+      await waitForInstagramContainer(child.id, accessToken)
+      childCreationIds.push(child.id)
+    }
+
+    const container = await postToMeta<{ id: string }>(
+      `${config.instagramUserId}/media`,
+      {
+        media_type: 'CAROUSEL',
+        children: childCreationIds.join(','),
+        caption,
+        access_token: accessToken,
+      }
+    )
+
+    const published = await publishInstagramContainer(
+      config.instagramUserId,
+      container.id,
+      accessToken
+    )
+
+    return {
+      creationId: container.id,
+      childCreationIds,
+      mediaId: published.id,
+    }
+  })
+}
+
+export const publishInstagramReel = async ({
+  videoUrl,
+  caption,
+}: MetaReelInput): Promise<InstagramReelPublishResult> => {
+  const config = getInstagramConfig()
+
+  if (!config) {
+    throw new Error('Missing INSTAGRAM_USER_ID and INSTAGRAM_ACCESS_TOKEN, META_USER_ACCESS_TOKEN, or META_ACCESS_TOKEN')
+  }
+
+  return withTokenFallback(config.accessTokens, async (accessToken) => {
+    const container = await postToMeta<{ id: string }>(
+      `${config.instagramUserId}/media`,
+      {
+        media_type: 'REELS',
+        video_url: videoUrl,
+        caption,
+        share_to_feed: 'true',
+        access_token: accessToken,
+      }
+    )
+
+    const published = await publishInstagramContainer(
+      config.instagramUserId,
+      container.id,
+      accessToken
+    )
+
+    return {
+      creationId: container.id,
+      mediaId: published.id,
+    }
+  })
+}
+
 export const publishFacebookPhotoPost = async ({
   imageUrl,
   caption,
@@ -377,6 +487,30 @@ export const publishFacebookPhotoPost = async ({
 
     return {
       postId: published.post_id || published.id,
+    }
+  })
+}
+
+export const publishFacebookVideoPost = async ({
+  videoUrl,
+  caption,
+  linkUrl,
+}: MetaReelInput & { linkUrl?: string }): Promise<FacebookVideoPublishResult> => {
+  const description = linkUrl ? `${caption}\n\n${linkUrl}` : caption
+
+  return withFacebookConfigFallback(async (config) => {
+    const published = await postToMeta<{ id: string }>(
+      `${config.pageId}/videos`,
+      {
+        file_url: videoUrl,
+        description,
+        published: 'true',
+        access_token: config.accessToken,
+      }
+    )
+
+    return {
+      videoId: published.id,
     }
   })
 }

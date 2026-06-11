@@ -12,14 +12,26 @@ import { sendEmail } from '@/utils/resend';
 import {
   canPublishToFacebook,
   canPublishToInstagram,
+  publishFacebookVideoPost,
+  publishInstagramImageCarousel,
   publishFacebookPhotoPost,
   publishFacebookPhotoStory,
   publishInstagramImagePost,
   publishInstagramImageStory,
+  publishInstagramReel,
 } from '@/utils/meta-social';
 import { siteUrl } from '@/utils/site';
 import { getSocialCardUrl } from '@/utils/social-card';
 import { isPromotedListing } from '@/utils/listing-plans';
+import {
+  getBrandCarouselImageUrls,
+  getBrandPostImageUrl,
+  getBrandReelCoverImageUrl,
+  getBrandReelVideoUrl,
+  getBrandSocialLinkUrl,
+  getBrandStoryImageUrl,
+  getSocialPublishingSlot,
+} from '@/utils/social-brand-content';
 
 type ListingForInstagram = {
   id: string
@@ -424,6 +436,278 @@ export async function GET(request: Request) {
       console.warn('Unable to inspect social_last_posted_at column:', socialLastPostedAtColumnError);
     }
 
+    const dayIndex = Math.floor(Date.UTC(
+      new Date(now).getUTCFullYear(),
+      new Date(now).getUTCMonth(),
+      new Date(now).getUTCDate()
+    ) / 86_400_000);
+    const runDate = getSocialRunDate(new Date(now));
+    const socialSlot = getSocialPublishingSlot(dayIndex, requestUrl.searchParams.get('socialType'));
+
+    let instagramCount = 0;
+    let instagramStoryCount = 0;
+    let instagramCarouselCount = 0;
+    let instagramReelCount = 0;
+    let facebookCount = 0;
+    let facebookStoryCount = 0;
+    let facebookVideoCount = 0;
+    let skippedLockedCount = 0;
+
+    // 4. Publish ready listings or brand interstitials to configured Meta channels.
+    const shouldPublishToInstagram = canPublishToInstagram();
+    const shouldPublishToFacebook = canPublishToFacebook();
+    const adminEmail = getAdminEmail();
+    const failures: { id: string; network: string; error: string }[] = [];
+    const planned: {
+      id: string
+      title: string
+      type?: string
+      networks: string[]
+      imageUrl?: string
+      storyImageUrl?: string
+      carouselImageUrls?: string[]
+      videoUrl?: string
+    }[] = [];
+
+    const recordFailure = (id: string, network: string, err: unknown) => {
+      const error = err instanceof Error ? err.message : 'Unknown error';
+      failures.push({ id, network, error });
+      console.error(`Failed to publish ${id} to ${network}:`, err);
+    };
+
+    if (socialSlot.type !== 'listing' && socialSlot.concept) {
+      const concept = socialSlot.concept;
+      const brandPublication = {
+        id: `brand-${socialSlot.type}-${concept.slug}`,
+        title: concept.title,
+      };
+      const postImageUrl = getBrandPostImageUrl(siteUrl, concept.slug);
+      const storyImageUrl = getBrandStoryImageUrl(siteUrl, concept.slug);
+      const carouselImageUrls = getBrandCarouselImageUrls(siteUrl, concept.slug);
+      const videoUrl = getBrandReelVideoUrl(siteUrl, concept.slug);
+      const reelCoverImageUrl = getBrandReelCoverImageUrl(siteUrl, concept.slug);
+      const linkUrl = getBrandSocialLinkUrl(siteUrl);
+      const brandCaption = concept.caption;
+      const pendingNetworks = socialSlot.type === 'brand-post'
+        ? ['Instagram post', 'Facebook post']
+        : socialSlot.type === 'brand-carousel'
+          ? ['Instagram carousel', 'Facebook post']
+          : socialSlot.type === 'brand-story'
+            ? ['Instagram story', 'Facebook story']
+            : ['Instagram reel', 'Facebook video'];
+
+      if (dryRun) {
+        planned.push({
+          ...brandPublication,
+          type: socialSlot.type,
+          networks: pendingNetworks,
+          imageUrl: postImageUrl,
+          storyImageUrl,
+          carouselImageUrls,
+          videoUrl,
+        });
+
+        return NextResponse.json({
+          success: true,
+          mode: 'dry-run',
+          dryRun,
+          socialType: socialSlot.type,
+          processed: 0,
+          planned,
+          failures,
+        });
+      }
+
+      const lockCreated = await tryCreateDailySocialLock(supabase, brandPublication, runDate);
+
+      if (!lockCreated) {
+        skippedLockedCount++;
+      } else {
+        if (socialSlot.type === 'brand-post') {
+          if (shouldPublishToInstagram) {
+            try {
+              const instagramPost = await publishInstagramImagePost({
+                imageUrl: postImageUrl,
+                caption: brandCaption,
+              });
+
+              instagramCount++;
+              console.log(`Published ${brandPublication.id} to Instagram as media ${instagramPost.mediaId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Instagram post', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Instagram post', new Error('Instagram credentials are not configured'));
+          }
+
+          if (shouldPublishToFacebook) {
+            try {
+              const facebookPost = await publishFacebookPhotoPost({
+                imageUrl: postImageUrl,
+                caption: brandCaption,
+                linkUrl,
+              });
+
+              facebookCount++;
+              console.log(`Published ${brandPublication.id} to Facebook as post ${facebookPost.postId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Facebook post', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Facebook post', new Error('Facebook credentials are not configured'));
+          }
+        }
+
+        if (socialSlot.type === 'brand-carousel') {
+          if (shouldPublishToInstagram) {
+            try {
+              const instagramCarousel = await publishInstagramImageCarousel({
+                imageUrls: carouselImageUrls,
+                caption: brandCaption,
+              });
+
+              instagramCarouselCount++;
+              console.log(`Published ${brandPublication.id} to Instagram as carousel ${instagramCarousel.mediaId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Instagram carousel', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Instagram carousel', new Error('Instagram credentials are not configured'));
+          }
+
+          if (shouldPublishToFacebook) {
+            try {
+              const facebookPost = await publishFacebookPhotoPost({
+                imageUrl: carouselImageUrls[0],
+                caption: brandCaption,
+                linkUrl,
+              });
+
+              facebookCount++;
+              console.log(`Published ${brandPublication.id} carousel cover to Facebook as post ${facebookPost.postId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Facebook post', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Facebook post', new Error('Facebook credentials are not configured'));
+          }
+        }
+
+        if (socialSlot.type === 'brand-story') {
+          if (shouldPublishToInstagram) {
+            try {
+              const instagramStory = await publishInstagramImageStory({
+                imageUrl: storyImageUrl,
+              });
+
+              instagramStoryCount++;
+              console.log(`Published ${brandPublication.id} to Instagram story as media ${instagramStory.mediaId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Instagram story', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Instagram story', new Error('Instagram credentials are not configured'));
+          }
+
+          if (shouldPublishToFacebook) {
+            try {
+              const facebookStory = await publishFacebookPhotoStory({
+                imageUrl: storyImageUrl,
+              });
+
+              facebookStoryCount++;
+              console.log(`Published ${brandPublication.id} to Facebook story as post ${facebookStory.postId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Facebook story', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Facebook story', new Error('Facebook credentials are not configured'));
+          }
+        }
+
+        if (socialSlot.type === 'brand-reel') {
+          if (shouldPublishToInstagram) {
+            try {
+              const instagramReel = await publishInstagramReel({
+                videoUrl,
+                caption: brandCaption,
+              });
+
+              instagramReelCount++;
+              console.log(`Published ${brandPublication.id} to Instagram as reel ${instagramReel.mediaId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Instagram reel', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Instagram reel', new Error('Instagram credentials are not configured'));
+          }
+
+          if (shouldPublishToFacebook) {
+            try {
+              const facebookVideo = await publishFacebookVideoPost({
+                videoUrl,
+                caption: brandCaption,
+                linkUrl,
+              });
+
+              facebookVideoCount++;
+              console.log(`Published ${brandPublication.id} to Facebook as video ${facebookVideo.videoId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Facebook video', err);
+
+              try {
+                const fallbackPost = await publishFacebookPhotoPost({
+                  imageUrl: reelCoverImageUrl,
+                  caption: brandCaption,
+                  linkUrl,
+                });
+
+                facebookCount++;
+                console.log(`Published ${brandPublication.id} reel cover to Facebook as fallback post ${fallbackPost.postId}.`);
+              } catch (fallbackErr) {
+                recordFailure(brandPublication.id, 'Facebook reel cover fallback', fallbackErr);
+              }
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Facebook video', new Error('Facebook credentials are not configured'));
+          }
+        }
+      }
+
+      if (!dryRun && failures.length > 0) {
+        try {
+          await sendEmail(
+            adminEmail,
+            'AeroTrade social publishing failed',
+            generateFailureHtml(failures)
+          );
+        } catch (emailError) {
+          console.error('Unable to send social publishing failure alert:', emailError);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        mode: shouldPublishToInstagram || shouldPublishToFacebook ? 'api' : 'email-reminder',
+        dryRun,
+        socialType: socialSlot.type,
+        processed: instagramCount + instagramStoryCount + instagramCarouselCount + instagramReelCount + facebookCount + facebookStoryCount + facebookVideoCount,
+        instagramPublished: instagramCount,
+        instagramStoriesPublished: instagramStoryCount,
+        instagramCarouselsPublished: instagramCarouselCount,
+        instagramReelsPublished: instagramReelCount,
+        facebookPublished: facebookCount,
+        facebookStoriesPublished: facebookStoryCount,
+        facebookVideosPublished: facebookVideoCount,
+        upgradedExpiredPremiumListings: upgradedListingCount,
+        facebookTrackingColumn: hasFacebookPostedColumn,
+        socialRotationColumn: hasSocialLastPostedAtColumn,
+        skippedLocked: skippedLockedCount,
+        planned,
+        failures,
+      });
+    }
+
     // 3. Find public, unsold listings ready for rotating daily social publication.
     const { data: listingsForIg, error: igError } = await supabase
       .from('listings')
@@ -449,31 +733,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'No promoted listings require social publication at this time.' });
     }
 
-    const dayIndex = Math.floor(Date.UTC(
-      new Date(now).getUTCFullYear(),
-      new Date(now).getUTCMonth(),
-      new Date(now).getUTCDate()
-    ) / 86_400_000);
     const startIndex = dayIndex % promotedListingsForIg.length;
     const rotatingListings = Array.from(
       { length: Math.min(batchLimit, promotedListingsForIg.length) },
       (_, offset) => promotedListingsForIg[(startIndex + offset) % promotedListingsForIg.length]
     );
-
-    let instagramCount = 0;
-    let instagramStoryCount = 0;
-    let facebookCount = 0;
-    let facebookStoryCount = 0;
-    let skippedLockedCount = 0;
-
-    // 4. Publish ready listings to configured Meta channels. If credentials are missing, email the admin instead.
-    const shouldPublishToInstagram = canPublishToInstagram();
-    const shouldPublishToFacebook = canPublishToFacebook();
-    const adminEmail = getAdminEmail();
-    const failures: { id: string; network: string; error: string }[] = [];
-    const planned: { id: string; title: string; networks: string[]; imageUrl: string; storyImageUrl: string }[] = [];
-
-    const runDate = getSocialRunDate(new Date(now));
 
     for (const listing of rotatingListings as SocialListing[]) {
       const plannedImageUrl = getSocialCardUrl(siteUrl, listing.id, 'post');
@@ -504,12 +768,6 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const recordFailure = (network: string, err: unknown) => {
-        const error = err instanceof Error ? err.message : 'Unknown error';
-        failures.push({ id: listing.id, network, error });
-        console.error(`Failed to publish listing ${listing.id} to ${network}:`, err);
-      };
-
       try {
         const imageUrl = await getPublicJpegSocialImageUrl(listing, 'post');
         const storyImageUrl = await getPublicJpegSocialImageUrl(listing, 'story');
@@ -529,7 +787,7 @@ export async function GET(request: Request) {
             publishedToInstagram = true;
             console.log(`Published listing ${listing.id} to Instagram as media ${instagramPost.mediaId}.`);
           } catch (err) {
-            recordFailure('Instagram post', err);
+            recordFailure(listing.id, 'Instagram post', err);
           }
 
           try {
@@ -542,10 +800,10 @@ export async function GET(request: Request) {
             publishedToInstagram = true;
             console.log(`Published listing ${listing.id} to Instagram story as media ${instagramStory.mediaId}.`);
           } catch (err) {
-            recordFailure('Instagram story', err);
+            recordFailure(listing.id, 'Instagram story', err);
           }
         } else {
-          recordFailure('Instagram post + story', new Error('Instagram credentials are not configured'));
+          recordFailure(listing.id, 'Instagram post + story', new Error('Instagram credentials are not configured'));
         }
 
         if (shouldPublishToFacebook) {
@@ -561,7 +819,7 @@ export async function GET(request: Request) {
             publishedToFacebook = true;
             console.log(`Published listing ${listing.id} to Facebook as post ${facebookPost.postId}.`);
           } catch (err) {
-            recordFailure('Facebook post', err);
+            recordFailure(listing.id, 'Facebook post', err);
           }
 
           try {
@@ -574,10 +832,10 @@ export async function GET(request: Request) {
             publishedToFacebook = true;
             console.log(`Published listing ${listing.id} to Facebook story as post ${facebookStory.postId}.`);
           } catch (err) {
-            recordFailure('Facebook story', err);
+            recordFailure(listing.id, 'Facebook story', err);
           }
         } else {
-          recordFailure('Facebook post + story', new Error('Facebook credentials are not configured'));
+          recordFailure(listing.id, 'Facebook post + story', new Error('Facebook credentials are not configured'));
         }
 
         if (publishedToAnyNetwork) {
