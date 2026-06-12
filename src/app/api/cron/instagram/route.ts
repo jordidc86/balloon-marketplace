@@ -489,12 +489,12 @@ export async function GET(request: Request) {
       const linkUrl = getBrandSocialLinkUrl(siteUrl);
       const brandCaption = concept.caption;
       const pendingNetworks = socialSlot.type === 'brand-post'
-        ? ['Instagram post', 'Facebook post']
+        ? ['Instagram post', 'Instagram story', 'Facebook post', 'Facebook story']
         : socialSlot.type === 'brand-carousel'
-          ? ['Instagram carousel', 'Facebook post']
+          ? ['Instagram carousel', 'Instagram story', 'Facebook post', 'Facebook story']
           : socialSlot.type === 'brand-story'
             ? ['Instagram story', 'Facebook story']
-            : ['Instagram reel', 'Facebook video'];
+            : ['Instagram reel', 'Instagram story', 'Facebook video', 'Facebook story'];
 
       if (dryRun) {
         planned.push({
@@ -523,6 +523,38 @@ export async function GET(request: Request) {
       if (!lockCreated) {
         skippedLockedCount++;
       } else {
+        const publishBrandStories = async () => {
+          if (shouldPublishToInstagram) {
+            try {
+              const instagramStory = await publishInstagramImageStory({
+                imageUrl: storyImageUrl,
+              });
+
+              instagramStoryCount++;
+              console.log(`Published ${brandPublication.id} to Instagram story as media ${instagramStory.mediaId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Instagram story', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Instagram story', new Error('Instagram credentials are not configured'));
+          }
+
+          if (shouldPublishToFacebook) {
+            try {
+              const facebookStory = await publishFacebookPhotoStory({
+                imageUrl: storyImageUrl,
+              });
+
+              facebookStoryCount++;
+              console.log(`Published ${brandPublication.id} to Facebook story as post ${facebookStory.postId}.`);
+            } catch (err) {
+              recordFailure(brandPublication.id, 'Facebook story', err);
+            }
+          } else {
+            recordFailure(brandPublication.id, 'Facebook story', new Error('Facebook credentials are not configured'));
+          }
+        };
+
         if (socialSlot.type === 'brand-post') {
           if (shouldPublishToInstagram) {
             try {
@@ -556,6 +588,8 @@ export async function GET(request: Request) {
           } else {
             recordFailure(brandPublication.id, 'Facebook post', new Error('Facebook credentials are not configured'));
           }
+
+          await publishBrandStories();
         }
 
         if (socialSlot.type === 'brand-carousel') {
@@ -591,38 +625,12 @@ export async function GET(request: Request) {
           } else {
             recordFailure(brandPublication.id, 'Facebook post', new Error('Facebook credentials are not configured'));
           }
+
+          await publishBrandStories();
         }
 
         if (socialSlot.type === 'brand-story') {
-          if (shouldPublishToInstagram) {
-            try {
-              const instagramStory = await publishInstagramImageStory({
-                imageUrl: storyImageUrl,
-              });
-
-              instagramStoryCount++;
-              console.log(`Published ${brandPublication.id} to Instagram story as media ${instagramStory.mediaId}.`);
-            } catch (err) {
-              recordFailure(brandPublication.id, 'Instagram story', err);
-            }
-          } else {
-            recordFailure(brandPublication.id, 'Instagram story', new Error('Instagram credentials are not configured'));
-          }
-
-          if (shouldPublishToFacebook) {
-            try {
-              const facebookStory = await publishFacebookPhotoStory({
-                imageUrl: storyImageUrl,
-              });
-
-              facebookStoryCount++;
-              console.log(`Published ${brandPublication.id} to Facebook story as post ${facebookStory.postId}.`);
-            } catch (err) {
-              recordFailure(brandPublication.id, 'Facebook story', err);
-            }
-          } else {
-            recordFailure(brandPublication.id, 'Facebook story', new Error('Facebook credentials are not configured'));
-          }
+          await publishBrandStories();
         }
 
         if (socialSlot.type === 'brand-reel') {
@@ -671,6 +679,8 @@ export async function GET(request: Request) {
           } else {
             recordFailure(brandPublication.id, 'Facebook video', new Error('Facebook credentials are not configured'));
           }
+
+          await publishBrandStories();
         }
       }
 
