@@ -38,6 +38,7 @@ type DeliveryResult = {
 type StartedNewsletterRun = {
   id: string
   periodKey: string
+  auditUnavailable?: boolean
 }
 
 const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
@@ -106,6 +107,8 @@ const getNewsletterPeriodKey = (now: Date, override: string | null) => {
 };
 
 const isUniqueViolation = (error: { code?: string } | null) => error?.code === '23505';
+const isMissingAuditTable = (error: { code?: string; message?: string } | null) =>
+  error?.code === 'PGRST205' || error?.code === '42P01' || Boolean(error?.message?.includes('newsletter_runs'));
 
 const generateNewsletterHtml = (listings: NewsletterListing[]) => {
   const listingsHtml = listings.map(listing => {
@@ -233,6 +236,20 @@ async function startNewsletterRun(
     };
   }
 
+  if (isMissingAuditTable(error)) {
+    if (params.dryRun) {
+      return {
+        run: {
+          id: '',
+          periodKey: runPeriodKey,
+          auditUnavailable: true,
+        },
+      };
+    }
+
+    throw new Error('Newsletter audit tables are missing; refusing to send without durable tracking.');
+  }
+
   if (error || !run) {
     throw new Error(`Could not start newsletter run: ${error?.message || 'No run returned'}`);
   }
@@ -264,6 +281,10 @@ async function finishNewsletterRun(
     metadata?: Record<string, unknown>
   }
 ) {
+  if (!runId) {
+    return;
+  }
+
   const { error } = await supabase
     .from('newsletter_runs')
     .update({
@@ -294,7 +315,7 @@ async function recordNewsletterRecipients(
   runId: string,
   deliveryResults: DeliveryResult[]
 ) {
-  if (deliveryResults.length === 0) {
+  if (!runId || deliveryResults.length === 0) {
     return;
   }
 
@@ -453,6 +474,7 @@ export async function GET(request: Request) {
         skipped: true,
         runId: activeRun.id,
         periodKey: activeRun.periodKey,
+        auditUnavailable: activeRun.auditUnavailable || undefined,
         message: 'No public listings. Skip sending email.',
       });
     }
@@ -483,6 +505,7 @@ export async function GET(request: Request) {
         skipped: true,
         runId: activeRun.id,
         periodKey: activeRun.periodKey,
+        auditUnavailable: activeRun.auditUnavailable || undefined,
         message: 'No users to send email to.',
       });
     }
@@ -514,6 +537,7 @@ export async function GET(request: Request) {
         skipped: true,
         runId: activeRun.id,
         periodKey: activeRun.periodKey,
+        auditUnavailable: activeRun.auditUnavailable || undefined,
         message: 'No valid recipient emails to send newsletter to.',
         skippedInvalidRecipients,
       });
@@ -537,6 +561,7 @@ export async function GET(request: Request) {
         dryRun: true,
         runId: activeRun.id,
         periodKey: activeRun.periodKey,
+        auditUnavailable: activeRun.auditUnavailable || undefined,
         recipients: recipientEmails.length,
         skippedInvalidRecipients,
         daysFilter: days,
