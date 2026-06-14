@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { escapeHtml } from '@/utils/html';
 import { siteUrl } from '@/utils/site';
 import { isPromotedListing } from '@/utils/listing-plans';
@@ -26,8 +26,23 @@ type NewsletterUser = {
   email: string | null
 }
 
+type NewsletterRunStatus = 'running' | 'sent' | 'failed' | 'skipped'
+
+type DeliveryResult = {
+  to: string
+  status: 'sent' | 'failed'
+  resendId?: string
+  error?: string
+}
+
+type StartedNewsletterRun = {
+  id: string
+  periodKey: string
+}
+
 const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const staleRunMs = 4 * 60 * 60 * 1000;
 
 const getPrimaryImageUrl = (listing: NewsletterListing) => {
   const primaryImage = listing.images?.find((image) => image.is_primary);
@@ -59,12 +74,44 @@ const normalizeEmail = (email: string | null) => {
 const getPromotedNewsletterListings = (listings: NewsletterListing[]) =>
   listings.filter((listing) => isPromotedListing(listing.details));
 
-// Helper to generate the HTML for the email
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error && 'message' in error) {
+    return String(error.message);
+  }
+
+  return String(error);
+};
+
+const getTriggerSource = (value: string | null) => {
+  if (value === 'schedule' || value === 'workflow_dispatch' || value === 'manual' || value === 'test') {
+    return value;
+  }
+
+  return 'unknown';
+};
+
+const getNewsletterPeriodKey = (now: Date, override: string | null) => {
+  if (override && /^[0-9]{4}-[0-9]{2}-(01|16)$/.test(override)) {
+    return override;
+  }
+
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const anchorDay = now.getUTCDate() <= 15 ? '01' : '16';
+  return `${year}-${month}-${anchorDay}`;
+};
+
+const isUniqueViolation = (error: { code?: string } | null) => error?.code === '23505';
+
 const generateNewsletterHtml = (listings: NewsletterListing[]) => {
   const listingsHtml = listings.map(listing => {
     const imageUrl = getPrimaryImageUrl(listing);
     const listingUrl = `${siteUrl}/catalog/${listing.id}`;
-    
+
     return `
       <div style="margin-bottom: 32px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; font-family: sans-serif;">
         <img src="${escapeHtml(imageUrl)}" style="width: 100%; height: 250px; object-fit: cover;" alt="${escapeHtml(listing.title)}" />
@@ -89,7 +136,7 @@ const generateNewsletterHtml = (listings: NewsletterListing[]) => {
             <h1 style="margin: 0; color: #0f172a; font-size: 32px;">AEROTRADE</h1>
             <p style="margin: 8px 0 0 0; color: #64748b; font-size: 18px;">Bi-Weekly Balloon Market Update</p>
           </div>
-          
+
           <p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 32px;">
             Here are the latest hot air balloons and equipment currently available on AeroTrade.
           </p>
@@ -113,15 +160,173 @@ const generateNewsletterHtml = (listings: NewsletterListing[]) => {
   `;
 };
 
+async function startNewsletterRun(
+  supabase: SupabaseClient,
+  params: {
+    periodKey: string
+    triggerSource: string
+    dryRun: boolean
+    testEmail: string | null
+    days: number | null
+    mixWithLatest: boolean
+  }
+): Promise<{ run?: StartedNewsletterRun; duplicateResponse?: NextResponse }> {
+  const runPeriodKey = params.dryRun || params.testEmail
+    ? `${params.periodKey}:${params.dryRun ? 'dry-run' : 'test'}:${Date.now()}`
+    : params.periodKey;
+
+  if (!params.dryRun && !params.testEmail) {
+    const staleCutoff = new Date(Date.now() - staleRunMs).toISOString();
+    const { error: staleError } = await supabase
+      .from('newsletter_runs')
+      .update({
+        status: 'failed',
+        completed_at: new Date().toISOString(),
+        error_message: 'Run marked failed because it was still running after the stale cutoff.',
+        metadata: { staleCutoff },
+      })
+      .eq('period_key', params.periodKey)
+      .eq('dry_run', false)
+      .is('test_email', null)
+      .eq('status', 'running')
+      .lt('started_at', staleCutoff);
+
+    if (staleError) {
+      throw new Error(`Could not clear stale newsletter runs: ${staleError.message}`);
+    }
+  }
+
+  const { data: run, error } = await supabase
+    .from('newsletter_runs')
+    .insert({
+      period_key: runPeriodKey,
+      trigger_source: params.triggerSource,
+      status: 'running',
+      dry_run: params.dryRun,
+      test_email: params.testEmail,
+      days_filter: params.days,
+      mix_with_latest: params.mixWithLatest,
+    })
+    .select('id, period_key')
+    .single();
+
+  if (isUniqueViolation(error)) {
+    const { data: existingRun } = await supabase
+      .from('newsletter_runs')
+      .select('id, status, started_at, completed_at, sent_count, failed_count')
+      .eq('period_key', params.periodKey)
+      .eq('dry_run', false)
+      .is('test_email', null)
+      .in('status', ['running', 'sent'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return {
+      duplicateResponse: NextResponse.json({
+        success: true,
+        skipped: true,
+        duplicate: true,
+        message: `Newsletter for period ${params.periodKey} was already started or sent.`,
+        run: existingRun,
+      }),
+    };
+  }
+
+  if (error || !run) {
+    throw new Error(`Could not start newsletter run: ${error?.message || 'No run returned'}`);
+  }
+
+  return {
+    run: {
+      id: run.id,
+      periodKey: run.period_key,
+    },
+  };
+}
+
+async function finishNewsletterRun(
+  supabase: SupabaseClient,
+  runId: string,
+  fields: {
+    status: NewsletterRunStatus
+    recipientsCount?: number
+    sentCount?: number
+    failedCount?: number
+    skippedInvalidRecipients?: number
+    listingsCount?: number
+    primaryListingCount?: number
+    upgradedExpiredPremiumListings?: number
+    wouldUpgradeExpiredPremiumListings?: number
+    listingIds?: string[]
+    resendMessageIds?: string[]
+    errorMessage?: string
+    metadata?: Record<string, unknown>
+  }
+) {
+  const { error } = await supabase
+    .from('newsletter_runs')
+    .update({
+      status: fields.status,
+      completed_at: new Date().toISOString(),
+      recipients_count: fields.recipientsCount,
+      sent_count: fields.sentCount,
+      failed_count: fields.failedCount,
+      skipped_invalid_recipients: fields.skippedInvalidRecipients,
+      listings_count: fields.listingsCount,
+      primary_listing_count: fields.primaryListingCount,
+      upgraded_expired_premium_listings: fields.upgradedExpiredPremiumListings,
+      would_upgrade_expired_premium_listings: fields.wouldUpgradeExpiredPremiumListings,
+      listing_ids: fields.listingIds,
+      resend_message_ids: fields.resendMessageIds,
+      error_message: fields.errorMessage,
+      metadata: fields.metadata,
+    })
+    .eq('id', runId);
+
+  if (error) {
+    console.error('Failed to update newsletter run:', error);
+  }
+}
+
+async function recordNewsletterRecipients(
+  supabase: SupabaseClient,
+  runId: string,
+  deliveryResults: DeliveryResult[]
+) {
+  if (deliveryResults.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from('newsletter_recipients')
+    .upsert(deliveryResults.map(result => ({
+      run_id: runId,
+      email: result.to,
+      status: result.status,
+      resend_id: result.resendId,
+      error_message: result.error,
+    })), { onConflict: 'run_id,email' });
+
+  if (error) {
+    console.error('Failed to record newsletter recipients:', error);
+  }
+}
+
 export async function GET(request: Request) {
+  let supabase: SupabaseClient | null = null;
+  let activeRun: StartedNewsletterRun | null = null;
+
   try {
     const url = new URL(request.url);
     const dryRun = url.searchParams.get('dryRun') === 'true';
     const testEmail = url.searchParams.get('testEmail');
     const days = parseDaysFilter(url.searchParams.get('days'));
     const mixWithLatest = url.searchParams.get('mix') === 'true';
+    const triggerSource = getTriggerSource(url.searchParams.get('source'));
+    const runStartedAt = new Date();
+    const periodKey = getNewsletterPeriodKey(runStartedAt, url.searchParams.get('periodKey'));
 
-    // 1. Verify cron secret
     const authHeader = request.headers.get('authorization');
     if (process.env.NODE_ENV === 'production' && !process.env.CRON_SECRET) {
       console.error('CRON_SECRET is missing; newsletter cron cannot authenticate requests.');
@@ -129,27 +334,42 @@ export async function GET(request: Request) {
     }
 
     if (
-      process.env.NODE_ENV === 'production' && 
+      process.env.NODE_ENV === 'production' &&
       authHeader !== `Bearer ${process.env.CRON_SECRET}`
     ) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    // Initialize Supabase Admin Client (to bypass RLS)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
+
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing Supabase credentials for Cron');
       return new NextResponse('Server configuration error', { status: 500 });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 2. Make expired Premium-window listings public before building the newsletter.
+    const runStart = await startNewsletterRun(supabase, {
+      periodKey,
+      triggerSource,
+      dryRun,
+      testEmail,
+      days,
+      mixWithLatest,
+    });
+
+    if (runStart.duplicateResponse) {
+      return runStart.duplicateResponse;
+    }
+
+    activeRun = runStart.run || null;
+    if (!activeRun) {
+      return new NextResponse('Could not start newsletter run', { status: 500 });
+    }
+
     const now = new Date().toISOString();
-
-    const expiredPremiumQuery = () => supabase
+    const expiredPremiumQuery = () => supabase!
       .from('listings')
       .select('id, title')
       .eq('status', 'ACTIVE_PREMIUM')
@@ -165,20 +385,21 @@ export async function GET(request: Request) {
         .select('id, title');
 
     if (upgradeError) {
-      console.error('Error upgrading premium listings before newsletter:', upgradeError);
+      await finishNewsletterRun(supabase, activeRun.id, {
+        status: 'failed',
+        errorMessage: `Error upgrading listings: ${upgradeError.message}`,
+      });
       return new NextResponse('Error upgrading listings', { status: 500 });
     }
 
-    // 3. Fetch latest public listings. Optionally restrict with ?days=15, ?days=30, etc.
-
-    const baseListingsQuery = () => supabase
+    const baseListingsQuery = () => supabase!
       .from('listings')
       .select('*, images(url, is_primary)')
       .eq('status', 'ACTIVE_PUBLIC')
       .lte('public_at', now)
       .order('created_at', { ascending: false });
 
-    let listingsQuery = baseListingsQuery().limit(25); // Filter out free listings while keeping email size reasonable.
+    let listingsQuery = baseListingsQuery().limit(25);
 
     if (days && Number.isFinite(days) && days > 0) {
       const since = new Date();
@@ -189,7 +410,10 @@ export async function GET(request: Request) {
     const { data: primaryListings, error: listingsError } = await listingsQuery;
 
     if (listingsError) {
-      console.error('Error fetching listings:', listingsError);
+      await finishNewsletterRun(supabase, activeRun.id, {
+        status: 'failed',
+        errorMessage: `Error fetching listings: ${listingsError.message}`,
+      });
       return new NextResponse('Error fetching listings', { status: 500 });
     }
 
@@ -201,7 +425,10 @@ export async function GET(request: Request) {
       const { data: fallbackListings, error: fallbackError } = await baseListingsQuery().limit(25);
 
       if (fallbackError) {
-        console.error('Error fetching fallback listings:', fallbackError);
+        await finishNewsletterRun(supabase, activeRun.id, {
+          status: 'failed',
+          errorMessage: `Error fetching fallback listings: ${fallbackError.message}`,
+        });
         return new NextResponse('Error fetching fallback listings', { status: 500 });
       }
 
@@ -211,22 +438,53 @@ export async function GET(request: Request) {
       recentListings = [...recentListings, ...fallbackMix].slice(0, 10);
     }
 
-    if (!recentListings || recentListings.length === 0) {
-      return NextResponse.json({ message: 'No public listings. Skip sending email.' });
+    if (recentListings.length === 0) {
+      await finishNewsletterRun(supabase, activeRun.id, {
+        status: 'skipped',
+        listingsCount: 0,
+        primaryListingCount,
+        upgradedExpiredPremiumListings: dryRun ? 0 : upgradedListings?.length || 0,
+        wouldUpgradeExpiredPremiumListings: dryRun ? upgradedListings?.length || 0 : 0,
+        metadata: { reason: 'no_public_listings' },
+      });
+
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        runId: activeRun.id,
+        periodKey: activeRun.periodKey,
+        message: 'No public listings. Skip sending email.',
+      });
     }
 
-    // 4. Fetch subscriber emails
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('email');
 
     if (usersError) {
-      console.error('Error fetching users:', usersError);
+      await finishNewsletterRun(supabase, activeRun.id, {
+        status: 'failed',
+        errorMessage: `Error fetching users: ${usersError.message}`,
+      });
       return new NextResponse('Error fetching users', { status: 500 });
     }
 
     if (!users || users.length === 0) {
-       return NextResponse.json({ message: 'No users to send email to.' });
+      await finishNewsletterRun(supabase, activeRun.id, {
+        status: 'skipped',
+        listingsCount: recentListings.length,
+        primaryListingCount,
+        listingIds: recentListings.map(listing => listing.id),
+        metadata: { reason: 'no_users' },
+      });
+
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        runId: activeRun.id,
+        periodKey: activeRun.periodKey,
+        message: 'No users to send email to.',
+      });
     }
 
     const recipientEmails = testEmail
@@ -242,16 +500,43 @@ export async function GET(request: Request) {
       : users.length - recipientEmails.length;
 
     if (recipientEmails.length === 0) {
+      await finishNewsletterRun(supabase, activeRun.id, {
+        status: 'skipped',
+        skippedInvalidRecipients,
+        listingsCount: recentListings.length,
+        primaryListingCount,
+        listingIds: recentListings.map(listing => listing.id),
+        metadata: { reason: 'no_valid_recipients' },
+      });
+
       return NextResponse.json({
+        success: true,
+        skipped: true,
+        runId: activeRun.id,
+        periodKey: activeRun.periodKey,
         message: 'No valid recipient emails to send newsletter to.',
         skippedInvalidRecipients,
       });
     }
 
     if (dryRun) {
+      await finishNewsletterRun(supabase, activeRun.id, {
+        status: 'skipped',
+        recipientsCount: recipientEmails.length,
+        skippedInvalidRecipients,
+        listingsCount: recentListings.length,
+        primaryListingCount,
+        listingIds: recentListings.map(listing => listing.id),
+        upgradedExpiredPremiumListings: 0,
+        wouldUpgradeExpiredPremiumListings: upgradedListings?.length || 0,
+        metadata: { reason: 'dry_run' },
+      });
+
       return NextResponse.json({
         success: true,
         dryRun: true,
+        runId: activeRun.id,
+        periodKey: activeRun.periodKey,
         recipients: recipientEmails.length,
         skippedInvalidRecipients,
         daysFilter: days,
@@ -267,36 +552,65 @@ export async function GET(request: Request) {
       });
     }
 
-    // 5. Generate HTML and dispatch
     const htmlBody = generateNewsletterHtml(recentListings);
-    
-    // Prepare emails for batch sending
-    const emailBatch = recipientEmails
-      .map(email => ({
-        to: email,
-        subject: 'New Hot Air Balloons on AeroTrade - Bi-Weekly Update',
-        html: htmlBody
-      }));
+    const emailBatch = recipientEmails.map(email => ({
+      to: email,
+      subject: 'New Hot Air Balloons on AeroTrade - Bi-Weekly Update',
+      html: htmlBody,
+    }));
 
-    let sentCount = 0;
-    let failedCount = 0;
-    
-    if (emailBatch.length > 0) {
-      // Import sendEmailBatch from our resend utility
-      const { sendEmailBatch } = await import('@/utils/resend');
-      
-      const result = await sendEmailBatch(emailBatch);
-      if (result.success) {
-        sentCount = result.sentCount ?? emailBatch.length;
-        failedCount = result.failedCount ?? 0;
-      } else {
-        console.error('Failed to send newsletter batch', result.error);
-        return new NextResponse('Error sending newsletter batch', { status: 500 });
-      }
+    const { sendEmailBatch } = await import('@/utils/resend');
+    const result = await sendEmailBatch(emailBatch);
+    const sentCount = result.sentCount ?? 0;
+    const failedCount = result.failedCount ?? Math.max(0, emailBatch.length - sentCount);
+    const deliveryResults = (result.deliveryResults || []) as DeliveryResult[];
+    const resendMessageIds = deliveryResults
+      .map(delivery => delivery.resendId)
+      .filter(Boolean) as string[];
+
+    await recordNewsletterRecipients(supabase, activeRun.id, deliveryResults);
+
+    const status: NewsletterRunStatus = sentCount > 0 ? 'sent' : 'failed';
+    await finishNewsletterRun(supabase, activeRun.id, {
+      status,
+      recipientsCount: recipientEmails.length,
+      sentCount,
+      failedCount,
+      skippedInvalidRecipients,
+      listingsCount: recentListings.length,
+      primaryListingCount,
+      listingIds: recentListings.map(listing => listing.id),
+      upgradedExpiredPremiumListings: upgradedListings?.length || 0,
+      resendMessageIds,
+      errorMessage: result.success ? undefined : getErrorMessage(result.error || 'Email batch failed'),
+      metadata: {
+        chunkCount: result.chunkCount,
+        failures: result.failures || [],
+      },
+    });
+
+    if (!result.success) {
+      console.error('Failed to send newsletter batch', result.error);
+      return NextResponse.json({
+        success: false,
+        runId: activeRun.id,
+        periodKey: activeRun.periodKey,
+        message: sentCount > 0
+          ? 'Newsletter partially sent; retry is blocked to avoid duplicate emails.'
+          : 'Newsletter send failed before any accepted delivery.',
+        recipients: recipientEmails.length,
+        sentCount,
+        failedCount,
+        skippedInvalidRecipients,
+        listings: recentListings.length,
+        upgradedExpiredPremiumListings: upgradedListings?.length || 0,
+      }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
+      runId: activeRun.id,
+      periodKey: activeRun.periodKey,
       message: `Newsletter sent to ${sentCount} users detailing ${recentListings.length} listings.`,
       recipients: recipientEmails.length,
       sentCount,
@@ -305,9 +619,15 @@ export async function GET(request: Request) {
       listings: recentListings.length,
       upgradedExpiredPremiumListings: upgradedListings?.length || 0,
     });
-
   } catch (error) {
     console.error('Newsletter cron error:', error);
+    if (supabase && activeRun) {
+      await finishNewsletterRun(supabase, activeRun.id, {
+        status: 'failed',
+        errorMessage: getErrorMessage(error),
+      });
+    }
+
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

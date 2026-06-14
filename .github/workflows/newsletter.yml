@@ -50,7 +50,7 @@ jobs:
             exit 1
           fi
 
-          query="days=15&mix=true"
+          query="days=15&mix=true&source=${{ github.event_name }}"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ "${{ inputs.dry_run }}" = "true" ]; then
               query="${query}&dryRun=true"

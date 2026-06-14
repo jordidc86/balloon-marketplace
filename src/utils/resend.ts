@@ -24,11 +24,30 @@ export type EmailPayload = {
 type BatchFailure = {
   chunk: number;
   index: number;
-  to?: string | string[];
+  to?: string;
   message: string;
 }
 
+export type EmailDeliveryResult = {
+  to: string;
+  status: 'sent' | 'failed';
+  resendId?: string;
+  error?: string;
+}
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error && 'message' in error) {
+    return String(error.message);
+  }
+
+  return String(error);
+};
 
 const chunkEmails = (emails: EmailPayload[], size: number) => {
   const chunks: EmailPayload[][] = [];
@@ -81,6 +100,7 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
     const chunks = chunkEmails(validEmails, resendBatchLimit);
     const data = [];
     const failures: BatchFailure[] = [];
+    const deliveryResults: EmailDeliveryResult[] = [];
     let sentCount = 0;
 
     try {
@@ -96,6 +116,14 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
 
         if (result.error) {
           console.error(`Failed to send email batch chunk ${chunkIndex + 1}/${chunks.length}:`, result.error);
+          const message = String(result.error.message || 'Batch chunk failed');
+          const unsentEmails = chunks.slice(chunkIndex).flat();
+          deliveryResults.push(...unsentEmails.map((email, unsentIndex) => ({
+            to: email.to,
+            status: 'failed' as const,
+            error: unsentIndex < chunk.length ? message : 'Not attempted because a previous batch chunk failed.',
+          })));
+
           return {
             success: false,
             error: result.error,
@@ -103,14 +131,41 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
             failedCount: validEmails.length - sentCount,
             skippedCount,
             failures,
+            deliveryResults,
           };
         }
 
-        const sentInChunk = result.data?.data?.length || 0;
-        sentCount += sentInChunk;
-        data.push(...(result.data?.data || []));
+        const errors = result.data?.errors || [];
+        const failedByIndex = new Map<number, string>();
+        for (const error of errors) {
+          failedByIndex.set(error.index, error.message);
+        }
 
-        for (const error of result.data?.errors || []) {
+        const sentDeliveries = result.data?.data || [];
+        const sentInChunk = chunk.length - failedByIndex.size;
+        sentCount += sentInChunk;
+        data.push(...sentDeliveries);
+
+        let sentDeliveryIndex = 0;
+        for (const [emailIndex, email] of chunk.entries()) {
+          const errorMessage = failedByIndex.get(emailIndex);
+          if (errorMessage) {
+            deliveryResults.push({
+              to: email.to,
+              status: 'failed',
+              error: errorMessage,
+            });
+          } else {
+            deliveryResults.push({
+              to: email.to,
+              status: 'sent',
+              resendId: sentDeliveries[sentDeliveryIndex]?.id,
+            });
+            sentDeliveryIndex += 1;
+          }
+        }
+
+        for (const error of errors) {
           const failedEmail = chunk[error.index];
           failures.push({
             chunk: chunkIndex + 1,
@@ -138,9 +193,19 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
         skippedCount,
         chunkCount: chunks.length,
         failures,
+        deliveryResults,
       };
     } catch (error) {
       console.error('Failed to send email batch via Resend:', error);
+      const recordedEmails = new Set(deliveryResults.map(result => result.to));
+      deliveryResults.push(...validEmails
+        .filter(email => !recordedEmails.has(email.to))
+        .map(email => ({
+          to: email.to,
+          status: 'failed' as const,
+          error: getErrorMessage(error),
+        })));
+
       return {
         success: false,
         error,
@@ -148,6 +213,7 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
         failedCount: validEmails.length - sentCount,
         skippedCount,
         failures,
+        deliveryResults,
       };
     }
   } else {
@@ -166,6 +232,10 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
       skippedCount,
       failedCount: 0,
       chunkCount: Math.ceil(validEmails.length / resendBatchLimit),
+      deliveryResults: validEmails.map(email => ({
+        to: email.to,
+        status: 'sent' as const,
+      })),
     };
   }
 }
