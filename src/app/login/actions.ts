@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { escapeHtml } from '@/utils/html'
 import { sendEmail } from '@/utils/resend'
 
 function isRedirectError(error: unknown): boolean {
@@ -55,7 +56,7 @@ export async function signup(formData: FormData) {
       await sendEmail(
         'jordi.diaz.casaubon@gmail.com',
         'Nuevo usuario en AeroTrade',
-        `<p>Se ha registrado un nuevo usuario:</p><p>Email: ${authData.email}</p>`
+        `<p>Se ha registrado un nuevo usuario:</p><p>Email: ${escapeHtml(authData.email)}</p>`
       )
     } catch (e) {
       console.error("Error sending notification:", e)
@@ -100,7 +101,12 @@ export async function signupWithDetails(formData: FormData) {
       await sendEmail(
         'jordi.diaz.casaubon@gmail.com',
         'Nuevo usuario en AeroTrade',
-        `<p>Se ha registrado un nuevo usuario:</p><p>Email: ${email}</p><p>Nombre: ${name}</p><p>Teléfono: ${phone}</p><p>Premium: ${isPremiumRequested ? 'Sí' : 'No'}</p>`
+        `<p>Se ha registrado un nuevo usuario:</p>
+        <p>Email: ${escapeHtml(email)}</p>
+        <p>Nombre: ${escapeHtml(name)}</p>
+        <p>Teléfono: ${escapeHtml(phone)}</p>
+        <p>Solicitó Premium: ${isPremiumRequested ? 'Sí' : 'No'}</p>
+        <p>Estado de pago Stripe: ${isPremiumRequested ? 'Pendiente de completar checkout' : 'No solicitado'}</p>`
       )
     } catch (e) {
       console.error("Error sending notification:", e)

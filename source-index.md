@@ -1,14 +1,14 @@
 # AeroTrade Source Index
 
 Status: Production routing index.
-Last updated: 2026-06-02.
+Last updated: 2026-06-20.
 
 ## Primary Orientation Files
 
 | File Or Folder | Purpose | Use By Default |
 | --- | --- | --- |
 | `AGENTS.md` | Agent operating contract and approval boundary | Yes |
-| `README.md` | Basic Next.js project notes | Yes |
+| `README.md` | Operational project notes and safe local checks | Yes |
 | `package.json` | Scripts and dependencies | Yes |
 | `reviews/latest-summary.md` | Current improvement-loop summary | Yes |
 
@@ -22,7 +22,7 @@ Last updated: 2026-06-02.
 | Payments | `src/app/api/webhooks/stripe/`, `src/utils/stripe.ts`, pricing actions | Do not change without exact approval. |
 | Email | `src/utils/resend.ts`, premium alerts, newsletter cron | Customer-facing; dispatch requires approval. |
 | Database | `supabase/schema.sql`, Supabase utilities | Treat production data as external system. |
-| Deployment | `.netlify/netlify.toml` | Read-only unless deployment/config action is approved. |
+| Deployment | `netlify.toml`, `.github/workflows/` | `.netlify/` is local generated output, not source. Read-only unless deployment/config action is approved. |
 
 ## Known Checks
 
@@ -33,3 +33,13 @@ Last updated: 2026-06-02.
 | Social cron schedule | `Active`: Netlify scheduled function runs `/api/cron/social` daily at 07:00 UTC. |
 | SEO canonical | `Fixed`: `robots.txt`, `sitemap.xml`, and listing JSON-LD use `https://aerotrade.app`. |
 | Premium seller/buyer funnel | `Proposed`: needs business review against competitors and listing supply. |
+
+## Local Artifacts
+
+| Path | Policy |
+| --- | --- |
+| `.env*` | Local/runtime environment only; never commit or inspect secret values. |
+| `.next/` | Next.js build output; ignored and disposable. |
+| `.netlify/` | Netlify local build/deploy output; ignored and disposable. |
+| `social-previews/` | Local creative previews; ignored and disposable unless explicitly promoted into `public/social/`. |
+| `node_modules/`, `*.tsbuildinfo`, `next-env.d.ts` | Local dependency/type cache output; ignored and disposable. |

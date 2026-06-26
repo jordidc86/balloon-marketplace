@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/server'
-import { togglePremiumStatus } from '../actions'
+import { sendPremiumPaymentLink, togglePremiumStatus } from '../actions'
 import { formatDistanceToNow } from 'date-fns'
-import { Star, Shield, ShieldOff } from 'lucide-react'
+import { Mail, Star, Shield, ShieldOff } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,27 +66,40 @@ export default async function AdminUsersPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <form action={async () => {
-                      'use server'
-                      await togglePremiumStatus(u.id, u.is_premium)
-                    }}>
-                      <button
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                          u.is_premium
-                            ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        }`}
-                      >
-                        {u.is_premium ? <ShieldOff className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
-                        {u.is_premium ? 'Revoke Premium' : 'Grant Premium'}
-                      </button>
-                    </form>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {!u.is_premium && (
+                        <form action={async () => {
+                          'use server'
+                          await sendPremiumPaymentLink(u.id)
+                        }}>
+                          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent/10 text-accent hover:bg-accent/20 transition-colors">
+                            <Mail className="w-3.5 h-3.5" />
+                            Email Stripe Link
+                          </button>
+                        </form>
+                      )}
+                      <form action={async () => {
+                        'use server'
+                        await togglePremiumStatus(u.id, u.is_premium)
+                      }}>
+                        <button
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                            u.is_premium
+                              ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          }`}
+                        >
+                          {u.is_premium ? <ShieldOff className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+                          {u.is_premium ? 'Revoke Premium' : 'Grant Premium'}
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}
               {users?.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No users found.</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No users found.</td>
                 </tr>
               )}
             </tbody>
