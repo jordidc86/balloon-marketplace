@@ -18,6 +18,8 @@ export default async function LoginPage({
   const params = await searchParams
   const error = params.error
   const message = params.message
+  const redirectTo = typeof params.redirectTo === 'string' ? params.redirectTo : ''
+  const signupHref = redirectTo ? `/signup?redirectTo=${encodeURIComponent(redirectTo)}` : '/signup'
 
 
   return (
@@ -51,6 +53,7 @@ export default async function LoginPage({
 
 
         <form className="space-y-4">
+          {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium text-foreground">
               Email
@@ -90,7 +93,7 @@ export default async function LoginPage({
           <div className="text-center mt-4">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{' '}
-              <Link href="/signup" className="text-primary hover:underline">
+              <Link href={signupHref} className="text-primary hover:underline">
                 Sign up
               </Link>
             </p>

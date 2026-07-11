@@ -3,8 +3,11 @@
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { getStoredListingPlan, premiumListingFeeCents } from '@/utils/listing-plans'
+import { getApplicationOrigin } from '@/utils/navigation.mjs'
+import { canRevealSellerContact, parseListingImageUrls } from '@/utils/listing-safety.mjs'
+import { siteUrl } from '@/utils/site'
 
-type ListingDetailsForm = Record<string, FormDataEntryValue | null>
+type ListingDetailsForm = Record<string, string | number | boolean | null | undefined>
 
 const createAdminClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -64,11 +67,17 @@ export async function revealSellerContact(listingId: string) {
     throw new Error('Listing not found')
   }
 
-  const isPremiumExclusive =
-    listing.status === 'ACTIVE_PREMIUM' &&
-    listing.public_at &&
-    new Date() < new Date(listing.public_at)
-  const canReveal = !isPremiumExclusive || profile?.is_premium || listing.seller_id === user?.id
+  const canReveal = canRevealSellerContact(
+    {
+      status: listing.status,
+      publicAt: listing.public_at,
+      sellerId: listing.seller_id,
+    },
+    {
+      userId: user?.id || null,
+      isPremium: profile?.is_premium || false,
+    },
+  )
 
   if (!canReveal) {
     throw new Error('Premium access is required to reveal this contact')
@@ -119,21 +128,27 @@ export async function updateListing(formData: FormData) {
   }
 
   const category = formData.get('category') as string
-  const details: ListingDetailsForm = {}
+  const getTextValue = (name: string) => {
+    const value = formData.get(name)
+    return typeof value === 'string' ? value : null
+  }
+  const details: ListingDetailsForm = {
+    ...((listing.details || {}) as ListingDetailsForm),
+  }
   
   // Extract common details based on category
   if (['complete', 'envelopes'].includes(category)) {
-    details.manufacturer = formData.get('manufacturer')
-    details.model = formData.get('model')
-    details.year = formData.get('year')
-    details.hours = formData.get('hours')
-    details.registration = formData.get('registration')
-    details.serial = formData.get('serial')
+    details.manufacturer = getTextValue('manufacturer')
+    details.model = getTextValue('model')
+    details.year = getTextValue('year')
+    details.hours = getTextValue('hours')
+    details.registration = getTextValue('registration')
+    details.serial = getTextValue('serial')
   }
 
   if (category === 'baskets' || category === 'burners' || category === 'bottom-end') {
-    details.dimensions = formData.get('dimensions')
-    details.type = formData.get('type')
+    details.dimensions = getTextValue('dimensions')
+    details.type = getTextValue('type')
   }
 
   const storedPlan = getStoredListingPlan(listing.details)
@@ -165,9 +180,9 @@ export async function updateListing(formData: FormData) {
   }
 
   // Handle Images Reconciliation
-  const imageUrlsJson = formData.get('image_urls') as string
+  const imageUrlsJson = formData.get('image_urls')
   if (imageUrlsJson) {
-    const imageUrls = JSON.parse(imageUrlsJson) as string[]
+    const imageUrls = parseListingImageUrls(imageUrlsJson)
     
     const { data: currentImages } = await supabase
       .from('images')
@@ -175,24 +190,55 @@ export async function updateListing(formData: FormData) {
       .eq('listing_id', listingId)
 
     const currentUrls = currentImages?.map(img => img.url) || []
-    const urlsToDelete = currentUrls.filter(url => !imageUrls.includes(url))
-    
-    if (urlsToDelete.length > 0) {
-      await supabase
-        .from('images')
-        .delete()
-        .eq('listing_id', listingId)
-        .in('url', urlsToDelete)
-    }
-
     const urlsToInsert = imageUrls.filter(url => !currentUrls.includes(url))
     if (urlsToInsert.length > 0) {
       const inserts = urlsToInsert.map((url, index) => ({
         listing_id: listingId,
         url,
-        is_primary: index === 0
+        is_primary: currentUrls.length === 0 && index === 0
       }))
-      await supabase.from('images').insert(inserts)
+      const { error: insertError } = await supabase.from('images').insert(inserts)
+      if (insertError) {
+        console.error('Error adding listing images:', insertError)
+        throw new Error('Could not add listing images')
+      }
+    }
+
+    const urlsToDelete = currentUrls.filter(url => !imageUrls.includes(url))
+    if (urlsToDelete.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('images')
+        .delete()
+        .eq('listing_id', listingId)
+        .in('url', urlsToDelete)
+
+      if (deleteError) {
+        console.error('Error removing listing images:', deleteError)
+        throw new Error('Could not remove listing images')
+      }
+    }
+
+    const { data: remainingImages, error: remainingImagesError } = await supabase
+      .from('images')
+      .select('id, is_primary, created_at')
+      .eq('listing_id', listingId)
+      .order('created_at', { ascending: true })
+
+    if (remainingImagesError || !remainingImages?.length) {
+      console.error('Error validating listing images:', remainingImagesError)
+      throw new Error('A cover image is required to publish a listing')
+    }
+
+    if (!remainingImages.some((image) => image.is_primary)) {
+      const { error: primaryError } = await supabase
+        .from('images')
+        .update({ is_primary: true })
+        .eq('id', remainingImages[0].id)
+
+      if (primaryError) {
+        console.error('Error assigning primary listing image:', primaryError)
+        throw new Error('Could not assign the cover image')
+      }
     }
   }
 
@@ -228,7 +274,7 @@ export async function payListingFee(listingId: string) {
 
   const { stripe } = await import('@/utils/stripe')
   const headersList = await import('next/headers').then(m => m.headers())
-  const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const origin = getApplicationOrigin(headersList.get('origin'), siteUrl)
 
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
@@ -254,6 +300,8 @@ export async function payListingFee(listingId: string) {
     mode: 'payment',
     success_url: `${origin}/catalog/${listing.id}?success=true`,
     cancel_url: `${origin}/catalog/${listing.id}?canceled=true`,
+  }, {
+    idempotencyKey: `listing-fee-${listing.id}-${Math.floor(Date.now() / 600000)}`,
   })
 
   if (session.url) {

@@ -15,6 +15,8 @@ export default async function SignupPage({
 }) {
   const params = await searchParams
   const error = params.error
+  const redirectTo = typeof params.redirectTo === 'string' ? params.redirectTo : ''
+  const loginHref = redirectTo ? `/login?redirectTo=${encodeURIComponent(redirectTo)}` : '/login'
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -34,6 +36,7 @@ export default async function SignupPage({
         )}
 
         <form className="space-y-4">
+          {redirectTo && <input type="hidden" name="redirectTo" value={redirectTo} />}
           <div className="space-y-2">
             <label htmlFor="name" className="text-sm font-medium text-foreground">
               Full Name
@@ -121,7 +124,7 @@ export default async function SignupPage({
           <div className="text-center mt-4">
             <p className="text-sm text-muted-foreground">
               Already have an account?{' '}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link href={loginHref} className="text-primary hover:underline">
                 Log in
               </Link>
             </p>

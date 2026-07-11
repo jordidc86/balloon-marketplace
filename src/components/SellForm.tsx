@@ -9,6 +9,9 @@ import { Megaphone, UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-re
 // Imported Actions
 import { submitListing } from '@/app/sell/actions'
 import { updateListing } from '@/app/catalog/[id]/actions'
+import { maxListingImages } from '@/utils/listing-safety.mjs'
+
+const maxImageBytes = 5 * 1024 * 1024
 
 type ExistingImage = {
   url: string
@@ -29,7 +32,7 @@ type SellFormInitialData = {
   images?: ExistingImage[]
 }
 
-export default function SellForm({ userId, initialData, isPremium }: { userId?: string | null; initialData?: SellFormInitialData; isPremium?: boolean }) {
+export default function SellForm({ userId, initialData }: { userId?: string | null; initialData?: SellFormInitialData }) {
   const router = useRouter()
   const supabase = createClient()
   const isEditing = !!initialData
@@ -41,10 +44,26 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [listingPlan, setListingPlan] = useState<'free' | 'premium'>('free')
+  const [submissionError, setSubmissionError] = useState<string | null>(null)
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setImages(Array.from(e.target.files))
+      const selectedImages = Array.from(e.target.files)
+      if (selectedImages.length + existingImages.length > maxListingImages) {
+        alert(`A listing can have at most ${maxListingImages} images.`)
+        e.target.value = ''
+        return
+      }
+
+      const oversizedImage = selectedImages.find((file) => file.size > maxImageBytes)
+
+      if (oversizedImage) {
+        alert(`${oversizedImage.name} is larger than 5MB. Please choose a smaller image.`)
+        e.target.value = ''
+        return
+      }
+
+      setImages(selectedImages)
     }
   }
 
@@ -66,6 +85,8 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
     }
 
     setIsUploading(true)
+    setSubmissionError(null)
+    const uploadedPaths: string[] = []
     
     try {
       const formData = new FormData(e.currentTarget)
@@ -84,7 +105,9 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
           
         if (error) {
           console.error('Error uploading image:', error)
+          throw new Error(`Could not upload ${file.name}`)
         } else {
+          uploadedPaths.push(fileName)
           const { data: { publicUrl } } = supabase.storage
             .from('listing_images')
             .getPublicUrl(fileName)
@@ -98,6 +121,10 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
         ...existingImages.map(img => img.url),
         ...uploadedUrls
       ]
+
+      if (finalImageUrls.length === 0) {
+        throw new Error('A cover image is required to publish a listing.')
+      }
       
       formData.append('image_urls', JSON.stringify(finalImageUrls))
       
@@ -110,6 +137,13 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
       
     } catch (err) {
       console.error(err)
+      if (uploadedPaths.length > 0) {
+        const { error: cleanupError } = await supabase.storage.from('listing_images').remove(uploadedPaths)
+        if (cleanupError) {
+          console.error('Could not clean up incomplete image upload:', cleanupError)
+        }
+      }
+      setSubmissionError(err instanceof Error ? err.message : 'Could not publish this listing. Please try again.')
       setIsUploading(false)
     }
   }
@@ -327,6 +361,11 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
 
       {/* SUBMISSION */}
       <div className="pt-6 border-t flex flex-col items-center gap-4">
+        {submissionError && (
+          <div role="alert" className="w-full border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive rounded-lg">
+            {submissionError}
+          </div>
+        )}
         {!isEditing && (
           <div className="w-full space-y-3">
             <h2 className="text-xl font-semibold">5. Listing Plan</h2>
@@ -382,7 +421,7 @@ export default function SellForm({ userId, initialData, isPremium }: { userId?: 
             </>
           ) : (
             <>
-              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : (listingPlan === 'premium' && !isPremium ? 'Pay 5 EUR & Publish Premium' : 'Publish Listing'))}
+              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : (listingPlan === 'premium' ? 'Pay 5 EUR & Publish Premium' : 'Publish Free Listing'))}
               <CheckCircle2 className="w-5 h-5" />
             </>
           )}

@@ -175,6 +175,21 @@ create table public.premium_alert_recipients (
   unique (run_id, email)
 );
 
+create table public.stripe_webhook_events (
+  event_id text primary key,
+  event_type text not null,
+  stripe_created_at timestamp with time zone not null,
+  status text not null default 'processing' check (status in ('processing', 'processed', 'failed')),
+  attempts integer not null default 1,
+  last_error text,
+  processed_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create index stripe_webhook_events_status_idx
+  on public.stripe_webhook_events (status, updated_at desc);
+
 create index premium_alert_recipients_run_id_idx on public.premium_alert_recipients (run_id);
 create index premium_alert_recipients_status_idx on public.premium_alert_recipients (status);
 
@@ -190,6 +205,9 @@ alter table public.newsletter_runs enable row level security;
 alter table public.newsletter_recipients enable row level security;
 alter table public.premium_alert_runs enable row level security;
 alter table public.premium_alert_recipients enable row level security;
+alter table public.stripe_webhook_events enable row level security;
+
+revoke all on public.stripe_webhook_events from anon, authenticated;
 
 -- USERS Policies
 create policy "Users can view their own profile" on public.users for select using (auth.uid() = id);
@@ -269,6 +287,10 @@ create trigger set_users_updated_at
 
 create trigger set_newsletter_runs_updated_at
   before update on public.newsletter_runs
+  for each row execute procedure public.set_updated_at();
+
+create trigger set_stripe_webhook_events_updated_at
+  before update on public.stripe_webhook_events
   for each row execute procedure public.set_updated_at();
 
 create trigger set_newsletter_recipients_updated_at

@@ -20,11 +20,15 @@ Use these checks before opening a PR or deploying:
 ```bash
 git status --short
 git ls-files .env.local .next .netlify social-previews
+npm test
+npm run audit:local
 npm run lint
 npm run build
 ```
 
 The `git ls-files` command should print nothing for local env/build folders.
+
+The production verification sequence is documented in `docs/production-audit-runbook.md`. It must be executed only after the matching migration and code are deployed with the required approval.
 
 ## Deployment
 

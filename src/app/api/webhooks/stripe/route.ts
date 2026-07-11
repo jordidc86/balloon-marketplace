@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { escapeHtml } from '@/utils/html';
 import { sendPremiumListingAlert } from '@/utils/premium-alerts';
 import type Stripe from 'stripe';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const activeSubscriptionStatuses = new Set<Stripe.Subscription.Status>([
   'active',
@@ -12,6 +13,85 @@ const activeSubscriptionStatuses = new Set<Stripe.Subscription.Status>([
 
 const getStripeCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustomer) =>
   typeof customer === 'string' ? customer : customer.id
+
+async function claimWebhookEvent(supabase: SupabaseClient, event: Stripe.Event) {
+  const { error: insertError } = await supabase
+    .from('stripe_webhook_events')
+    .insert({
+      event_id: event.id,
+      event_type: event.type,
+      stripe_created_at: new Date(event.created * 1000).toISOString(),
+      status: 'processing',
+      attempts: 1,
+    })
+
+  if (!insertError) {
+    return true
+  }
+
+  if (insertError.code !== '23505') {
+    throw new Error(`Could not audit Stripe event ${event.id}: ${insertError.message}`)
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('stripe_webhook_events')
+    .select('status, attempts, updated_at')
+    .eq('event_id', event.id)
+    .single()
+
+  if (existingError || !existing) {
+    throw new Error(`Could not read Stripe event audit ${event.id}`)
+  }
+
+  if (existing.status === 'processed') {
+    return false
+  }
+
+  const processingIsFresh =
+    existing.status === 'processing' &&
+    Date.now() - new Date(existing.updated_at).getTime() < 5 * 60 * 1000
+
+  if (processingIsFresh) {
+    throw new Error(`Stripe event ${event.id} is already being processed`)
+  }
+
+  const { error: retryError } = await supabase
+    .from('stripe_webhook_events')
+    .update({
+      status: 'processing',
+      attempts: existing.attempts + 1,
+      last_error: null,
+      processed_at: null,
+    })
+    .eq('event_id', event.id)
+
+  if (retryError) {
+    throw new Error(`Could not retry Stripe event ${event.id}: ${retryError.message}`)
+  }
+
+  return true
+}
+
+async function finishWebhookEvent(
+  supabase: SupabaseClient,
+  eventId: string,
+  status: 'processed' | 'failed',
+  error?: unknown,
+) {
+  const message = error instanceof Error ? error.message : error ? String(error) : null
+  const { error: updateError } = await supabase
+    .from('stripe_webhook_events')
+    .update({
+      status,
+      last_error: message?.slice(0, 1000) || null,
+      processed_at: status === 'processed' ? new Date().toISOString() : null,
+    })
+    .eq('event_id', eventId)
+
+  if (updateError) {
+    console.error(`[Stripe Webhook] Failed to update audit state for ${eventId}:`, updateError)
+  }
+}
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -35,16 +115,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Webhook Error: ${message}` }, { status: 400 });
   }
 
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[Stripe Webhook] Supabase server configuration is missing')
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+  }
+
   // Need Service Role Key to bypass RLS for webhook updates
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  try {
+    const shouldProcess = await claimWebhookEvent(supabaseAdmin, event)
+    if (!shouldProcess) {
+      return NextResponse.json({ received: true, duplicate: true })
+    }
+  } catch (error) {
+    console.error('[Stripe Webhook] Could not claim event:', error)
+    return NextResponse.json({ error: 'Could not claim Stripe event' }, { status: 500 })
+  }
+
   // Import our email utility
   const { sendEmail } = await import('@/utils/resend');
 
-  switch (event.type) {
+  try {
+    switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
 
@@ -56,6 +152,9 @@ export async function POST(req: Request) {
         }
 
         const listingId = session.metadata.listing_id;
+        if (!listingId) {
+          throw new Error(`Listing checkout ${session.id} is missing listing_id metadata`)
+        }
 
         // Update listing to ACTIVE_PREMIUM and set 48h window
         const publicAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
@@ -71,7 +170,7 @@ export async function POST(req: Request) {
           .single();
 
         if (error) {
-          console.error('Failed to update listing post-checkout', error);
+          throw new Error(`Failed to update listing post-checkout: ${error.message}`)
         } else if (listingData) {
           // 1. Send Confirmation Email to Seller
           const sellerHtml = `
@@ -103,8 +202,7 @@ export async function POST(req: Request) {
         }
 
         if (!userId || !stripeCustomerId || !stripeSubscriptionId) {
-          console.error(`[Stripe Webhook] Premium checkout is missing required metadata or Stripe IDs: ${session.id}`);
-          break;
+          throw new Error(`Premium checkout is missing required metadata or Stripe IDs: ${session.id}`)
         }
 
         const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
@@ -133,7 +231,7 @@ export async function POST(req: Request) {
           .eq('id', userId);
 
         if (error) {
-          console.error(`[Stripe Webhook] Failed to update user premium status for ${userId}:`, error);
+          throw new Error(`Failed to update user premium status for ${userId}: ${error.message}`)
         } else {
           console.log(`[Stripe Webhook] Successfully updated premium status for ${userId}`);
         }
@@ -143,7 +241,10 @@ export async function POST(req: Request) {
 
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted': {
-      const subscription = event.data.object as Stripe.Subscription;
+      const eventSubscription = event.data.object as Stripe.Subscription;
+      const subscription = event.type === 'customer.subscription.updated'
+        ? await stripe.subscriptions.retrieve(eventSubscription.id)
+        : eventSubscription
       const isPremium = activeSubscriptionStatuses.has(subscription.status);
 
       const { error } = await supabaseAdmin
@@ -162,7 +263,7 @@ export async function POST(req: Request) {
         .eq('stripe_subscription_id', subscription.id);
 
       if (error) {
-        console.error(`[Stripe Webhook] Failed to sync subscription ${subscription.id}:`, error);
+        throw new Error(`Failed to sync subscription ${subscription.id}: ${error.message}`)
       }
 
       break;
@@ -175,25 +276,33 @@ export async function POST(req: Request) {
         typeof invoiceSubscription === 'string' ? invoiceSubscription : invoiceSubscription?.id;
 
       if (subscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        const isPremium = activeSubscriptionStatuses.has(subscription.status)
         const { error } = await supabaseAdmin
           .from('users')
           .update({
-            is_premium: false,
-            premium_source: null,
-            premium_revoked_at: new Date().toISOString(),
+            is_premium: isPremium,
+            premium_source: isPremium ? 'stripe' : null,
+            premium_revoked_at: isPremium ? null : new Date().toISOString(),
             premium_last_stripe_event_id: event.id,
             updated_at: new Date().toISOString(),
           })
           .eq('stripe_subscription_id', subscriptionId);
 
         if (error) {
-          console.error(`[Stripe Webhook] Failed to revoke premium after failed invoice ${invoice.id}:`, error);
+          throw new Error(`Failed to revoke premium after failed invoice ${invoice.id}: ${error.message}`)
         }
       }
 
       break;
     }
-  }
+    }
 
-  return NextResponse.json({ received: true });
+    await finishWebhookEvent(supabaseAdmin, event.id, 'processed')
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    console.error(`[Stripe Webhook] Failed to process ${event.id}:`, error)
+    await finishWebhookEvent(supabaseAdmin, event.id, 'failed', error)
+    return NextResponse.json({ error: 'Stripe event processing failed' }, { status: 500 })
+  }
 }

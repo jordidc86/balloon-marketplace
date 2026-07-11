@@ -201,7 +201,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           {images.length > 1 && (
             <div className="flex gap-4 overflow-x-auto pb-2">
               {images.map((img: string, idx: number) => (
-                <div key={idx} className="w-24 h-24 shrink-0 rounded-xl overflow-hidden border bg-muted">
+                <div key={idx} className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden border bg-muted">
                   <Image src={img} fill sizes="96px" className="object-cover" alt={`Thumbnail ${idx + 1} for ${displayTitle}`} />
                 </div>
               ))}

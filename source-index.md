@@ -1,7 +1,7 @@
 # AeroTrade Source Index
 
 Status: Production routing index.
-Last updated: 2026-06-20.
+Last updated: 2026-07-11.
 
 ## Primary Orientation Files
 
@@ -11,6 +11,8 @@ Last updated: 2026-06-20.
 | `README.md` | Operational project notes and safe local checks | Yes |
 | `package.json` | Scripts and dependencies | Yes |
 | `reviews/latest-summary.md` | Current improvement-loop summary | Yes |
+| `docs/production-audit-runbook.md` | Post-deploy verification and rollback gate | Yes, after an approved deploy |
+| `scripts/audit-local.mjs` | Static operational contract checks | Yes, before every release |
 
 ## Product Areas
 
@@ -33,6 +35,7 @@ Last updated: 2026-06-20.
 | Social cron schedule | `Active`: Netlify scheduled function runs `/api/cron/social` daily at 07:00 UTC. |
 | SEO canonical | `Fixed`: `robots.txt`, `sitemap.xml`, and listing JSON-LD use `https://aerotrade.app`. |
 | Premium seller/buyer funnel | `Proposed`: needs business review against competitors and listing supply. |
+| Critical local stabilization | `Prepared`: tests, trusted Stripe returns, webhook audit, image requirements and contact visibility await approved migration/deploy. |
 
 ## Local Artifacts
 

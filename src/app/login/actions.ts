@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { escapeHtml } from '@/utils/html'
 import { sendEmail } from '@/utils/resend'
+import { getApplicationOrigin, getSafeRedirectPath } from '@/utils/navigation.mjs'
+import { siteUrl } from '@/utils/site'
 
 function isRedirectError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'digest' in error && typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')
@@ -17,6 +19,7 @@ function getErrorMessage(error: unknown) {
 export async function login(formData: FormData) {
   try {
     const supabase = await createClient()
+    const redirectTo = getSafeRedirectPath(formData.get('redirectTo'))
 
     const data = {
       email: formData.get('email') as string,
@@ -26,11 +29,11 @@ export async function login(formData: FormData) {
     const { error } = await supabase.auth.signInWithPassword(data)
 
     if (error) {
-      redirect(`/login?error=${encodeURIComponent(error.message)}&email=${encodeURIComponent(data.email)}`)
+      redirect(`/login?error=${encodeURIComponent(error.message)}&email=${encodeURIComponent(data.email)}&redirectTo=${encodeURIComponent(redirectTo)}`)
     }
 
     revalidatePath('/', 'layout')
-    redirect('/dashboard')
+    redirect(redirectTo)
   } catch (error: unknown) {
     if (isRedirectError(error)) throw error
     redirect('/login?error=' + encodeURIComponent(getErrorMessage(error)))
@@ -84,6 +87,7 @@ export async function signupWithDetails(formData: FormData) {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
     const isPremiumRequested = formData.get('is_premium') === 'on'
+    const redirectTo = getSafeRedirectPath(formData.get('redirectTo'))
 
     const { data: authData, error } = await supabase.auth.signUp({
       email,
@@ -117,10 +121,11 @@ export async function signupWithDetails(formData: FormData) {
     if (isPremiumRequested && userId) {
       const { stripe } = await import('@/utils/stripe')
       const headersList = await import('next/headers').then(m => m.headers())
-      const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+      const origin = getApplicationOrigin(headersList.get('origin'), siteUrl)
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
+        customer_email: email,
         line_items: [
           {
             price_data: {
@@ -142,6 +147,8 @@ export async function signupWithDetails(formData: FormData) {
         mode: 'subscription',
         success_url: `${origin}/login?message=Payment successful! Please check your email to verify your account and access your Premium Dashboard.`,
         cancel_url: `${origin}/login?message=Account created! Please check your email to verify. You can upgrade to Premium in the dashboard anytime.`
+      }, {
+        idempotencyKey: `premium-signup-${userId}-${Math.floor(Date.now() / 600000)}`,
       })
 
       if (session.url) {
@@ -150,11 +157,11 @@ export async function signupWithDetails(formData: FormData) {
     }
 
     if (!authData?.session) {
-      redirect('/login?message=' + encodeURIComponent('Please check your email to verify your account.'))
+      redirect('/login?message=' + encodeURIComponent('Please check your email to verify your account.') + '&redirectTo=' + encodeURIComponent(redirectTo))
     }
 
     revalidatePath('/', 'layout')
-    redirect('/dashboard')
+    redirect(redirectTo)
   } catch (error: unknown) {
     if (isRedirectError(error)) throw error
     redirect('/signup?error=' + encodeURIComponent(getErrorMessage(error)))

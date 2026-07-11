@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { escapeHtml } from '@/utils/html'
 import { siteUrl } from '@/utils/site'
 import { sendEmail } from '@/utils/resend'
+import { sendPremiumListingAlert } from '@/utils/premium-alerts'
 import { revalidatePath } from 'next/cache'
 
 async function checkAdmin() {
@@ -17,9 +18,20 @@ async function checkAdmin() {
   return { supabase: await createAdminClient(), adminUserId: user.id }
 }
 
-export async function togglePremiumStatus(userId: string, currentStatus: boolean) {
+export async function togglePremiumStatus(userId: string) {
   const { supabase, adminUserId } = await checkAdmin()
-  const nextStatus = !currentStatus
+  const { data: targetUser, error: targetError } = await supabase
+    .from('users')
+    .select('is_premium, premium_source')
+    .eq('id', userId)
+    .single()
+
+  if (targetError || !targetUser) throw new Error('User not found')
+  if (targetUser.is_premium && targetUser.premium_source === 'stripe') {
+    throw new Error('Stripe-managed Premium must be changed through Stripe billing')
+  }
+
+  const nextStatus = !targetUser.is_premium
   const { error } = await supabase
     .from('users')
     .update({
@@ -110,13 +122,6 @@ export async function forcePublishListing(listingId: string) {
 
   if (error) throw new Error('Failed to publish listing')
 
-  // Instantly alert premium users about the new published listing
-  try {
-    await promoteListing(listingId);
-  } catch (err) {
-    console.error('Failed to send premium alerts during force publish:', err);
-  }
-
   revalidatePath('/admin/listings')
 }
 
@@ -137,53 +142,17 @@ export async function markListingSold(listingId: string) {
 export async function promoteListing(listingId: string) {
   const { supabase } = await checkAdmin()
 
-  // Get listing
   const { data: listing, error: listingError } = await supabase
     .from('listings')
-    .select('title, category, price, currency')
+    .select('status')
     .eq('id', listingId)
     .single()
 
   if (listingError || !listing) throw new Error('Listing not found')
 
-  // Get all premium users
-  const { data: premiumUsers, error: usersError } = await supabase
-    .from('users')
-    .select('email')
-    .eq('is_premium', true)
-
-  if (usersError || !premiumUsers) throw new Error('Failed to fetch premium users')
-
-  if (premiumUsers.length === 0) {
-    return { success: true, count: 0 }
+  if (listing.status !== 'ACTIVE_PREMIUM') {
+    throw new Error('Only active premium listings can be promoted to premium users')
   }
 
-  const formattedPrice = `${Number(listing.price).toLocaleString()} ${listing.currency}`
-  const listingUrl = `${siteUrl}/catalog/${listingId}`
-
-  // Send emails using the resend utility
-  const htmlContent = `
-    <h2>AeroTrade Premium Alert</h2>
-    <p>A new hot listing just hit the marketplace!</p>
-    <h3>${escapeHtml(listing.title)}</h3>
-    <p><strong>Category:</strong> ${escapeHtml(listing.category)}</p>
-    <p><strong>Price:</strong> ${escapeHtml(formattedPrice)}</p>
-    <br/>
-    <a href="${escapeHtml(listingUrl)}">View Listing on AeroTrade</a>
-  `
-
-  const emailBatch = premiumUsers
-    .filter(user => user.email)
-    .map(user => ({
-      to: user.email,
-      subject: `Premium Alert: ${listing.title} is now available`,
-      html: htmlContent
-    }))
-
-  if (emailBatch.length > 0) {
-    const { sendEmailBatch } = await import('@/utils/resend');
-    await sendEmailBatch(emailBatch);
-  }
-
-  return { success: true, count: premiumUsers.length }
+  return sendPremiumListingAlert(supabase, listingId)
 }

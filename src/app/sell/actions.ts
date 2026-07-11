@@ -1,11 +1,13 @@
 'use server'
 
-import { createAdminClient, createClient } from '@/utils/supabase/server'
+import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { sendEmail } from '@/utils/resend'
-import { sendPremiumListingAlert } from '@/utils/premium-alerts'
 import { escapeHtml } from '@/utils/html'
 import { getListingPlan, premiumListingFeeCents } from '@/utils/listing-plans'
+import { getApplicationOrigin } from '@/utils/navigation.mjs'
+import { getInitialListingPublication, parseListingImageUrls } from '@/utils/listing-safety.mjs'
+import { siteUrl } from '@/utils/site'
 
 export async function submitListing(formData: FormData) {
   const supabase = await createClient()
@@ -15,20 +17,9 @@ export async function submitListing(formData: FormData) {
     throw new Error('Not authenticated')
   }
 
-  const { data: profile } = await supabase.from('users').select('is_premium').eq('id', user.id).single()
-  const isPremium = profile?.is_premium || false
   const listingPlan = getListingPlan(formData.get('listing_plan'))
-  const shouldStartPremiumWindow = listingPlan === 'premium' && isPremium
-  const status = listingPlan === 'free'
-    ? 'ACTIVE_PUBLIC'
-    : shouldStartPremiumWindow
-      ? 'ACTIVE_PREMIUM'
-      : 'PENDING_PAYMENT'
-  const publicAt = listingPlan === 'free'
-    ? new Date().toISOString()
-    : shouldStartPremiumWindow
-      ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
-      : null
+  const publication = getInitialListingPublication(listingPlan)
+  const imageUrls = parseListingImageUrls(formData.get('image_urls'))
 
   const category = formData.get('category') as string
   const getTextValue = (name: string) => {
@@ -66,8 +57,8 @@ export async function submitListing(formData: FormData) {
     contact_email: formData.get('contact_email') as string,
     contact_phone: formData.get('contact_phone') as string,
     details,
-    status,
-    public_at: publicAt,
+    status: 'DRAFT',
+    public_at: null,
   }
 
   const { data: listing, error } = await supabase
@@ -81,25 +72,33 @@ export async function submitListing(formData: FormData) {
     throw new Error('Could not create listing')
   }
 
-  const imageUrlsJson = formData.get('image_urls') as string | null
-  if (imageUrlsJson) {
-    const imageUrls = JSON.parse(imageUrlsJson) as string[]
-    const inserts = imageUrls
-      .filter(Boolean)
-      .map((url, index) => ({
-        listing_id: listing.id,
-        url,
-        is_primary: index === 0,
-      }))
+  const inserts = imageUrls.map((url, index) => ({
+    listing_id: listing.id,
+    url,
+    is_primary: index === 0,
+  }))
+  const { error: imageError } = await supabase.from('images').insert(inserts)
 
-    if (inserts.length > 0) {
-      const { error: imageError } = await supabase.from('images').insert(inserts)
+  if (imageError) {
+    console.error("Error saving listing images:", imageError)
+    await supabase.from('listings').delete().eq('id', listing.id)
+    throw new Error('Could not save listing images')
+  }
 
-      if (imageError) {
-        console.error("Error saving listing images:", imageError)
-        throw new Error('Could not save listing images')
-      }
-    }
+  const { data: publishedListing, error: publicationError } = await supabase
+    .from('listings')
+    .update({
+      status: publication.status,
+      public_at: publication.publicAt,
+    })
+    .eq('id', listing.id)
+    .select()
+    .single()
+
+  if (publicationError || !publishedListing) {
+    console.error('Error publishing listing:', publicationError)
+    await supabase.from('listings').delete().eq('id', listing.id)
+    throw new Error('Could not publish listing')
   }
 
   try {
@@ -108,42 +107,25 @@ export async function submitListing(formData: FormData) {
       'Nuevo anuncio en AeroTrade',
       `<p>Se ha creado un nuevo anuncio:</p>
       <p>Plan: ${escapeHtml(listingPlan)}</p>
-      <p>Título: ${escapeHtml(listing.title)}</p>
-      <p>Categoría: ${escapeHtml(listing.category)}</p>
-      <p>Precio: ${escapeHtml(listing.price)}</p>
+      <p>Título: ${escapeHtml(publishedListing.title)}</p>
+      <p>Categoría: ${escapeHtml(publishedListing.category)}</p>
+      <p>Precio: ${escapeHtml(publishedListing.price)}</p>
       <p>Usuario ID: ${escapeHtml(user.id)}</p>
-      <p>Email contacto: ${escapeHtml(listing.contact_email)}</p>
-      <p>Status: ${escapeHtml(listing.status)}</p>`
+      <p>Email contacto: ${escapeHtml(publishedListing.contact_email)}</p>
+      <p>Status: ${escapeHtml(publishedListing.status)}</p>`
     )
   } catch (e) {
     console.error("Error sending notification:", e)
   }
 
-  if (shouldStartPremiumWindow) {
-    try {
-      const adminSupabase = await createAdminClient()
-      const alertResult = await sendPremiumListingAlert(adminSupabase, listing.id)
-      console.log('Premium listing alert sent after direct premium listing creation:', alertResult)
-    } catch (err) {
-      console.error('Failed to send premium listing alert after direct creation:', err)
-    }
-
-    // Skip Stripe and redirect directly to success for Premium users choosing Premium listing.
-    const headersList = await import('next/headers').then(m => m.headers())
-    const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-    redirect(`${origin}/catalog/${listing.id}?success=true`)
-  }
-
   if (listingPlan === 'free') {
-    const headersList = await import('next/headers').then(m => m.headers())
-    const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-    redirect(`${origin}/catalog/${listing.id}?success=true&plan=free`)
+    redirect(`/catalog/${publishedListing.id}?success=true&plan=free`)
   }
 
   // Use Stripe to charge the 5 EUR Premium listing fee.
   const { stripe } = await import('@/utils/stripe')
   const headersList = await import('next/headers').then(m => m.headers())
-  const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const origin = getApplicationOrigin(headersList.get('origin'), siteUrl)
 
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
@@ -152,7 +134,7 @@ export async function submitListing(formData: FormData) {
         price_data: {
           currency: 'eur',
           product_data: {
-            name: 'Premium Listing: ' + listing.title,
+            name: 'Premium Listing: ' + publishedListing.title,
             description: '48-hour Premium window, bi-weekly newsletter, social promotion and buyer outreach.',
           },
           unit_amount: premiumListingFeeCents,
@@ -163,12 +145,14 @@ export async function submitListing(formData: FormData) {
     metadata: {
       type: 'listing_fee',
       listing_plan: 'premium',
-      listing_id: listing.id,
+      listing_id: publishedListing.id,
       user_id: user.id
     },
     mode: 'payment',
-    success_url: `${origin}/catalog/${listing.id}?success=true`,
-    cancel_url: `${origin}/catalog/${listing.id}?canceled=true`,
+    success_url: `${origin}/catalog/${publishedListing.id}?success=true`,
+    cancel_url: `${origin}/catalog/${publishedListing.id}?canceled=true`,
+  }, {
+    idempotencyKey: `listing-fee-${publishedListing.id}-${Math.floor(Date.now() / 600000)}`,
   })
 
   // Redirect to Stripe Checkout

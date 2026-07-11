@@ -78,21 +78,23 @@ export default async function AdminUsersPage() {
                           </button>
                         </form>
                       )}
-                      <form action={async () => {
-                        'use server'
-                        await togglePremiumStatus(u.id, u.is_premium)
-                      }}>
-                        <button
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                            u.is_premium
-                              ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          }`}
-                        >
-                          {u.is_premium ? <ShieldOff className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
-                          {u.is_premium ? 'Revoke Premium' : 'Grant Premium'}
-                        </button>
-                      </form>
+                      {u.premium_source !== 'stripe' && (
+                        <form action={async () => {
+                          'use server'
+                          await togglePremiumStatus(u.id)
+                        }}>
+                          <button
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                              u.is_premium
+                                ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            }`}
+                          >
+                            {u.is_premium ? <ShieldOff className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
+                            {u.is_premium ? 'Revoke Premium' : 'Grant Premium'}
+                          </button>
+                        </form>
+                      )}
                     </div>
                   </td>
                 </tr>

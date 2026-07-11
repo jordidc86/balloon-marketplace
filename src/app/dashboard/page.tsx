@@ -2,7 +2,13 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Plus, CheckCircle, Clock } from 'lucide-react'
+import { Plus, CheckCircle, Clock, CreditCard } from 'lucide-react'
+import { openBillingPortal } from './actions'
+
+type DashboardListingImage = {
+  url: string
+  is_primary?: boolean | null
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -18,14 +24,14 @@ export default async function DashboardPage() {
   // Get user profile for premium status
   const { data: profile } = await supabase
     .from('users')
-    .select('is_premium')
+    .select('is_premium, premium_source, stripe_customer_id')
     .eq('id', user.id)
     .single()
 
   // Get user listings
   const { data: listings } = await supabase
     .from('listings')
-    .select('*, images(url)')
+    .select('*, images(url, is_primary, created_at)')
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -66,6 +72,19 @@ export default async function DashboardPage() {
                   Upgrade to Premium
                 </Link>
               )}
+              {isPremium && profile?.premium_source === 'stripe' && profile?.stripe_customer_id && (
+                <form action={openBillingPortal}>
+                  <button className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-background text-foreground text-sm font-medium py-2 rounded-lg border hover:bg-muted transition-colors">
+                    <CreditCard className="h-4 w-4" />
+                    Manage billing
+                  </button>
+                </form>
+              )}
+              {isPremium && profile?.premium_source !== 'stripe' && (
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Premium access is managed by AeroTrade admin.
+                </p>
+              )}
             </div>
           </div>
 
@@ -84,7 +103,10 @@ export default async function DashboardPage() {
               ) : (
                 <div className="space-y-4">
                   {listings.map((item) => {
-                    const primaryImage = item.images?.[0]?.url || 'https://images.unsplash.com/photo-1506521781263-d8422e8dbf27?q=80&w=600'
+                    const primaryImage =
+                      item.images?.find((image: DashboardListingImage) => image.is_primary)?.url ||
+                      item.images?.[0]?.url ||
+                      'https://images.unsplash.com/photo-1506521781263-d8422e8dbf27?q=80&w=600'
                     return (
                       <div key={item.id} className="flex items-center gap-4 p-4 border rounded-xl hover:bg-secondary/20 transition-colors">
                         <div className="w-16 h-16 rounded-lg overflow-hidden relative border bg-muted shrink-0">
