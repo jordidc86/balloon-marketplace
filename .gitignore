@@ -43,5 +43,8 @@ next-env.d.ts
 # Local Netlify folder
 .netlify
 
+# Local Supabase CLI state
+/supabase/.temp/
+
 # Local social creative previews
 social-previews/
