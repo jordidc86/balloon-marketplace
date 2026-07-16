@@ -1,7 +1,7 @@
 # AeroTrade Source Index
 
 Status: Production routing index.
-Last updated: 2026-07-11.
+Last updated: 2026-07-16.
 
 ## Primary Orientation Files
 
@@ -35,7 +35,7 @@ Last updated: 2026-07-11.
 | Social cron schedule | `Active`: Netlify scheduled function runs `/api/cron/social` daily at 07:00 UTC. |
 | SEO canonical | `Fixed`: `robots.txt`, `sitemap.xml`, and listing JSON-LD use `https://aerotrade.app`. |
 | Premium seller/buyer funnel | `Proposed`: needs business review against competitors and listing supply. |
-| Critical local stabilization | `Prepared`: tests, trusted Stripe returns, webhook audit, image requirements and contact visibility await approved migration/deploy. |
+| Critical stabilization | `Deployed`: Supabase migrations, Stripe webhook audit, trusted returns, image requirements, contact visibility and mobile listing layout are live. |
 
 ## Local Artifacts
 

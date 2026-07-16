@@ -1,7 +1,7 @@
 # AeroTrade Latest Summary
 
-Date: 2026-07-11
-Status: `Local stabilization prepared; production deployment pending approval`
+Date: 2026-07-16
+Status: `Production stabilization deployed and audited`
 
 ## Current State
 
@@ -16,7 +16,19 @@ AeroTrade is a Next.js marketplace for used hot-air-balloon equipment with Supab
 | Social scheduler clarity | `Fixed` | Netlify runs `/api/cron/social` daily; `/api/cron/instagram` remains compatibility route. |
 | SEO canonical | `Fixed` | Public SEO routes use `https://aerotrade.app`, not Netlify aliases. |
 | Supply-side cold start | `Observed` | Marketplace value depends on enough quality listings. |
-| Pending local release | `Open` | Critical fixes for listing images, contact visibility, Premium conversion and Stripe audit are not yet in production. |
+| Stabilization release | `Deployed` | Critical fixes for listing images, contact visibility, Premium conversion and Stripe audit are live. |
+| Stripe webhook coverage | `Fixed` | The live endpoint uses the canonical domain and listens for checkout, subscription update/deletion and payment failure events. |
+| Legacy listing image state | `Fixed` | All active listings have images, contact data and exactly one primary image. |
+| Mobile listing layout | `Fixed` | Listing images are bounded on small screens and anonymous navigation no longer overflows horizontally. |
+
+## Production Evidence
+
+- Netlify serves the release from `main`; deploys completed without build or secret-scan errors.
+- Supabase migration history is aligned through `20260711120000`; `stripe_webhook_events` is private.
+- A signed no-op Stripe audit event was processed once and recognized as a duplicate on replay.
+- Newsletter and social dry-runs returned HTTP 200 without sending email or publishing content.
+- GitHub Actions completed a manual newsletter dry-run using its production secret.
+- Public catalog navigation, seller contact, new-balloon quote, pricing, SEO and mobile listing layout were checked in production.
 
 ## Current Business Improvement Focus
 
@@ -25,6 +37,6 @@ AeroTrade is a Next.js marketplace for used hot-air-balloon equipment with Supab
 3. Add trust signals around inspection/documentation.
 4. Verify newsletter and Instagram promotion loops.
 
-## Suggested Next Approval
+## Residual Observation
 
-`Approved: deploy the AeroTrade stabilization release and run the controlled production audit`
+Confirm the next real Stripe payment and the next scheduled newsletter/social runs in their normal production windows. The controlled audit intentionally made no charge and published no external content.
