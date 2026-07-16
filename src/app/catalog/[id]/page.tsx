@@ -96,7 +96,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     notFound()
   }
 
-  const images = canViewFully ? typedListing.images?.map((img) => img.url) || [] : []
+  const images = canViewFully
+    ? [...(typedListing.images || [])]
+        .sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+        .map((img) => img.url)
+    : []
   const displayTitle = canViewFully ? typedListing.title : getPublicTeaserTitle(typedListing.category)
   const displayPrice = canViewFully
     ? typedListing.price === 0 ? 'Inquire for Pricing' : `${Number(typedListing.price).toLocaleString()} ${typedListing.currency}`

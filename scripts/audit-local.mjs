@@ -35,7 +35,7 @@ const checks = [
   {
     name: 'Listing detail image stays bounded on mobile',
     file: 'src/app/catalog/[id]/page.tsx',
-    required: ['aspect-[4/3]', 'sm:h-[min(72vh,620px)]', 'object-contain'],
+    required: ['Number(b.is_primary) - Number(a.is_primary)', 'aspect-[4/3]', 'sm:h-[min(72vh,620px)]', 'object-contain'],
   },
   {
     name: 'Anonymous mobile navigation avoids horizontal overflow',
