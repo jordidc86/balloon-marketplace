@@ -167,7 +167,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Left: Images */}
         <div className="space-y-4 order-2 lg:order-1">
-          <div className="relative h-[min(72vh,620px)] min-h-[260px] bg-muted rounded-2xl overflow-hidden border">
+          <div className="relative aspect-[4/3] sm:aspect-auto sm:h-[min(72vh,620px)] sm:min-h-[260px] bg-muted rounded-2xl overflow-hidden border">
             {images.length > 0 ? (
               <Image
                 src={images[0]}

@@ -23,7 +23,7 @@ export default async function Navbar() {
 
   return (
     <nav className="border-b sticky top-0 z-50 bg-background/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex-shrink-0 flex items-center gap-2">
             <Plane className="h-6 w-6 text-primary" />
@@ -39,7 +39,7 @@ export default async function Navbar() {
             <Link href="/new-balloon" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">New Balloon Quote</Link>
           </div>
 
-          <div className="flex items-center space-x-3 sm:space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {user ? (
               <>
                 {isPremium && (
@@ -66,14 +66,14 @@ export default async function Navbar() {
                 </div>
               </>
             ) : (
-              <div className="flex items-center space-x-4 border-l pl-4 ml-2">
-                <Link href="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
+              <div className="flex items-center space-x-2 sm:space-x-4 border-l pl-2 sm:pl-4 ml-1 sm:ml-2">
+                <Link href="/pricing" className="hidden sm:inline text-sm font-medium hover:text-primary transition-colors">
                   Premium
                 </Link>
                 <Link href="/new-balloon" className="inline-flex items-center whitespace-nowrap bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
                   New Quote
                 </Link>
-                <Link href="/login" className="text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 px-4 py-2 rounded-lg transition-colors">
+                <Link href="/login" className="text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 sm:px-4 py-2 rounded-lg transition-colors">
                   Log In
                 </Link>
               </div>

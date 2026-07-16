@@ -33,6 +33,16 @@ const checks = [
     required: ['canRevealSellerContact', 'Premium access is required to reveal this contact'],
   },
   {
+    name: 'Listing detail image stays bounded on mobile',
+    file: 'src/app/catalog/[id]/page.tsx',
+    required: ['aspect-[4/3]', 'sm:h-[min(72vh,620px)]', 'object-contain'],
+  },
+  {
+    name: 'Anonymous mobile navigation avoids horizontal overflow',
+    file: 'src/components/Navbar.tsx',
+    required: ['hidden sm:inline text-sm font-medium', 'space-x-2 sm:space-x-4', 'px-2 sm:px-4 py-2'],
+  },
+  {
     name: 'Newsletter has one documented bi-weekly production schedule',
     file: '.github/workflows/newsletter.yml',
     required: ["cron: '0 9 1,16 * *'", 'production-newsletter', 'dry_run'],
