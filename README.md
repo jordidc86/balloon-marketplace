@@ -47,12 +47,16 @@ The bi-weekly newsletter is triggered by `.github/workflows/newsletter.yml` agai
 - Scheduled runs send the normal production newsletter.
 - Manual runs default to `dry_run=true`.
 - Manual live sends (`dry_run=false`) require the GitHub environment `production-newsletter`.
+- Live newsletter and Premium alert runs count a recipient as sent only when Resend returns an acceptance ID.
+- Missing Resend credentials fail the run explicitly; local mocks are never recorded as delivery.
 
 ## Social Publishing
 
 The scheduled social endpoint is `/api/cron/social`. The older `/api/cron/instagram` endpoint remains compatible and runs the same workflow.
 
-It promotes eligible active listings, avoiding sold, archived, draft, pending payment, and flagged listings. Use `/api/cron/social?dryRun=1` to inspect planned posts without changing listing status, sending reminders, or calling Meta.
+It promotes eligible active listings, avoiding sold, archived, draft, pending payment, and flagged listings. Use `/api/cron/social?dryRun=1` to inspect planned posts without changing listing status, sending reminders, or calling Meta. An approved provider preflight can use `/api/cron/social?dryRun=1&providerCheck=1`; it validates Meta credentials without creating or publishing media.
+
+Live social runs classify token, permission, timeout, rate-limit and configuration failures. Provider failures return a non-2xx response so the scheduler cannot report a false success. Meta read-only status checks use bounded retries; publication POST requests are not automatically repeated.
 
 Required runtime variables are configured in the hosting environment, not in this repository:
 

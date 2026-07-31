@@ -8,6 +8,14 @@ import {
   maxListingImages,
   parseListingImageUrls,
 } from '../src/utils/listing-safety.mjs'
+import {
+  assessMetaTokenData,
+  classifyMetaError,
+  createMissingEmailProviderResult,
+  reconcileEmailProviderDeliveries,
+  shouldTryNextMetaCredential,
+  withBoundedRetry,
+} from '../src/utils/delivery-safety.mjs'
 
 test('redirects only accept local application paths', () => {
   assert.equal(getSafeRedirectPath('/pricing'), '/pricing')
@@ -70,4 +78,104 @@ test('seller contact is public only for active eligible listings', () => {
   assert.equal(canRevealSellerContact(expiredPremiumListing, { userId: null, isPremium: false }, now), true)
   assert.equal(canRevealSellerContact(draftListing, { userId: null, isPremium: false }, now), false)
   assert.equal(canRevealSellerContact(draftListing, { userId: 'seller', isPremium: false }, now), true)
+})
+
+test('missing Resend credentials fail closed without counting mock deliveries', () => {
+  const result = createMissingEmailProviderResult([
+    { to: 'buyer@example.com', subject: 'Alert', html: '<p>Alert</p>' },
+  ])
+
+  assert.equal(result.success, false)
+  assert.equal(result.configurationError, true)
+  assert.equal(result.sentCount, 0)
+  assert.equal(result.failedCount, 1)
+  assert.equal(result.deliveryResults[0].status, 'failed')
+  assert.match(result.deliveryResults[0].error, /no email was sent/i)
+})
+
+test('partial provider acceptance is reported as partial failure with provider ids', () => {
+  const emails = [
+    { to: 'accepted@example.com' },
+    { to: 'rejected@example.com' },
+  ]
+  const result = reconcileEmailProviderDeliveries(
+    emails,
+    [{ id: 'resend-accepted-1' }],
+    [{ index: 1, message: 'Recipient rejected' }],
+  )
+
+  assert.equal(result.success, false)
+  assert.equal(result.sentCount, 1)
+  assert.equal(result.failedCount, 1)
+  assert.deepEqual(result.deliveryResults, [
+    { to: 'accepted@example.com', status: 'sent', resendId: 'resend-accepted-1' },
+    { to: 'rejected@example.com', status: 'failed', error: 'Recipient rejected' },
+  ])
+})
+
+test('provider acceptance without an id is not counted as sent', () => {
+  const result = reconcileEmailProviderDeliveries(
+    [{ to: 'unverified@example.com' }],
+    [{}],
+  )
+
+  assert.equal(result.success, false)
+  assert.equal(result.sentCount, 0)
+  assert.equal(result.failedCount, 1)
+  assert.match(result.deliveryResults[0].error, /acceptance identifier/i)
+})
+
+test('Meta timeouts retry a bounded number of safe read attempts', async () => {
+  let attempts = 0
+  const result = await withBoundedRetry(async () => {
+    attempts += 1
+    if (attempts < 3) {
+      const error = new Error('Instagram container was not ready before timeout')
+      error.code = 'ETIMEDOUT'
+      throw error
+    }
+    return 'ready'
+  }, { attempts: 3 })
+
+  assert.equal(result, 'ready')
+  assert.equal(attempts, 3)
+  assert.equal(classifyMetaError(new Error('Media was not ready before timeout')).category, 'timeout')
+  assert.equal(shouldTryNextMetaCredential(new Error('Media was not ready before timeout')), false)
+})
+
+test('expired Meta tokens are classified as non-retryable and stop immediately', async () => {
+  let attempts = 0
+  const expiredTokenError = Object.assign(new Error('The access token has expired'), {
+    code: 190,
+    subcode: 463,
+  })
+
+  await assert.rejects(
+    withBoundedRetry(async () => {
+      attempts += 1
+      throw expiredTokenError
+    }, { attempts: 3 }),
+    /expired/i,
+  )
+
+  const classification = classifyMetaError(expiredTokenError)
+  assert.equal(attempts, 1)
+  assert.equal(classification.category, 'token_expired')
+  assert.equal(classification.retryable, false)
+  assert.match(classification.action, /reauthorize/i)
+  assert.equal(shouldTryNextMetaCredential(expiredTokenError), true)
+})
+
+test('Meta data-access expiry produces a proactive warning', () => {
+  const now = new Date('2026-07-31T10:00:00.000Z')
+  const expiry = Math.floor(new Date('2026-08-05T10:00:00.000Z').getTime() / 1000)
+  const health = assessMetaTokenData({
+    is_valid: true,
+    expires_at: 0,
+    data_access_expires_at: expiry,
+  }, now, 14)
+
+  assert.equal(health.valid, true)
+  assert.equal(health.daysRemaining, 5)
+  assert.match(health.warning, /5 day/i)
 })

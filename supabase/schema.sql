@@ -91,7 +91,7 @@ create table public.newsletter_runs (
   id uuid default uuid_generate_v4() primary key,
   period_key text not null,
   trigger_source text not null default 'unknown' check (trigger_source in ('schedule', 'manual', 'workflow_dispatch', 'test', 'unknown')),
-  status text not null default 'running' check (status in ('running', 'sent', 'failed', 'skipped')),
+  status text not null default 'running' check (status in ('running', 'sent', 'partial', 'failed', 'skipped')),
   dry_run boolean not null default false,
   test_email text,
   days_filter integer,
@@ -118,7 +118,7 @@ create unique index newsletter_runs_one_live_send_per_period
   on public.newsletter_runs (period_key)
   where dry_run = false
     and test_email is null
-    and status in ('running', 'sent');
+    and status in ('running', 'sent', 'partial');
 
 create index newsletter_runs_created_at_idx on public.newsletter_runs (created_at desc);
 create index newsletter_runs_status_idx on public.newsletter_runs (status);
@@ -142,7 +142,7 @@ create index newsletter_recipients_status_idx on public.newsletter_recipients (s
 create table public.premium_alert_runs (
   id uuid default uuid_generate_v4() primary key,
   listing_id uuid references public.listings(id) on delete cascade not null,
-  status text not null default 'running' check (status in ('running', 'sent', 'failed', 'skipped')),
+  status text not null default 'running' check (status in ('running', 'sent', 'partial', 'failed', 'skipped')),
   started_at timestamp with time zone default timezone('utc'::text, now()) not null,
   completed_at timestamp with time zone,
   recipients_count integer not null default 0,
@@ -158,7 +158,7 @@ create table public.premium_alert_runs (
 
 create unique index premium_alert_runs_one_success_per_listing
   on public.premium_alert_runs (listing_id)
-  where status in ('running', 'sent');
+  where status in ('running', 'sent', 'partial');
 
 create index premium_alert_runs_created_at_idx on public.premium_alert_runs (created_at desc);
 create index premium_alert_runs_status_idx on public.premium_alert_runs (status);

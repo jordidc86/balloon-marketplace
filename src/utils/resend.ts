@@ -1,8 +1,8 @@
 import { Resend, type CreateBatchOptions } from 'resend';
-
-// Initialize Resend
-// In a real production app, this would be process.env.RESEND_API_KEY
-// Assuming we don't have it yet, we'll gracefully handle it allowing the app to run
+import {
+  createMissingEmailProviderResult,
+  reconcileEmailProviderDeliveries,
+} from '@/utils/delivery-safety.mjs';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const defaultResendFrom = 'AeroTrade <noreply@aerotrade.app>';
@@ -57,7 +57,7 @@ const chunkEmails = (emails: EmailPayload[], size: number) => {
   return chunks;
 };
 
-// Mock email sender for development if key isn't present
+// Missing provider credentials fail closed so callers cannot record mock delivery.
 export const sendEmail = async (to: string, subject: string, html: string) => {
   if (resend) {
     try {
@@ -72,19 +72,25 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
         return { success: false, error: result.error };
       }
 
-      return { success: true, data: result.data };
+      if (!result.data?.id) {
+        const error = new Error('Resend did not return an acceptance identifier.');
+        console.error('Failed to verify email acceptance via Resend:', error);
+        return { success: false, error };
+      }
+
+      return { success: true, data: result.data, resendId: result.data.id };
     } catch (error) {
       console.error('Failed to send email via Resend:', error);
       return { success: false, error };
     }
   } else {
-    // Development fallback
-    console.log('\n--- 📧 EMAIL MOCKED (No Resend Key) ---');
-    console.log(`TO: ${to}`);
-    console.log(`SUBJECT: ${subject}`);
-    console.log(`CONTENT: ${html.substring(0, 100)}...`);
-    console.log('----------------------------------------\n');
-    return { success: true, mocked: true };
+    const result = createMissingEmailProviderResult([{ to, subject, html }]);
+    console.error(result.error.message);
+    return {
+      success: false,
+      configurationError: true,
+      error: result.error,
+    };
   }
 }
 
@@ -135,43 +141,24 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
           };
         }
 
-        const errors = result.data?.errors || [];
-        const failedByIndex = new Map<number, string>();
-        for (const error of errors) {
-          failedByIndex.set(error.index, error.message);
-        }
+        const providerErrors = result.data?.errors || [];
+        const acceptedDeliveries = result.data?.data || [];
+        const chunkResult = reconcileEmailProviderDeliveries(
+          chunk,
+          acceptedDeliveries,
+          providerErrors,
+        );
 
-        const sentDeliveries = result.data?.data || [];
-        const sentInChunk = chunk.length - failedByIndex.size;
-        sentCount += sentInChunk;
-        data.push(...sentDeliveries);
+        sentCount += chunkResult.sentCount;
+        data.push(...acceptedDeliveries);
+        deliveryResults.push(...chunkResult.deliveryResults as EmailDeliveryResult[]);
 
-        let sentDeliveryIndex = 0;
-        for (const [emailIndex, email] of chunk.entries()) {
-          const errorMessage = failedByIndex.get(emailIndex);
-          if (errorMessage) {
-            deliveryResults.push({
-              to: email.to,
-              status: 'failed',
-              error: errorMessage,
-            });
-          } else {
-            deliveryResults.push({
-              to: email.to,
-              status: 'sent',
-              resendId: sentDeliveries[sentDeliveryIndex]?.id,
-            });
-            sentDeliveryIndex += 1;
-          }
-        }
-
-        for (const error of errors) {
-          const failedEmail = chunk[error.index];
+        for (const failure of chunkResult.failures) {
           failures.push({
             chunk: chunkIndex + 1,
-            index: error.index,
-            to: failedEmail?.to,
-            message: error.message,
+            index: failure.index,
+            to: failure.to,
+            message: failure.message,
           });
         }
 
@@ -186,7 +173,7 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
       }
 
       return {
-        success: sentCount > 0 || failedCount === 0,
+        success: failedCount === 0,
         data,
         sentCount,
         failedCount,
@@ -217,25 +204,8 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
       };
     }
   } else {
-    // Development fallback
-    console.log(`\n--- EMAIL BATCH MOCKED (${validEmails.length} emails) ---`);
-    if (validEmails.length > 0) {
-      console.log(`First email TO: ${validEmails[0].to}`);
-      console.log(`SUBJECT: ${validEmails[0].subject}`);
-      console.log(`CONTENT: ${validEmails[0].html.substring(0, 100)}...`);
-    }
-    console.log('----------------------------------------\n');
-    return {
-      success: true,
-      mocked: true,
-      sentCount: validEmails.length,
-      skippedCount,
-      failedCount: 0,
-      chunkCount: Math.ceil(validEmails.length / resendBatchLimit),
-      deliveryResults: validEmails.map(email => ({
-        to: email.to,
-        status: 'sent' as const,
-      })),
-    };
+    const result = createMissingEmailProviderResult(validEmails);
+    console.error(result.error.message);
+    return { ...result, skippedCount };
   }
 }

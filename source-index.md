@@ -1,7 +1,7 @@
 # AeroTrade Source Index
 
 Status: Production routing index.
-Last updated: 2026-07-16.
+Last updated: 2026-07-31.
 
 ## Primary Orientation Files
 
@@ -36,6 +36,7 @@ Last updated: 2026-07-16.
 | SEO canonical | `Fixed`: `robots.txt`, `sitemap.xml`, and listing JSON-LD use `https://aerotrade.app`. |
 | Premium seller/buyer funnel | `Proposed`: needs business review against competitors and listing supply. |
 | Critical stabilization | `Deployed`: Supabase migrations, Stripe webhook audit, trusted returns, image requirements, contact visibility and mobile listing layout are live. |
+| Outbound delivery verification | `Prepared locally`: Resend acceptance IDs, partial-run tracking, Meta credential preflight and actionable failure classes await migration and deploy. |
 
 ## Local Artifacts
 

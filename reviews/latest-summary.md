@@ -1,7 +1,7 @@
 # AeroTrade Latest Summary
 
-Date: 2026-07-16
-Status: `Production stabilization deployed and audited`
+Date: 2026-07-31
+Status: `Production stabilized; outbound delivery hardening prepared locally`
 
 ## Current State
 
@@ -20,6 +20,8 @@ AeroTrade is a Next.js marketplace for used hot-air-balloon equipment with Supab
 | Stripe webhook coverage | `Fixed` | The live endpoint uses the canonical domain and listens for checkout, subscription update/deletion and payment failure events. |
 | Legacy listing image state | `Fixed` | All active listings have images, contact data and exactly one primary image. |
 | Mobile listing layout | `Fixed` | Listing images are bounded on small screens and anonymous navigation no longer overflows horizontally. |
+| Email delivery false positives | `Prepared locally` | Missing Resend credentials now fail closed; only provider acceptance IDs count as sent and partial delivery has a durable status. |
+| Meta failure diagnosis | `Prepared locally` | Credential preflight, expiry warnings and actionable token/permission/timeout classifications await deployment. |
 
 ## Production Evidence
 
@@ -37,6 +39,13 @@ AeroTrade is a Next.js marketplace for used hot-air-balloon equipment with Supab
 3. Add trust signals around inspection/documentation.
 4. Verify newsletter and Instagram promotion loops.
 
+## Pending Release
+
+- Apply `20260731170000_track_partial_email_delivery.sql` before deploying the matching code.
+- Deploy the outbound hardening only after local test, audit, lint and build are clean.
+- Run authenticated newsletter and social dry-runs; use `providerCheck=1` to validate Meta without publishing.
+- Confirm the next scheduled newsletter/social execution with Resend acceptance IDs and provider-aware status.
+
 ## Residual Observation
 
-Confirm the next real Stripe payment and the next scheduled newsletter/social runs in their normal production windows. The controlled audit intentionally made no charge and published no external content.
+Confirm the next real Stripe payment. The outbound hardening is not production evidence until its migration, deploy and authenticated dry-runs are completed.

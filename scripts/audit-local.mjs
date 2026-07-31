@@ -48,9 +48,30 @@ const checks = [
     required: ["cron: '0 9 1,16 * *'", 'production-newsletter', 'dry_run'],
   },
   {
+    name: 'Email delivery fails closed and tracks partial provider acceptance',
+    file: 'src/utils/resend.ts',
+    required: ['createMissingEmailProviderResult', 'reconcileEmailProviderDeliveries', 'success: failedCount === 0'],
+    forbidden: ['mocked: true'],
+  },
+  {
+    name: 'Partial email runs block unsafe automatic retries',
+    file: 'supabase/migrations/20260731170000_track_partial_email_delivery.sql',
+    required: ["status in ('running', 'sent', 'partial')", "status in ('running', 'sent', 'partial', 'failed', 'skipped')"],
+  },
+  {
     name: 'Social scheduler uses the protected unified endpoint',
     file: 'netlify/functions/social-scheduled.mjs',
     required: ['CRON_SECRET', '/api/cron/social?limit=1'],
+  },
+  {
+    name: 'Social publishing classifies provider failures and exposes credential preflight',
+    file: 'src/app/api/cron/instagram/route.ts',
+    required: ['classifyMetaError', 'getMetaCredentialHealth', 'providerCheck', 'status: failures.length > 0 ? 502 : 200'],
+  },
+  {
+    name: 'Meta credential fallback cannot repeat timed-out publications',
+    file: 'src/utils/meta-social.ts',
+    required: ['shouldTryNextMetaCredential', 'if (!shouldTryNextMetaCredential(error))'],
   },
   {
     name: 'Public contact uses the configured real support address',

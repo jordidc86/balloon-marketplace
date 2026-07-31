@@ -127,7 +127,7 @@ async function startPremiumAlertRun(supabase: SupabaseClient, listingId: string)
       .from('premium_alert_runs')
       .select('id, status')
       .eq('listing_id', listingId)
-      .in('status', ['running', 'sent'])
+      .in('status', ['running', 'sent', 'partial'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -150,7 +150,7 @@ async function finishPremiumAlertRun(
   supabase: SupabaseClient,
   runId: string,
   fields: {
-    status: 'sent' | 'failed' | 'skipped'
+    status: 'sent' | 'partial' | 'failed' | 'skipped'
     recipientsCount?: number
     sentCount?: number
     failedCount?: number
@@ -278,13 +278,21 @@ export async function sendPremiumListingAlert(supabase: SupabaseClient, listingI
 
     await recordPremiumAlertRecipients(supabase, alertRun.id, deliveryResults);
     await finishPremiumAlertRun(supabase, alertRun.id, {
-      status: sentCount > 0 ? 'sent' : 'failed',
+      status: result.success
+        ? 'sent'
+        : sentCount > 0
+          ? 'partial'
+          : 'failed',
       recipientsCount: recipients.length,
       sentCount,
       failedCount,
       skippedInvalidRecipients,
       resendMessageIds,
-      errorMessage: result.success ? undefined : getErrorMessage(result.error || 'Premium alert batch failed'),
+      errorMessage: result.success
+        ? undefined
+        : sentCount > 0
+          ? 'Premium alert was only partially accepted by Resend; automatic retry is blocked.'
+          : getErrorMessage(result.error || 'Premium alert batch failed'),
       metadata: {
         chunkCount: result.chunkCount,
         failures: result.failures || [],

@@ -26,7 +26,7 @@ type NewsletterUser = {
   email: string | null
 }
 
-type NewsletterRunStatus = 'running' | 'sent' | 'failed' | 'skipped'
+type NewsletterRunStatus = 'running' | 'sent' | 'partial' | 'failed' | 'skipped'
 
 type DeliveryResult = {
   to: string
@@ -220,7 +220,7 @@ async function startNewsletterRun(
       .eq('period_key', params.periodKey)
       .eq('dry_run', false)
       .is('test_email', null)
-      .in('status', ['running', 'sent'])
+      .in('status', ['running', 'sent', 'partial'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -595,7 +595,11 @@ export async function GET(request: Request) {
 
     await recordNewsletterRecipients(supabase, activeRun.id, deliveryResults);
 
-    const status: NewsletterRunStatus = sentCount > 0 ? 'sent' : 'failed';
+    const status: NewsletterRunStatus = result.success
+      ? 'sent'
+      : sentCount > 0
+        ? 'partial'
+        : 'failed';
     await finishNewsletterRun(supabase, activeRun.id, {
       status,
       recipientsCount: recipientEmails.length,
@@ -607,7 +611,11 @@ export async function GET(request: Request) {
       listingIds: recentListings.map(listing => listing.id),
       upgradedExpiredPremiumListings: upgradedListings?.length || 0,
       resendMessageIds,
-      errorMessage: result.success ? undefined : getErrorMessage(result.error || 'Email batch failed'),
+      errorMessage: result.success
+        ? undefined
+        : sentCount > 0
+          ? 'Newsletter was only partially accepted by Resend; automatic retry is blocked.'
+          : getErrorMessage(result.error || 'Email batch failed'),
       metadata: {
         chunkCount: result.chunkCount,
         failures: result.failures || [],

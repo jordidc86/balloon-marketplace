@@ -1,4 +1,10 @@
 import https from 'node:https'
+import {
+  assessMetaTokenData,
+  classifyMetaError,
+  shouldTryNextMetaCredential,
+  withBoundedRetry,
+} from '@/utils/delivery-safety.mjs'
 
 type MetaPostInput = {
   imageUrl: string
@@ -50,6 +56,18 @@ type FacebookConfig = {
   accessToken: string
 }
 
+export type MetaCredentialHealth = {
+  configured: boolean
+  valid: boolean | null
+  warning: string | null
+  action: string | null
+  category?: string
+  retryable?: boolean
+  expiresAt?: string | null
+  dataAccessExpiresAt?: string | null
+  daysRemaining?: number | null
+}
+
 type MetaApiResponse<T> = T & {
   error?: {
     message?: string
@@ -80,7 +98,9 @@ class MetaApiError extends Error {
 const graphApiVersion = process.env.META_GRAPH_API_VERSION || 'v24.0'
 const graphApiBaseUrl = `https://graph.facebook.com/${graphApiVersion}`
 const instagramContainerPollDelayMs = 2500
-const instagramContainerPollAttempts = 20
+const instagramContainerPollAttempts = 24
+const metaReadRetryAttempts = 3
+const metaReadRetryDelayMs = 500
 
 const getUniqueTokenCandidates = (...tokens: Array<string | undefined>) => {
   const seen = new Set<string>()
@@ -201,7 +221,7 @@ const postToMeta = async <T>(
   return json
 }
 
-const getFromMeta = async <T>(
+const getFromMetaOnce = async <T>(
   path: string,
   accessToken: string
 ): Promise<T> => {
@@ -235,6 +255,16 @@ const getFromMeta = async <T>(
     request.end()
   })
 }
+
+const getFromMeta = async <T>(path: string, accessToken: string): Promise<T> =>
+  withBoundedRetry(
+    () => getFromMetaOnce<T>(path, accessToken),
+    {
+      attempts: metaReadRetryAttempts,
+      delayMs: metaReadRetryDelayMs,
+      shouldRetry: (error: unknown) => classifyMetaError(error).retryable,
+    },
+  )
 
 const getPageAccessToken = async (pageId: string, userAccessToken: string) => {
   const response = await getFromMeta<{
@@ -306,6 +336,9 @@ const withTokenFallback = async <T>(
       return await run(accessToken)
     } catch (error) {
       lastError = error
+      if (!shouldTryNextMetaCredential(error)) {
+        throw error
+      }
     }
   }
 
@@ -328,6 +361,9 @@ const withFacebookConfigFallback = async <T>(
       return await run(config)
     } catch (error) {
       lastError = error
+      if (!shouldTryNextMetaCredential(error)) {
+        throw error
+      }
     }
   }
 
@@ -343,6 +379,44 @@ export const canPublishToFacebook = () => Boolean(
     || userTokenCandidates().length > 0
   )
 )
+
+export const getMetaCredentialHealth = async (): Promise<MetaCredentialHealth> => {
+  const accessToken = instagramTokenCandidates()[0]
+    || userTokenCandidates()[0]
+    || facebookDirectTokenCandidates()[0]
+
+  if (!accessToken) {
+    return {
+      configured: false,
+      valid: false,
+      warning: 'No Meta access token is configured.',
+      action: 'Restore the production Meta access token.',
+    }
+  }
+
+  try {
+    const response = await getFromMeta<{
+      data?: {
+        is_valid?: boolean
+        expires_at?: number
+        data_access_expires_at?: number
+      }
+    }>(`debug_token?input_token=${encodeURIComponent(accessToken)}`, accessToken)
+
+    return assessMetaTokenData(response.data) as MetaCredentialHealth
+  } catch (error) {
+    const classified = classifyMetaError(error)
+
+    return {
+      configured: true,
+      valid: classified.category === 'unknown' ? null : false,
+      warning: `Meta credential preflight failed: ${classified.message}`,
+      action: classified.action,
+      category: classified.category,
+      retryable: classified.retryable,
+    }
+  }
+}
 
 export const publishInstagramImagePost = async ({
   imageUrl,

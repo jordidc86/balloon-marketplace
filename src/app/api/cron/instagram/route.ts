@@ -12,6 +12,7 @@ import { sendEmail } from '@/utils/resend';
 import {
   canPublishToFacebook,
   canPublishToInstagram,
+  getMetaCredentialHealth,
   publishFacebookVideoPost,
   publishInstagramImageCarousel,
   publishFacebookPhotoPost,
@@ -20,6 +21,8 @@ import {
   publishInstagramImageStory,
   publishInstagramReel,
 } from '@/utils/meta-social';
+import { classifyMetaError } from '@/utils/delivery-safety.mjs';
+import { escapeHtml } from '@/utils/html';
 import { siteUrl } from '@/utils/site';
 import { getSocialCardUrl } from '@/utils/social-card';
 import { isPromotedListing } from '@/utils/listing-plans';
@@ -56,6 +59,21 @@ type SocialListing = ListingForInstagram & {
   instagram_posted?: boolean
   facebook_posted?: boolean
   social_last_posted_at?: string | null
+}
+
+type SocialFailure = {
+  id: string
+  network: string
+  error: string
+  category: string
+  retryable: boolean
+  action: string
+}
+
+type SocialWarning = {
+  category: string
+  warning: string
+  action: string
 }
 
 type JimpImage = Awaited<ReturnType<typeof Jimp.read>>
@@ -303,18 +321,33 @@ const formatCaption = (listing: ListingForInstagram) => {
   ].join('\n')
 }
 
-const generateFailureHtml = (failures: { id: string; network: string; error: string }[]) => `
+const generateFailureHtml = (failures: SocialFailure[]) => `
   <h2>AeroTrade social publishing needs attention</h2>
-  <p>The daily social automation ran, but Meta rejected one or more publication requests.</p>
+  <p>The daily social automation ran, but one or more provider operations failed.</p>
   <ul>
     ${failures.map(failure => `
       <li>
-        <strong>${failure.network}</strong> for listing <code>${failure.id}</code><br/>
-        ${failure.error}
+        <strong>${escapeHtml(failure.network)}</strong> for item <code>${escapeHtml(failure.id)}</code><br/>
+        Category: ${escapeHtml(failure.category)}<br/>
+        ${escapeHtml(failure.error)}<br/>
+        Action: ${escapeHtml(failure.action)}
       </li>
     `).join('')}
   </ul>
-  <p>Refresh the Meta long-lived token and update the production environment variables before the next scheduled run.</p>
+`;
+
+const generateWarningHtml = (warnings: SocialWarning[]) => `
+  <h2>AeroTrade Meta access needs attention</h2>
+  <p>Social publishing is still available, but the credential preflight reported:</p>
+  <ul>
+    ${warnings.map(warning => `
+      <li>
+        <strong>${escapeHtml(warning.category)}</strong><br/>
+        ${escapeHtml(warning.warning)}<br/>
+        Action: ${escapeHtml(warning.action)}
+      </li>
+    `).join('')}
+  </ul>
 `;
 
 const emailPattern = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
@@ -454,10 +487,11 @@ export async function GET(request: Request) {
     let skippedLockedCount = 0;
 
     // 4. Publish ready listings or brand interstitials to configured Meta channels.
-    const shouldPublishToInstagram = canPublishToInstagram();
-    const shouldPublishToFacebook = canPublishToFacebook();
+    const instagramConfigured = canPublishToInstagram();
+    const facebookConfigured = canPublishToFacebook();
     const adminEmail = getAdminEmail();
-    const failures: { id: string; network: string; error: string }[] = [];
+    const failures: SocialFailure[] = [];
+    const warnings: SocialWarning[] = [];
     const planned: {
       id: string
       title: string
@@ -470,10 +504,57 @@ export async function GET(request: Request) {
     }[] = [];
 
     const recordFailure = (id: string, network: string, err: unknown) => {
-      const error = err instanceof Error ? err.message : 'Unknown error';
-      failures.push({ id, network, error });
+      const classified = classifyMetaError(err);
+      failures.push({
+        id,
+        network,
+        error: classified.message,
+        category: classified.category,
+        retryable: classified.retryable,
+        action: classified.action,
+      });
       console.error(`Failed to publish ${id} to ${network}:`, err);
     };
+
+    const recordAlertEmailFailure = (id: string, err: unknown) => {
+      const error = err instanceof Error ? err.message : 'Unknown email delivery error';
+      failures.push({
+        id,
+        network: 'Operational alert email',
+        error,
+        category: 'email_delivery',
+        retryable: false,
+        action: 'Restore RESEND_API_KEY and verify that Resend returns an acceptance identifier.',
+      });
+      console.error(`Failed to send the operational alert for ${id}:`, err);
+    };
+
+    const providerCheckRequested = requestUrl.searchParams.get('providerCheck') === '1'
+      || requestUrl.searchParams.get('providerCheck') === 'true';
+    const shouldCheckProvider = !dryRun || providerCheckRequested;
+    const metaCredentialHealth = shouldCheckProvider
+      ? await getMetaCredentialHealth()
+      : null;
+
+    if (metaCredentialHealth?.valid === false) {
+      failures.push({
+        id: 'meta-credentials',
+        network: 'Meta credential preflight',
+        error: metaCredentialHealth.warning || 'Meta credentials are invalid.',
+        category: metaCredentialHealth.category || (metaCredentialHealth.configured ? 'token_expired' : 'configuration'),
+        retryable: Boolean(metaCredentialHealth.retryable),
+        action: metaCredentialHealth.action || 'Restore valid Meta production credentials.',
+      });
+    } else if (metaCredentialHealth?.warning) {
+      warnings.push({
+        category: metaCredentialHealth.category || 'token_expiring',
+        warning: metaCredentialHealth.warning,
+        action: metaCredentialHealth.action || 'Review Meta credentials before the next scheduled run.',
+      });
+    }
+
+    const shouldPublishToInstagram = instagramConfigured && metaCredentialHealth?.valid !== false;
+    const shouldPublishToFacebook = facebookConfigured && metaCredentialHealth?.valid !== false;
 
     if (socialSlot.type !== 'listing' && socialSlot.concept) {
       const concept = socialSlot.concept;
@@ -508,14 +589,16 @@ export async function GET(request: Request) {
         });
 
         return NextResponse.json({
-          success: true,
+          success: failures.length === 0,
           mode: 'dry-run',
           dryRun,
           socialType: socialSlot.type,
           processed: 0,
           planned,
           failures,
-        });
+          warnings,
+          providerHealth: metaCredentialHealth,
+        }, { status: failures.length > 0 ? 502 : 200 });
       }
 
       const lockCreated = await tryCreateDailySocialLock(supabase, brandPublication, runDate);
@@ -686,18 +769,36 @@ export async function GET(request: Request) {
 
       if (!dryRun && failures.length > 0) {
         try {
-          await sendEmail(
+          const alertResult = await sendEmail(
             adminEmail,
             'AeroTrade social publishing failed',
             generateFailureHtml(failures)
           );
+          if (!alertResult.success) {
+            recordAlertEmailFailure(brandPublication.id, alertResult.error);
+          }
         } catch (emailError) {
           console.error('Unable to send social publishing failure alert:', emailError);
+          recordAlertEmailFailure(brandPublication.id, emailError);
+        }
+      } else if (!dryRun && warnings.length > 0) {
+        try {
+          const alertResult = await sendEmail(
+            adminEmail,
+            'AeroTrade Meta access expires soon',
+            generateWarningHtml(warnings)
+          );
+          if (!alertResult.success) {
+            recordAlertEmailFailure(brandPublication.id, alertResult.error);
+          }
+        } catch (emailError) {
+          console.error('Unable to send Meta credential warning:', emailError);
+          recordAlertEmailFailure(brandPublication.id, emailError);
         }
       }
 
       return NextResponse.json({
-        success: true,
+        success: failures.length === 0,
         mode: shouldPublishToInstagram || shouldPublishToFacebook ? 'api' : 'email-reminder',
         dryRun,
         socialType: socialSlot.type,
@@ -715,7 +816,9 @@ export async function GET(request: Request) {
         skippedLocked: skippedLockedCount,
         planned,
         failures,
-      });
+        warnings,
+        providerHealth: metaCredentialHealth,
+      }, { status: failures.length > 0 ? 502 : 200 });
     }
 
     // 3. Find public, unsold listings ready for rotating daily social publication.
@@ -733,14 +836,26 @@ export async function GET(request: Request) {
     }
 
     if (!listingsForIg || listingsForIg.length === 0) {
-      return NextResponse.json({ message: 'No active listings require social publication at this time.' });
+      return NextResponse.json({
+        success: failures.length === 0,
+        message: 'No active listings require social publication at this time.',
+        failures,
+        warnings,
+        providerHealth: metaCredentialHealth,
+      }, { status: failures.length > 0 ? 502 : 200 });
     }
 
     const promotedListingsForIg = (listingsForIg as SocialListing[])
       .filter((listing) => isPromotedListing(listing.details));
 
     if (promotedListingsForIg.length === 0) {
-      return NextResponse.json({ message: 'No promoted listings require social publication at this time.' });
+      return NextResponse.json({
+        success: failures.length === 0,
+        message: 'No promoted listings require social publication at this time.',
+        failures,
+        warnings,
+        providerHealth: metaCredentialHealth,
+      }, { status: failures.length > 0 ? 502 : 200 });
     }
 
     const startIndex = dayIndex % promotedListingsForIg.length;
@@ -873,26 +988,43 @@ export async function GET(request: Request) {
             .eq('id', listing.id);
         }
       } catch (err) {
-        const error = err instanceof Error ? err.message : 'Unknown error';
-        failures.push({ id: listing.id, network: 'image-generation', error });
+        recordFailure(listing.id, 'image-generation', err);
         console.error(`Failed to process Instagram publication for listing ${listing.id}`, err);
       }
     }
 
     if (!dryRun && failures.length > 0) {
       try {
-        await sendEmail(
+        const alertResult = await sendEmail(
           adminEmail,
           'AeroTrade social publishing failed',
           generateFailureHtml(failures)
         );
+        if (!alertResult.success) {
+          recordAlertEmailFailure('social-run', alertResult.error);
+        }
       } catch (emailError) {
         console.error('Unable to send social publishing failure alert:', emailError);
+        recordAlertEmailFailure('social-run', emailError);
+      }
+    } else if (!dryRun && warnings.length > 0) {
+      try {
+        const alertResult = await sendEmail(
+          adminEmail,
+          'AeroTrade Meta access expires soon',
+          generateWarningHtml(warnings)
+        );
+        if (!alertResult.success) {
+          recordAlertEmailFailure('social-run', alertResult.error);
+        }
+      } catch (emailError) {
+        console.error('Unable to send Meta credential warning:', emailError);
+        recordAlertEmailFailure('social-run', emailError);
       }
     }
 
     return NextResponse.json({ 
-      success: true, 
+      success: failures.length === 0,
       mode: shouldPublishToInstagram || shouldPublishToFacebook ? 'api' : 'email-reminder',
       dryRun,
       batchLimit,
@@ -907,10 +1039,12 @@ export async function GET(request: Request) {
       skippedLocked: skippedLockedCount,
       planned,
       failures,
+      warnings,
+      providerHealth: metaCredentialHealth,
       message: shouldPublishToInstagram || shouldPublishToFacebook
         ? `Published ${instagramCount} Instagram posts, ${instagramStoryCount} Instagram stories, ${facebookCount} Facebook posts, and ${facebookStoryCount} Facebook stories.`
         : 'Meta credentials are missing; sent admin reminders instead.'
-    });
+    }, { status: failures.length > 0 ? 502 : 200 });
 
   } catch (error) {
     console.error('Instagram cron error:', error);

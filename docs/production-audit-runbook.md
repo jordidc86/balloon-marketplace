@@ -6,8 +6,9 @@ Run this only after the matching code and database migration are deployed. Do no
 
 1. Confirm the deployed commit matches the approved release commit.
 2. Confirm `20260711120000_audit_stripe_webhook_events.sql` has been applied before enabling the new webhook code.
-3. Run `npm test`, `npm run audit:local`, `npm run lint`, and `npm run build` from a clean checkout.
-4. Confirm the working tree is clean and generated folders are not tracked.
+3. Confirm `20260731170000_track_partial_email_delivery.sql` has been applied before deploying the delivery hardening code.
+4. Run `npm test`, `npm run audit:local`, `npm run lint`, and `npm run build` from a clean checkout.
+5. Confirm the working tree is clean and generated folders are not tracked.
 
 ## Critical Product Smoke Tests
 
@@ -29,11 +30,15 @@ Run this only after the matching code and database migration are deployed. Do no
 ## Newsletter And Social
 
 1. Execute the newsletter endpoint in `dry_run` and confirm recipient/listing counts, period key and audit run without sending messages.
-2. Confirm only the GitHub Actions schedule on days 1 and 16 is active for newsletter delivery.
-3. Execute `/api/cron/social?dryRun=1&limit=1` with approved authentication and confirm one eligible item is planned without calling Meta.
-4. Confirm the Netlify scheduled function targets `/api/cron/social?limit=1` and its latest scheduled execution has no authentication or configuration error.
-5. Treat successful social publication as operational health, not as marketplace growth; measure visits, contacts and listings separately.
+2. Confirm a live or test email is counted as sent only when its recipient audit row contains a Resend acceptance ID; missing credentials must report zero sent.
+3. Confirm a partial Resend response records status `partial`, returns failure and blocks automatic whole-batch retries.
+4. Confirm only the GitHub Actions schedule on days 1 and 16 is active for newsletter delivery.
+5. Execute `/api/cron/social?dryRun=1&limit=1` with approved authentication and confirm one eligible item is planned without calling Meta.
+6. Execute `/api/cron/social?dryRun=1&limit=1&providerCheck=1` with approved authentication and confirm Meta reports valid credentials or an actionable token/permission error without creating media.
+7. Confirm the Netlify scheduled function targets `/api/cron/social?limit=1` and its latest scheduled execution has no authentication or configuration error.
+8. Confirm provider failures return a non-2xx response and distinguish token expiry from transient timeout or rate limiting.
+9. Treat successful social publication as operational health, not as marketplace growth; measure visits, contacts and listings separately.
 
 ## Exit Criteria
 
-The release is operational only when every critical test is recorded as pass, any failed webhook or scheduler run has an owner, and rollback to the previous deploy remains available.
+The release is operational only when every critical test is recorded as pass, accepted emails have provider IDs, Meta credential health is visible, any failed webhook or scheduler run has an owner, and rollback to the previous deploy remains available.
