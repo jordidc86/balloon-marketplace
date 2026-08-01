@@ -56,8 +56,24 @@ const checks = [
   {
     name: 'Email delivery fails closed and tracks partial provider acceptance',
     file: 'src/utils/resend.ts',
-    required: ['createMissingEmailProviderResult', 'reconcileEmailProviderDeliveries', 'success: failedCount === 0'],
+    required: ['createMissingEmailProviderResult', 'reconcileEmailProviderDeliveries', 'success: failedCount === 0', 'newsletterBatchIdempotencyKey', 'idempotencyKey'],
     forbidden: ['mocked: true'],
+  },
+  {
+    name: 'Newsletter recovery is manual, failed-only and environment approved',
+    file: '.github/workflows/newsletter-recovery.yml',
+    required: ['workflow_dispatch', 'production-newsletter', 'recover_failed_only', '.sentCount == $expected and .failedCount == 0'],
+    forbidden: ['schedule:', '--retry-all-errors', '--retry 3'],
+  },
+  {
+    name: 'Newsletter recovery dry-run cannot mutate stale recovery state',
+    file: 'src/app/api/cron/newsletter/route.ts',
+    required: ['shouldReconcileStaleRecoveries(parsed.request.dryRun)', 'Recovery plan verified; no email or database mutation was performed.'],
+  },
+  {
+    name: 'Newsletter recovery requires immutable content and a durable recipient ledger',
+    file: 'supabase/migrations/20260801160000_newsletter_selective_recovery.sql',
+    required: ['content_sha256', 'provider_dispatch_started_at', 'audit_uncertain', 'newsletter_recovery_runs', 'newsletter_recovery_recipients', "status in ('running', 'sent', 'partial', 'failed', 'audit_uncertain', 'abandoned')"],
   },
   {
     name: 'Partial email runs block unsafe automatic retries',

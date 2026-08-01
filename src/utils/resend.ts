@@ -3,6 +3,7 @@ import {
   createMissingEmailProviderResult,
   reconcileEmailProviderDeliveries,
 } from '@/utils/delivery-safety.mjs';
+import { newsletterBatchIdempotencyKey } from '@/utils/newsletter-safety.mjs';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const defaultResendFrom = 'AeroTrade <noreply@aerotrade.app>';
@@ -33,6 +34,10 @@ export type EmailDeliveryResult = {
   status: 'sent' | 'failed';
   resendId?: string;
   error?: string;
+}
+
+export type EmailBatchOptions = {
+  idempotencyKeyPrefix?: string;
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -94,7 +99,10 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
   }
 }
 
-export const sendEmailBatch = async (emails: EmailPayload[]) => {
+export const sendEmailBatch = async (
+  emails: EmailPayload[],
+  options: EmailBatchOptions = {},
+) => {
   const validEmails = emails.filter(email => email.to && email.subject && email.html);
   const skippedCount = emails.length - validEmails.length;
 
@@ -118,7 +126,13 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
           html: email.html,
         }));
 
-        const result = await resend.batch.send(batchData, { batchValidation: 'permissive' });
+        const idempotencyKey = options.idempotencyKeyPrefix
+          ? newsletterBatchIdempotencyKey(options.idempotencyKeyPrefix, chunkIndex)
+          : undefined;
+        const result = await resend.batch.send(batchData, {
+          batchValidation: 'permissive',
+          idempotencyKey,
+        });
 
         if (result.error) {
           console.error(`Failed to send email batch chunk ${chunkIndex + 1}/${chunks.length}:`, result.error);
@@ -169,7 +183,10 @@ export const sendEmailBatch = async (emails: EmailPayload[]) => {
 
       const failedCount = failures.length;
       if (failedCount > 0) {
-        console.warn(`Email batch completed with ${failedCount} failed recipients:`, failures);
+        console.warn(
+          `Email batch completed with ${failedCount} failed recipients.`,
+          failures.map(({ chunk, index, message }) => ({ chunk, index, message })),
+        );
       }
 
       return {

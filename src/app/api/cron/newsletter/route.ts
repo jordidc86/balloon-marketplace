@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createHash } from 'node:crypto';
 import { escapeHtml } from '@/utils/html';
 import { duplicateNewsletterRunResult } from '@/utils/newsletter-safety.mjs';
+import {
+  buildNewsletterRecoveryPlan,
+  parseNewsletterRecoveryRequest,
+  shouldReconcileStaleRecoveries,
+} from '@/utils/newsletter-recovery.mjs';
 import { siteUrl } from '@/utils/site';
 import { isPromotedListing } from '@/utils/listing-plans';
 
@@ -27,7 +33,7 @@ type NewsletterUser = {
   email: string | null
 }
 
-type NewsletterRunStatus = 'running' | 'sent' | 'partial' | 'failed' | 'skipped'
+type NewsletterRunStatus = 'running' | 'sent' | 'partial' | 'failed' | 'skipped' | 'audit_uncertain'
 
 type DeliveryResult = {
   to: string
@@ -45,6 +51,8 @@ type StartedNewsletterRun = {
 const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const staleRunMs = 4 * 60 * 60 * 1000;
+const recoveryBodyLimit = 8 * 1024;
+const newsletterSubject = 'New Hot Air Balloons on AeroTrade - Bi-Weekly Update';
 
 const getPrimaryImageUrl = (listing: NewsletterListing) => {
   const primaryImage = listing.images?.find((image) => image.is_primary);
@@ -164,6 +172,52 @@ const generateNewsletterHtml = (listings: NewsletterListing[]) => {
   `;
 };
 
+const newsletterContentSha256 = (subject: string, html: string) =>
+  createHash('sha256').update(subject).update('\0').update(html).digest('hex');
+
+async function persistNewsletterContentSnapshot(
+  supabase: SupabaseClient,
+  runId: string,
+  subject: string,
+  html: string,
+) {
+  const contentSha256 = newsletterContentSha256(subject, html);
+  const { data, error } = await supabase
+    .from('newsletter_runs')
+    .update({
+      subject,
+      html_body: html,
+      content_sha256: contentSha256,
+    })
+    .eq('id', runId)
+    .eq('status', 'running')
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Could not preserve newsletter recovery snapshot: ${error?.message || 'Run was not updated'}`);
+  }
+
+  return contentSha256;
+}
+
+async function markNewsletterProviderDispatchStarted(
+  supabase: SupabaseClient,
+  runId: string,
+) {
+  const { data, error } = await supabase
+    .from('newsletter_runs')
+    .update({ provider_dispatch_started_at: new Date().toISOString() })
+    .eq('id', runId)
+    .eq('status', 'running')
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Could not lock newsletter provider dispatch: ${error?.message || 'Run was not updated'}`);
+  }
+}
+
 async function startNewsletterRun(
   supabase: SupabaseClient,
   params: {
@@ -181,22 +235,40 @@ async function startNewsletterRun(
 
   if (!params.dryRun && !params.testEmail) {
     const staleCutoff = new Date(Date.now() - staleRunMs).toISOString();
-    const { error: staleError } = await supabase
+    const { error: uncertainStaleError } = await supabase
       .from('newsletter_runs')
       .update({
-        status: 'failed',
+        status: 'audit_uncertain',
         completed_at: new Date().toISOString(),
-        error_message: 'Run marked failed because it was still running after the stale cutoff.',
-        metadata: { staleCutoff },
+        error_message: 'Provider dispatch started but final recipient audit was not completed; automatic retry remains blocked.',
       })
       .eq('period_key', params.periodKey)
       .eq('dry_run', false)
       .is('test_email', null)
       .eq('status', 'running')
+      .not('provider_dispatch_started_at', 'is', null)
       .lt('started_at', staleCutoff);
 
-    if (staleError) {
-      throw new Error(`Could not clear stale newsletter runs: ${staleError.message}`);
+    if (uncertainStaleError) {
+      throw new Error(`Could not quarantine stale provider dispatches: ${uncertainStaleError.message}`);
+    }
+
+    const { error: safeStaleError } = await supabase
+      .from('newsletter_runs')
+      .update({
+        status: 'failed',
+        completed_at: new Date().toISOString(),
+        error_message: 'Run marked failed before provider dispatch because it was still running after the stale cutoff.',
+      })
+      .eq('period_key', params.periodKey)
+      .eq('dry_run', false)
+      .is('test_email', null)
+      .eq('status', 'running')
+      .is('provider_dispatch_started_at', null)
+      .lt('started_at', staleCutoff);
+
+    if (safeStaleError) {
+      throw new Error(`Could not clear stale pre-dispatch newsletter runs: ${safeStaleError.message}`);
     }
   }
 
@@ -221,7 +293,7 @@ async function startNewsletterRun(
       .eq('period_key', params.periodKey)
       .eq('dry_run', false)
       .is('test_email', null)
-      .in('status', ['running', 'sent', 'partial'])
+      .in('status', ['running', 'sent', 'partial', 'audit_uncertain'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -281,7 +353,7 @@ async function finishNewsletterRun(
     return;
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('newsletter_runs')
     .update({
       status: fields.status,
@@ -299,10 +371,12 @@ async function finishNewsletterRun(
       error_message: fields.errorMessage,
       metadata: fields.metadata,
     })
-    .eq('id', runId);
+    .eq('id', runId)
+    .select('id')
+    .single();
 
-  if (error) {
-    console.error('Failed to update newsletter run:', error);
+  if (error || !data) {
+    throw new Error(`Failed to update newsletter run: ${error?.message || 'Run was not updated'}`);
   }
 }
 
@@ -326,13 +400,14 @@ async function recordNewsletterRecipients(
     })), { onConflict: 'run_id,email' });
 
   if (error) {
-    console.error('Failed to record newsletter recipients:', error);
+    throw new Error(`Failed to record newsletter recipients: ${error.message}`);
   }
 }
 
 export async function GET(request: Request) {
   let supabase: SupabaseClient | null = null;
   let activeRun: StartedNewsletterRun | null = null;
+  let providerDispatchStarted = false;
 
   try {
     const url = new URL(request.url);
@@ -574,14 +649,24 @@ export async function GET(request: Request) {
     }
 
     const htmlBody = generateNewsletterHtml(recentListings);
+    await persistNewsletterContentSnapshot(
+      supabase,
+      activeRun.id,
+      newsletterSubject,
+      htmlBody,
+    );
     const emailBatch = recipientEmails.map(email => ({
       to: email,
-      subject: 'New Hot Air Balloons on AeroTrade - Bi-Weekly Update',
+      subject: newsletterSubject,
       html: htmlBody,
     }));
 
     const { sendEmailBatch } = await import('@/utils/resend');
-    const result = await sendEmailBatch(emailBatch);
+    await markNewsletterProviderDispatchStarted(supabase, activeRun.id);
+    providerDispatchStarted = true;
+    const result = await sendEmailBatch(emailBatch, {
+      idempotencyKeyPrefix: `newsletter/${activeRun.id}`,
+    });
     const sentCount = result.sentCount ?? 0;
     const failedCount = result.failedCount ?? Math.max(0, emailBatch.length - sentCount);
     const deliveryResults = (result.deliveryResults || []) as DeliveryResult[];
@@ -614,7 +699,15 @@ export async function GET(request: Request) {
           : getErrorMessage(result.error || 'Email batch failed'),
       metadata: {
         chunkCount: result.chunkCount,
-        failures: result.failures || [],
+        failures: (result.failures || []).map((failure: {
+          chunk: number
+          index: number
+          message: string
+        }) => ({
+          chunk: failure.chunk,
+          index: failure.index,
+          message: failure.message,
+        })),
       },
     });
 
@@ -651,12 +744,291 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Newsletter cron error:', error);
     if (supabase && activeRun) {
-      await finishNewsletterRun(supabase, activeRun.id, {
-        status: 'failed',
-        errorMessage: getErrorMessage(error),
-      });
+      try {
+        await finishNewsletterRun(supabase, activeRun.id, {
+          status: providerDispatchStarted ? 'audit_uncertain' : 'failed',
+          errorMessage: providerDispatchStarted
+            ? 'Provider dispatch started but final recipient audit could not be completed; automatic retry remains blocked.'
+            : getErrorMessage(error),
+        });
+      } catch (auditError) {
+        console.error('Newsletter failure state could not be finalized:', auditError);
+      }
     }
 
     return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  let supabase: SupabaseClient | null = null;
+  let recoveryRunId: string | null = null;
+  let providerAttempted = false;
+
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (process.env.NODE_ENV === 'production' && !process.env.CRON_SECRET) {
+      return NextResponse.json({ success: false, error: 'Server configuration error.' }, { status: 500 });
+    }
+    if (
+      process.env.NODE_ENV === 'production'
+      && authHeader !== `Bearer ${process.env.CRON_SECRET}`
+    ) {
+      return NextResponse.json({ success: false, error: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const contentType = request.headers.get('content-type')?.toLowerCase() || '';
+    if (!contentType.startsWith('application/json')) {
+      return NextResponse.json({ success: false, error: 'Content-Type must be application/json.' }, { status: 415 });
+    }
+    const rawBody = await request.text();
+    if (Buffer.byteLength(rawBody, 'utf8') > recoveryBodyLimit) {
+      return NextResponse.json({ success: false, error: 'Recovery request is too large.' }, { status: 413 });
+    }
+
+    let rawRequest: unknown;
+    try {
+      rawRequest = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Invalid JSON payload.' }, { status: 400 });
+    }
+
+    const parsed = parseNewsletterRecoveryRequest(rawRequest);
+    if (!parsed.ok) {
+      return NextResponse.json({ success: false, errors: parsed.errors }, { status: 400 });
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({ success: false, error: 'Server configuration error.' }, { status: 500 });
+    }
+    supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (shouldReconcileStaleRecoveries(parsed.request.dryRun)) {
+      const staleRecoveryCutoff = new Date(Date.now() - staleRunMs).toISOString();
+      const { error: staleUncertainRecoveryError } = await supabase
+        .from('newsletter_recovery_runs')
+        .update({
+          status: 'audit_uncertain',
+          error_message: 'Provider dispatch started but final recovery audit was not completed; another recovery remains blocked.',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('original_run_id', parsed.request.runId)
+        .eq('dry_run', false)
+        .eq('status', 'running')
+        .not('provider_dispatch_started_at', 'is', null)
+        .lt('created_at', staleRecoveryCutoff);
+      if (staleUncertainRecoveryError) {
+        throw new Error(`Could not quarantine stale recovery dispatch: ${staleUncertainRecoveryError.message}`);
+      }
+
+      const { error: stalePreDispatchRecoveryError } = await supabase
+        .from('newsletter_recovery_runs')
+        .update({
+          status: 'failed',
+          error_message: 'Recovery failed before provider dispatch because it remained running after the stale cutoff.',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('original_run_id', parsed.request.runId)
+        .eq('dry_run', false)
+        .eq('status', 'running')
+        .is('provider_dispatch_started_at', null)
+        .lt('created_at', staleRecoveryCutoff);
+      if (stalePreDispatchRecoveryError) {
+        throw new Error(`Could not finalize stale pre-dispatch recovery: ${stalePreDispatchRecoveryError.message}`);
+      }
+    }
+
+    const { data: originalRun, error: runError } = await supabase
+      .from('newsletter_runs')
+      .select('id, status, sent_count, failed_count, subject, html_body, content_sha256')
+      .eq('id', parsed.request.runId)
+      .maybeSingle();
+    if (runError) {
+      throw new Error(`Could not read original newsletter run: ${runError.message}`);
+    }
+    if (!originalRun) {
+      return NextResponse.json({ success: false, error: 'Newsletter run not found.' }, { status: 404 });
+    }
+
+    const { data: recipientRows, error: recipientsError } = await supabase
+      .from('newsletter_recipients')
+      .select('email, status, resend_id, error_message')
+      .eq('run_id', parsed.request.runId);
+    if (recipientsError) {
+      throw new Error(`Could not read newsletter recipient evidence: ${recipientsError.message}`);
+    }
+
+    const { data: existingRecovery, error: recoveryReadError } = await supabase
+      .from('newsletter_recovery_runs')
+      .select('id, status, created_at')
+      .eq('original_run_id', parsed.request.runId)
+      .eq('dry_run', false)
+      .in('status', ['running', 'sent', 'partial', 'failed', 'audit_uncertain'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (recoveryReadError) {
+      throw new Error(`Could not read newsletter recovery evidence: ${recoveryReadError.message}`);
+    }
+
+    const plan = buildNewsletterRecoveryPlan(
+      originalRun,
+      recipientRows || [],
+      parsed.request,
+      existingRecovery,
+    );
+    if (!plan.ok) {
+      return NextResponse.json(
+        { success: false, errors: plan.errors, recovery: plan.summary },
+        { status: 409 },
+      );
+    }
+
+    const currentContentHash = newsletterContentSha256(
+      originalRun.subject,
+      originalRun.html_body,
+    );
+    if (currentContentHash !== originalRun.content_sha256) {
+      return NextResponse.json(
+        { success: false, error: 'Newsletter content snapshot checksum mismatch.' },
+        { status: 409 },
+      );
+    }
+
+    if (parsed.request.dryRun) {
+      return NextResponse.json({
+        success: true,
+        dryRun: true,
+        recovery: plan.summary,
+        message: 'Recovery plan verified; no email or database mutation was performed.',
+      });
+    }
+
+    const { data: recoveryRun, error: recoveryStartError } = await supabase
+      .from('newsletter_recovery_runs')
+      .insert({
+        original_run_id: parsed.request.runId,
+        status: 'running',
+        dry_run: false,
+        reason: parsed.request.reason,
+        expected_failed_count: parsed.request.expectedFailedCount,
+        recipient_count: plan.failedRecipients.length,
+        content_sha256: originalRun.content_sha256,
+      })
+      .select('id')
+      .single();
+    if (recoveryStartError || !recoveryRun) {
+      const message = isUniqueViolation(recoveryStartError)
+        ? 'A live recovery already exists for this newsletter run.'
+        : `Could not start newsletter recovery: ${recoveryStartError?.message || 'No row returned'}`;
+      return NextResponse.json({ success: false, error: message }, { status: 409 });
+    }
+    recoveryRunId = recoveryRun.id;
+
+    const emailBatch = plan.failedRecipients.map(recipient => ({
+      to: recipient.email,
+      subject: originalRun.subject,
+      html: originalRun.html_body,
+    }));
+    const { sendEmailBatch } = await import('@/utils/resend');
+    const { data: dispatchLock, error: dispatchLockError } = await supabase
+      .from('newsletter_recovery_runs')
+      .update({ provider_dispatch_started_at: new Date().toISOString() })
+      .eq('id', recoveryRunId)
+      .eq('status', 'running')
+      .select('id')
+      .single();
+    if (dispatchLockError || !dispatchLock) {
+      throw new Error(`Could not lock recovery provider dispatch: ${dispatchLockError?.message || 'Recovery was not updated'}`);
+    }
+    providerAttempted = true;
+    const result = await sendEmailBatch(emailBatch, {
+      idempotencyKeyPrefix: `newsletter-recovery/${parsed.request.runId}`,
+    });
+    const sentCount = Number(result.sentCount || 0);
+    const failedCount = Number(result.failedCount ?? Math.max(0, emailBatch.length - sentCount));
+    const deliveryResults = (result.deliveryResults || []) as DeliveryResult[];
+    const resendMessageIds = deliveryResults
+      .map(delivery => delivery.resendId)
+      .filter(Boolean) as string[];
+
+    const { error: recipientAuditError } = await supabase
+      .from('newsletter_recovery_recipients')
+      .upsert(deliveryResults.map(delivery => ({
+        recovery_run_id: recoveryRunId,
+        email: delivery.to,
+        status: delivery.status,
+        resend_id: delivery.resendId,
+        error_message: delivery.error,
+      })), { onConflict: 'recovery_run_id,email' });
+    if (recipientAuditError) {
+      throw new Error(`Provider responded but recovery recipient evidence could not be recorded: ${recipientAuditError.message}`);
+    }
+
+    const status = result.success ? 'sent' : sentCount > 0 ? 'partial' : 'failed';
+    const { data: finishedRecovery, error: recoveryFinishError } = await supabase
+      .from('newsletter_recovery_runs')
+      .update({
+        status,
+        sent_count: sentCount,
+        failed_count: failedCount,
+        resend_message_ids: resendMessageIds,
+        error_message: result.success
+          ? null
+          : 'Selective recovery was not fully accepted; further retries remain blocked pending provider reconciliation.',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', recoveryRunId)
+      .eq('status', 'running')
+      .select('id')
+      .single();
+    if (recoveryFinishError || !finishedRecovery) {
+      throw new Error(`Provider responded but recovery run evidence could not be finalized: ${recoveryFinishError?.message || 'Recovery was not updated'}`);
+    }
+
+    return NextResponse.json({
+      success: result.success,
+      dryRun: false,
+      recoveryRunId,
+      originalRunId: parsed.request.runId,
+      targetFailedCount: emailBatch.length,
+      sentCount,
+      failedCount,
+      contentSha256: originalRun.content_sha256,
+      message: result.success
+        ? 'Only the previously failed newsletter recipients were accepted by the provider.'
+        : 'Selective recovery was incomplete; another recovery remains blocked pending reconciliation.',
+    }, { status: result.success ? 200 : 502 });
+  } catch (error) {
+    if (supabase && recoveryRunId) {
+      const { data: auditedRecovery, error: recoveryAuditError } = await supabase
+        .from('newsletter_recovery_runs')
+        .update({
+          status: providerAttempted ? 'audit_uncertain' : 'failed',
+          error_message: providerAttempted
+            ? 'Provider dispatch started but final recovery audit could not be completed; another recovery remains blocked.'
+            : getErrorMessage(error).slice(0, 1000),
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', recoveryRunId)
+        .select('id')
+        .single();
+      if (recoveryAuditError || !auditedRecovery) {
+        console.error(
+          'Newsletter recovery failure state could not be finalized:',
+          recoveryAuditError || new Error('Recovery was not updated'),
+        );
+      }
+    }
+
+    console.error('Newsletter recovery error:', error);
+    return NextResponse.json({
+      success: false,
+      error: providerAttempted
+        ? 'Provider response is uncertain or its audit could not be completed; retries remain blocked.'
+        : 'Newsletter recovery failed before provider dispatch.',
+    }, { status: 500 });
   }
 }

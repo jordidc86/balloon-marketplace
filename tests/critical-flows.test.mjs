@@ -16,7 +16,10 @@ import {
   shouldTryNextMetaCredential,
   withBoundedRetry,
 } from '../src/utils/delivery-safety.mjs'
-import { duplicateNewsletterRunResult } from '../src/utils/newsletter-safety.mjs'
+import {
+  duplicateNewsletterRunResult,
+  newsletterBatchIdempotencyKey,
+} from '../src/utils/newsletter-safety.mjs'
 
 test('redirects only accept local application paths', () => {
   assert.equal(getSafeRedirectPath('/pricing'), '/pricing')
@@ -134,6 +137,30 @@ test('duplicate newsletter runs preserve the original delivery outcome', () => {
   }, '2026-08-16')
   assert.equal(sent.success, true)
   assert.equal(sent.failedCount, 0)
+
+  const uncertain = duplicateNewsletterRunResult({
+    id: 'run-uncertain',
+    status: 'audit_uncertain',
+    sent_count: 0,
+    failed_count: 0,
+  }, '2026-09-01')
+  assert.equal(uncertain.success, false)
+  assert.match(uncertain.message, /automatic retry remains blocked/i)
+})
+
+test('newsletter batch retries use a stable provider idempotency key per chunk', () => {
+  assert.equal(
+    newsletterBatchIdempotencyKey('newsletter/run-123', 0),
+    'newsletter/run-123/chunk-1',
+  )
+  assert.equal(
+    newsletterBatchIdempotencyKey('newsletter/run-123', 1),
+    'newsletter/run-123/chunk-2',
+  )
+  assert.throws(
+    () => newsletterBatchIdempotencyKey('newsletter with spaces', 0),
+    /prefix is invalid/i,
+  )
 })
 
 test('provider acceptance without an id is not counted as sent', () => {

@@ -1,0 +1,111 @@
+name: Recover Failed Newsletter Recipients
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Partial newsletter run UUID'
+        required: true
+        type: string
+      expected_failed_count:
+        description: 'Exact failed recipient count shown by the audited run'
+        required: true
+        type: number
+      reason:
+        description: 'Audit reason for this selective recovery'
+        required: true
+        type: string
+      dry_run:
+        description: 'Verify the recovery plan without sending or mutating data'
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: newsletter-recovery-${{ inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  verify_recovery:
+    if: inputs.dry_run == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PRODUCTION_URL: https://aerotrade.app
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Verify failed-only recovery plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET is not configured."
+            exit 1
+          fi
+
+          payload="$(jq -n \
+            --arg runId "${{ inputs.run_id }}" \
+            --arg reason "${{ inputs.reason }}" \
+            --argjson expectedFailedCount '${{ inputs.expected_failed_count }}' \
+            '{runId:$runId, reason:$reason, expectedFailedCount:$expectedFailedCount, dryRun:true}')"
+          body_file="$(mktemp)"
+          http_status="$(curl --silent --show-error --location \
+            --connect-timeout 10 --max-time 60 \
+            --output "$body_file" --write-out "%{http_code}" \
+            --request POST \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data "$payload" \
+            "${PRODUCTION_URL%/}/api/cron/newsletter")"
+
+          jq . "$body_file"
+          if [[ "$http_status" -lt 200 || "$http_status" -ge 300 ]]; then
+            echo "::error::Recovery verification returned HTTP ${http_status}."
+            exit 1
+          fi
+          jq -e --argjson expected '${{ inputs.expected_failed_count }}' \
+            '.success == true and .dryRun == true and .recovery.targetFailedCount == $expected' \
+            "$body_file" >/dev/null
+
+  dispatch_recovery:
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: production-newsletter
+    env:
+      PRODUCTION_URL: https://aerotrade.app
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Recover only previously failed recipients after environment approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET is not configured."
+            exit 1
+          fi
+
+          payload="$(jq -n \
+            --arg runId "${{ inputs.run_id }}" \
+            --arg reason "${{ inputs.reason }}" \
+            --argjson expectedFailedCount '${{ inputs.expected_failed_count }}' \
+            '{runId:$runId, reason:$reason, expectedFailedCount:$expectedFailedCount, dryRun:false, confirmation:"recover_failed_only"}')"
+          body_file="$(mktemp)"
+          http_status="$(curl --silent --show-error --location \
+            --connect-timeout 10 --max-time 180 \
+            --output "$body_file" --write-out "%{http_code}" \
+            --request POST \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data "$payload" \
+            "${PRODUCTION_URL%/}/api/cron/newsletter")"
+
+          jq . "$body_file"
+          if [[ "$http_status" -lt 200 || "$http_status" -ge 300 ]]; then
+            echo "::error::Selective recovery returned HTTP ${http_status}."
+            exit 1
+          fi
+          jq -e --argjson expected '${{ inputs.expected_failed_count }}' \
+            '.success == true and .dryRun == false and .sentCount == $expected and .failedCount == 0' \
+            "$body_file" >/dev/null
