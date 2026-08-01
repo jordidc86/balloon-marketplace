@@ -45,7 +45,13 @@ const checks = [
   {
     name: 'Newsletter has one documented bi-weekly production schedule',
     file: '.github/workflows/newsletter.yml',
-    required: ["cron: '0 9 1,16 * *'", 'production-newsletter', 'dry_run'],
+    required: ["cron: '0 9 1,16 * *'", 'production-newsletter', 'dry_run', '.failedCount // .run.failed_count // 0', 'automatic retry remains blocked'],
+    forbidden: ['--retry-all-errors', '--retry 3'],
+  },
+  {
+    name: 'Duplicate newsletter runs preserve partial failure semantics',
+    file: 'src/app/api/cron/newsletter/route.ts',
+    required: ['duplicateNewsletterRunResult', 'duplicateResult.success ? 200 : 409'],
   },
   {
     name: 'Email delivery fails closed and tracks partial provider acceptance',

@@ -76,9 +76,6 @@ jobs:
               --silent \
               --show-error \
               --location \
-              --retry 3 \
-              --retry-delay 10 \
-              --retry-all-errors \
               --connect-timeout 10 \
               --max-time 180 \
               --output "$body_file" \
@@ -113,8 +110,9 @@ jobs:
             exit 1
           fi
 
-          failed_count="$(jq -r '.failedCount // 0' "$body_file")"
+          failed_count="$(jq -r '.failedCount // .run.failed_count // 0' "$body_file")"
           success_value="$(jq -r '.success // empty' "$body_file")"
+          duplicate_status="$(jq -r 'if .duplicate == true then (.run.status // "unknown") else empty end' "$body_file")"
 
           if [ "$failed_count" != "0" ]; then
             echo "::error::Newsletter reported ${failed_count} failed email deliveries."
@@ -123,6 +121,11 @@ jobs:
 
           if [ "$success_value" = "false" ]; then
             echo "::error::Newsletter endpoint reported success=false."
+            exit 1
+          fi
+
+          if [ -n "$duplicate_status" ] && [ "$duplicate_status" != "sent" ]; then
+            echo "::error::Existing newsletter run is ${duplicate_status}; automatic retry remains blocked."
             exit 1
           fi
         env:
@@ -174,9 +177,6 @@ jobs:
               --silent \
               --show-error \
               --location \
-              --retry 3 \
-              --retry-delay 10 \
-              --retry-all-errors \
               --connect-timeout 10 \
               --max-time 180 \
               --output "$body_file" \
@@ -212,8 +212,9 @@ jobs:
             exit 1
           fi
 
-          failed_count="$(jq -r '.failedCount // 0' "$body_file")"
+          failed_count="$(jq -r '.failedCount // .run.failed_count // 0' "$body_file")"
           success_value="$(jq -r '.success // empty' "$body_file")"
+          duplicate_status="$(jq -r 'if .duplicate == true then (.run.status // "unknown") else empty end' "$body_file")"
 
           if [ "$failed_count" != "0" ]; then
             echo "::error::Newsletter reported ${failed_count} failed email deliveries."
@@ -222,6 +223,11 @@ jobs:
 
           if [ "$success_value" = "false" ]; then
             echo "::error::Newsletter endpoint reported success=false."
+            exit 1
+          fi
+
+          if [ -n "$duplicate_status" ] && [ "$duplicate_status" != "sent" ]; then
+            echo "::error::Existing newsletter run is ${duplicate_status}; automatic retry remains blocked."
             exit 1
           fi
         env:

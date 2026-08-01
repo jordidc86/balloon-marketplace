@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { escapeHtml } from '@/utils/html';
+import { duplicateNewsletterRunResult } from '@/utils/newsletter-safety.mjs';
 import { siteUrl } from '@/utils/site';
 import { isPromotedListing } from '@/utils/listing-plans';
 
@@ -225,14 +226,9 @@ async function startNewsletterRun(
       .limit(1)
       .maybeSingle();
 
+    const duplicateResult = duplicateNewsletterRunResult(existingRun, params.periodKey);
     return {
-      duplicateResponse: NextResponse.json({
-        success: true,
-        skipped: true,
-        duplicate: true,
-        message: `Newsletter for period ${params.periodKey} was already started or sent.`,
-        run: existingRun,
-      }),
+      duplicateResponse: NextResponse.json(duplicateResult, { status: duplicateResult.success ? 200 : 409 }),
     };
   }
 

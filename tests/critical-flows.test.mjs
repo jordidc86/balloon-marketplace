@@ -16,6 +16,7 @@ import {
   shouldTryNextMetaCredential,
   withBoundedRetry,
 } from '../src/utils/delivery-safety.mjs'
+import { duplicateNewsletterRunResult } from '../src/utils/newsletter-safety.mjs'
 
 test('redirects only accept local application paths', () => {
   assert.equal(getSafeRedirectPath('/pricing'), '/pricing')
@@ -111,6 +112,28 @@ test('partial provider acceptance is reported as partial failure with provider i
     { to: 'accepted@example.com', status: 'sent', resendId: 'resend-accepted-1' },
     { to: 'rejected@example.com', status: 'failed', error: 'Recipient rejected' },
   ])
+})
+
+test('duplicate newsletter runs preserve the original delivery outcome', () => {
+  const partial = duplicateNewsletterRunResult({
+    id: 'run-partial',
+    status: 'partial',
+    sent_count: 14,
+    failed_count: 1,
+  }, '2026-08-01')
+  assert.equal(partial.success, false)
+  assert.equal(partial.failedCount, 1)
+  assert.equal(partial.runId, 'run-partial')
+  assert.match(partial.message, /automatic retry remains blocked/i)
+
+  const sent = duplicateNewsletterRunResult({
+    id: 'run-sent',
+    status: 'sent',
+    sent_count: 15,
+    failed_count: 0,
+  }, '2026-08-16')
+  assert.equal(sent.success, true)
+  assert.equal(sent.failedCount, 0)
 })
 
 test('provider acceptance without an id is not counted as sent', () => {
