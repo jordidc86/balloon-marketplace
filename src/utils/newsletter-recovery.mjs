@@ -14,6 +14,7 @@ export function parseNewsletterRecoveryRequest(value) {
   const request = {
     runId: text(candidate.runId),
     expectedFailedCount: Number(candidate.expectedFailedCount),
+    expectedContentSha256: text(candidate.expectedContentSha256).toLowerCase(),
     dryRun: candidate.dryRun !== false,
     reason: text(candidate.reason),
     confirmation: text(candidate.confirmation),
@@ -29,6 +30,12 @@ export function parseNewsletterRecoveryRequest(value) {
   }
   if (!request.dryRun && request.confirmation !== 'recover_failed_only') {
     errors.push('Live recovery requires confirmation=recover_failed_only.')
+  }
+  if (!request.dryRun && !sha256Pattern.test(request.expectedContentSha256)) {
+    errors.push('Live recovery requires the exact expectedContentSha256 from the verified dry-run.')
+  }
+  if (request.expectedContentSha256 && !sha256Pattern.test(request.expectedContentSha256)) {
+    errors.push('expectedContentSha256 must be a SHA-256 digest.')
   }
 
   return { ok: errors.length === 0, errors, request }
@@ -63,6 +70,9 @@ export function buildNewsletterRecoveryPlan(run, recipientRows, request, existin
   const uniqueFailedEmails = new Set(normalizedFailed.map(row => row.email))
 
   if (!run || run.status !== 'partial') errors.push('Only a partial newsletter run can be recovered.')
+  if (run?.dry_run !== false || run?.test_email != null) {
+    errors.push('Only a real production newsletter run can be recovered.')
+  }
   if (Number(run?.failed_count) !== request.expectedFailedCount) {
     errors.push('The current failed count does not match expectedFailedCount.')
   }
@@ -80,6 +90,12 @@ export function buildNewsletterRecoveryPlan(run, recipientRows, request, existin
   }
   if (!text(run?.subject) || !text(run?.html_body) || !sha256Pattern.test(text(run?.content_sha256))) {
     errors.push('The original newsletter has no complete content snapshot; recovery is blocked.')
+  }
+  if (
+    request.expectedContentSha256
+    && request.expectedContentSha256 !== text(run?.content_sha256).toLowerCase()
+  ) {
+    errors.push('The newsletter content snapshot does not match expectedContentSha256.')
   }
   if (existingRecovery && activeRecoveryStatuses.has(existingRecovery.status)) {
     errors.push(`A ${existingRecovery.status} live recovery already exists for this run.`)

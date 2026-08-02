@@ -842,7 +842,7 @@ export async function POST(request: Request) {
 
     const { data: originalRun, error: runError } = await supabase
       .from('newsletter_runs')
-      .select('id, status, sent_count, failed_count, subject, html_body, content_sha256')
+      .select('id, status, dry_run, test_email, sent_count, failed_count, subject, html_body, content_sha256')
       .eq('id', parsed.request.runId)
       .maybeSingle();
     if (runError) {

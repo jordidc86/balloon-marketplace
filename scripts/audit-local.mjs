@@ -62,13 +62,13 @@ const checks = [
   {
     name: 'Newsletter recovery is manual, failed-only and environment approved',
     file: '.github/workflows/newsletter-recovery.yml',
-    required: ['workflow_dispatch', 'production-newsletter', 'recover_failed_only', '.sentCount == $expected and .failedCount == 0'],
+    required: ['workflow_dispatch', 'production-newsletter', 'recover_failed_only', 'expectedContentSha256', '.sentCount == $expected and .failedCount == 0 and .contentSha256 == $expectedSha'],
     forbidden: ['schedule:', '--retry-all-errors', '--retry 3'],
   },
   {
     name: 'Newsletter recovery dry-run cannot mutate stale recovery state',
     file: 'src/app/api/cron/newsletter/route.ts',
-    required: ['shouldReconcileStaleRecoveries(parsed.request.dryRun)', 'Recovery plan verified; no email or database mutation was performed.'],
+    required: ['shouldReconcileStaleRecoveries(parsed.request.dryRun)', "select('id, status, dry_run, test_email, sent_count, failed_count, subject, html_body, content_sha256')", 'Recovery plan verified; no email or database mutation was performed.'],
   },
   {
     name: 'Newsletter recovery requires immutable content and a durable recipient ledger',

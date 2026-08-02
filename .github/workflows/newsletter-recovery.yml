@@ -11,6 +11,10 @@ on:
         description: 'Exact failed recipient count shown by the audited run'
         required: true
         type: number
+      content_sha256:
+        description: 'Exact content SHA-256 returned by the verified dry-run (required for live recovery)'
+        required: false
+        type: string
       reason:
         description: 'Audit reason for this selective recovery'
         required: true
@@ -46,8 +50,9 @@ jobs:
           payload="$(jq -n \
             --arg runId "${{ inputs.run_id }}" \
             --arg reason "${{ inputs.reason }}" \
+            --arg expectedContentSha256 "${{ inputs.content_sha256 }}" \
             --argjson expectedFailedCount '${{ inputs.expected_failed_count }}' \
-            '{runId:$runId, reason:$reason, expectedFailedCount:$expectedFailedCount, dryRun:true}')"
+            '{runId:$runId, reason:$reason, expectedFailedCount:$expectedFailedCount, expectedContentSha256:$expectedContentSha256, dryRun:true}')"
           body_file="$(mktemp)"
           http_status="$(curl --silent --show-error --location \
             --connect-timeout 10 --max-time 60 \
@@ -89,8 +94,9 @@ jobs:
           payload="$(jq -n \
             --arg runId "${{ inputs.run_id }}" \
             --arg reason "${{ inputs.reason }}" \
+            --arg expectedContentSha256 "${{ inputs.content_sha256 }}" \
             --argjson expectedFailedCount '${{ inputs.expected_failed_count }}' \
-            '{runId:$runId, reason:$reason, expectedFailedCount:$expectedFailedCount, dryRun:false, confirmation:"recover_failed_only"}')"
+            '{runId:$runId, reason:$reason, expectedFailedCount:$expectedFailedCount, expectedContentSha256:$expectedContentSha256, dryRun:false, confirmation:"recover_failed_only"}')"
           body_file="$(mktemp)"
           http_status="$(curl --silent --show-error --location \
             --connect-timeout 10 --max-time 180 \
@@ -106,6 +112,8 @@ jobs:
             echo "::error::Selective recovery returned HTTP ${http_status}."
             exit 1
           fi
-          jq -e --argjson expected '${{ inputs.expected_failed_count }}' \
-            '.success == true and .dryRun == false and .sentCount == $expected and .failedCount == 0' \
+          jq -e \
+            --argjson expected '${{ inputs.expected_failed_count }}' \
+            --arg expectedSha '${{ inputs.content_sha256 }}' \
+            '.success == true and .dryRun == false and .sentCount == $expected and .failedCount == 0 and .contentSha256 == $expectedSha' \
             "$body_file" >/dev/null

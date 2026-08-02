@@ -10,6 +10,8 @@ import {
 const run = {
   id: '58c750e5-d1c0-43bd-a05d-6608d20e79ee',
   status: 'partial',
+  dry_run: false,
+  test_email: null,
   sent_count: 2,
   failed_count: 1,
   subject: 'Newsletter',
@@ -39,6 +41,7 @@ test('live newsletter recovery requires exact explicit confirmation', () => {
     dryRun: false,
     reason: 'Controlled recovery',
     confirmation: 'recover_failed_only',
+    expectedContentSha256: 'a'.repeat(64),
   })
   assert.equal(valid.ok, true)
 })
@@ -65,6 +68,34 @@ test('recovery targets only failed recipients and reconciles the original ledger
   assert.equal(plan.summary.originallySent, 2)
   assert.equal(plan.summary.targetFailedCount, 1)
   assert.deepEqual(plan.summary.failureCategories, { recipient: 1 })
+})
+
+test('live recovery is bound to a production run and the exact verified content', () => {
+  const request = parseNewsletterRecoveryRequest({
+    runId: run.id,
+    expectedFailedCount: 1,
+    expectedContentSha256: run.content_sha256,
+    dryRun: false,
+    reason: 'Approved failed-only recovery',
+    confirmation: 'recover_failed_only',
+  }).request
+
+  assert.equal(buildNewsletterRecoveryPlan(run, recipients, request).ok, true)
+  assert.equal(buildNewsletterRecoveryPlan(
+    { ...run, dry_run: true },
+    recipients,
+    request,
+  ).ok, false)
+  assert.equal(buildNewsletterRecoveryPlan(
+    { ...run, test_email: 'test@example.test' },
+    recipients,
+    request,
+  ).ok, false)
+  assert.equal(buildNewsletterRecoveryPlan(
+    run,
+    recipients,
+    { ...request, expectedContentSha256: 'b'.repeat(64) },
+  ).ok, false)
 })
 
 test('recovery fails closed on ledger drift, missing snapshots or existing live attempts', () => {
