@@ -45,6 +45,30 @@ export async function logContactReveal(listingId: string) {
   return true
 }
 
+export async function logListingView(listingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const supabaseAdmin = createAdminClient()
+  const { data: listing, error: listingError } = await supabaseAdmin
+    .from('listings')
+    .select('id,status')
+    .eq('id', listingId)
+    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+    .maybeSingle()
+
+  if (listingError || !listing) return false
+  const { error } = await supabaseAdmin.from('listing_events').insert({
+    listing_id: listing.id,
+    user_id: user?.id || null,
+    event_type: 'VIEW',
+  })
+  if (error) {
+    console.error('Failed to log listing view:', error)
+    return false
+  }
+  return true
+}
+
 export async function revealSellerContact(listingId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

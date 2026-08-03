@@ -9,6 +9,7 @@ import { Metadata } from 'next'
 import { getListingVisibility, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
 import { siteUrl } from '@/utils/site'
 import { payListingFee, publishListingFree } from './actions'
+import ListingViewTracker from './ListingViewTracker'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -111,6 +112,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <ListingViewTracker listingId={typedListing.id} />
       {/* Schema.org Product Data */}
       {canViewFully && (
         <script
