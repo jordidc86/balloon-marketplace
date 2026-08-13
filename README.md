@@ -58,6 +58,8 @@ It promotes eligible active listings, avoiding sold, archived, draft, pending pa
 
 Live social runs classify token, permission, timeout, rate-limit and configuration failures. Provider failures return a non-2xx response so the scheduler cannot report a false success. Meta read-only status checks use bounded retries; publication POST requests are not automatically repeated.
 
+Successful Stripe charges send one idempotent administrative email to `ADMIN_EMAIL`. The Stripe event is marked processed only after Resend returns a provider acceptance identifier; failed delivery remains retryable through Stripe without creating duplicate notices.
+
 Required runtime variables are configured in the hosting environment, not in this repository:
 
 - `CRON_SECRET`

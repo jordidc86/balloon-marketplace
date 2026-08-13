@@ -20,6 +20,11 @@ import {
   duplicateNewsletterRunResult,
   newsletterBatchIdempotencyKey,
 } from '../src/utils/newsletter-safety.mjs'
+import {
+  buildPaymentNotification,
+  formatPaymentAmount,
+  paymentNotificationIdempotencyKey,
+} from '../src/utils/payment-notification.mjs'
 
 test('redirects only accept local application paths', () => {
   assert.equal(getSafeRedirectPath('/pricing'), '/pricing')
@@ -42,6 +47,29 @@ test('production Stripe returns always use the configured public origin', () => 
     getApplicationOrigin('https://attacker.example', 'https://aerotrade.app', 'development'),
     'https://aerotrade.app',
   )
+})
+
+test('successful AeroTrade payments create one safe, useful admin notification', () => {
+  const notification = buildPaymentNotification({
+    eventId: 'evt_payment_123',
+    amount: 999,
+    currency: 'eur',
+    createdAt: '2026-08-09T18:11:25.000Z',
+    customerEmail: 'buyer@example.com',
+    paymentType: 'premium_subscription',
+    product: 'AeroTrade Premium Club',
+    dashboardUrl: 'https://dashboard.stripe.com/payments/ch_safe',
+  })
+
+  assert.equal(formatPaymentAmount(999, 'eur'), '9,99 €')
+  assert.match(notification.subject, /9,99/)
+  assert.match(notification.subject, /suscripción Premium Club/)
+  assert.match(notification.html, /AeroTrade Premium Club/)
+  assert.match(notification.html, /buyer@example\.com/)
+  assert.match(notification.html, /evento firmado de Stripe/)
+  assert.equal(notification.idempotencyKey, 'aerotrade-payment-evt_payment_123')
+  assert.equal(paymentNotificationIdempotencyKey('evt_payment_123'), notification.idempotencyKey)
+  assert.throws(() => paymentNotificationIdempotencyKey('not-an-event'), /valid Stripe event id/i)
 })
 
 test('premium listings always wait for their own payment', () => {

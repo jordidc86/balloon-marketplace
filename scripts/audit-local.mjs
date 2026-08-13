@@ -9,7 +9,7 @@ const checks = [
   {
     name: 'Stripe webhook verifies signatures and audits idempotency',
     file: 'src/app/api/webhooks/stripe/route.ts',
-    required: ['stripe.webhooks.constructEvent', "from('stripe_webhook_events')", "finishWebhookEvent(supabaseAdmin, event.id, 'processed')"],
+    required: ['stripe.webhooks.constructEvent', "from('stripe_webhook_events')", "finishWebhookEvent(supabaseAdmin, event.id, 'processed')", "case 'charge.succeeded'", 'buildPaymentNotification', 'Premium fulfillment readback failed'],
   },
   {
     name: 'Stripe event audit migration exists and is private',

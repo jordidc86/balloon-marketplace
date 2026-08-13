@@ -22,6 +22,10 @@ export type EmailPayload = {
   html: string;
 }
 
+export type EmailSendOptions = {
+  idempotencyKey?: string;
+}
+
 type BatchFailure = {
   chunk: number;
   index: number;
@@ -63,7 +67,12 @@ const chunkEmails = (emails: EmailPayload[], size: number) => {
 };
 
 // Missing provider credentials fail closed so callers cannot record mock delivery.
-export const sendEmail = async (to: string, subject: string, html: string) => {
+export const sendEmail = async (
+  to: string,
+  subject: string,
+  html: string,
+  options: EmailSendOptions = {},
+) => {
   if (resend) {
     try {
       const result = await resend.emails.send({
@@ -71,7 +80,7 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
         to,
         subject,
         html,
-      });
+      }, options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : undefined);
       if (result.error) {
         console.error('Failed to send email via Resend:', result.error);
         return { success: false, error: result.error };

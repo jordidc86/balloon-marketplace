@@ -3,6 +3,7 @@ import { stripe } from '@/utils/stripe';
 import { createClient } from '@supabase/supabase-js';
 import { escapeHtml } from '@/utils/html';
 import { sendPremiumListingAlert } from '@/utils/premium-alerts';
+import { buildPaymentNotification } from '@/utils/payment-notification.mjs';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -13,6 +14,69 @@ const activeSubscriptionStatuses = new Set<Stripe.Subscription.Status>([
 
 const getStripeCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustomer) =>
   typeof customer === 'string' ? customer : customer.id
+
+const normalizedEmail = (value: unknown) => String(value || '').trim().toLowerCase()
+
+async function resolvePremiumUserId(
+  supabase: SupabaseClient,
+  session: Stripe.Checkout.Session,
+) {
+  const requestedUserId = String(session.metadata?.user_id || '').trim()
+  if (requestedUserId) {
+    const { data: userById, error: userByIdError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', requestedUserId)
+      .maybeSingle()
+
+    if (userByIdError) {
+      throw new Error(`Could not resolve Premium user by checkout metadata: ${userByIdError.message}`)
+    }
+    if (userById?.id) return String(userById.id)
+  }
+
+  const checkoutEmail = normalizedEmail(
+    session.customer_details?.email || session.customer_email,
+  )
+  if (!checkoutEmail) {
+    throw new Error(`Premium checkout ${session.id} has no resolvable user or customer email`)
+  }
+
+  const { data: matchingUsers, error: emailLookupError } = await supabase
+    .from('users')
+    .select('id')
+    .ilike('email', checkoutEmail)
+    .limit(2)
+
+  if (emailLookupError) {
+    throw new Error(`Could not resolve Premium user by checkout email: ${emailLookupError.message}`)
+  }
+  if (matchingUsers?.length !== 1) {
+    throw new Error(`Premium checkout ${session.id} did not resolve to exactly one user`)
+  }
+
+  return String(matchingUsers[0].id)
+}
+
+async function chargeNotificationContext(charge: Stripe.Charge) {
+  const paymentIntentId = typeof charge.payment_intent === 'string'
+    ? charge.payment_intent
+    : charge.payment_intent?.id
+  let paymentType = String(charge.metadata?.type || '').trim() || null
+  let product = ''
+
+  if (paymentIntentId) {
+    const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 })
+    const session = sessions.data[0]
+    paymentType = String(session?.metadata?.type || paymentType || '').trim() || null
+    if (session) {
+      const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 })
+      product = lineItems.data.map((item) => item.description).filter(Boolean).join(' | ')
+    }
+  }
+
+  return { paymentType, product }
+}
 
 async function claimWebhookEvent(supabase: SupabaseClient, event: Stripe.Event) {
   const { error: insertError } = await supabase
@@ -192,7 +256,7 @@ export async function POST(req: Request) {
         }
       }
       else if (session.metadata?.type === 'premium_subscription') {
-        const userId = session.metadata.user_id;
+        const userId = await resolvePremiumUserId(supabaseAdmin, session);
         const stripeCustomerId = session.customer as string;
         const stripeSubscriptionId = session.subscription as string;
 
@@ -201,7 +265,7 @@ export async function POST(req: Request) {
           break;
         }
 
-        if (!userId || !stripeCustomerId || !stripeSubscriptionId) {
+        if (!stripeCustomerId || !stripeSubscriptionId) {
           throw new Error(`Premium checkout is missing required metadata or Stripe IDs: ${session.id}`)
         }
 
@@ -215,7 +279,7 @@ export async function POST(req: Request) {
 
         console.log(`[Stripe Webhook] Updating premium status for user ${userId}`);
 
-        const { error } = await supabaseAdmin
+        const { data: updatedUser, error } = await supabaseAdmin
           .from('users')
           .update({
             is_premium: true,
@@ -228,14 +292,67 @@ export async function POST(req: Request) {
             premium_last_stripe_event_id: event.id,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', userId);
+          .eq('id', userId)
+          .select('id,is_premium,premium_source,stripe_customer_id,stripe_subscription_id,premium_last_stripe_event_id')
+          .single();
 
         if (error) {
           throw new Error(`Failed to update user premium status for ${userId}: ${error.message}`)
-        } else {
-          console.log(`[Stripe Webhook] Successfully updated premium status for ${userId}`);
         }
+        if (
+          !updatedUser?.is_premium
+          || updatedUser.premium_source !== 'stripe'
+          || updatedUser.stripe_customer_id !== stripeCustomerId
+          || updatedUser.stripe_subscription_id !== stripeSubscriptionId
+          || updatedUser.premium_last_stripe_event_id !== event.id
+        ) {
+          throw new Error(`Premium fulfillment readback failed for checkout ${session.id}`)
+        }
+
+        console.log(`[Stripe Webhook] Successfully updated and verified Premium status for ${userId}`);
       }
+      break;
+    }
+
+    case 'charge.succeeded': {
+      const charge = event.data.object as Stripe.Charge
+      if (!charge.paid || charge.status !== 'succeeded') {
+        throw new Error(`Stripe charge event ${event.id} is not a successful paid charge`)
+      }
+
+      const adminEmail = String(process.env.ADMIN_EMAIL || '').trim()
+      if (!adminEmail) {
+        throw new Error('ADMIN_EMAIL is missing; payment notification was not sent')
+      }
+
+      const context = await chargeNotificationContext(charge)
+      const notification = buildPaymentNotification({
+        eventId: event.id,
+        amount: charge.amount,
+        currency: charge.currency,
+        createdAt: new Date(charge.created * 1000).toISOString(),
+        customerEmail: charge.billing_details?.email || charge.receipt_email,
+        paymentType: context.paymentType,
+        product: context.product,
+        description: charge.description,
+        dashboardUrl: `https://dashboard.stripe.com/${event.livemode ? '' : 'test/'}payments/${charge.id}`,
+      })
+      const delivery = await sendEmail(
+        adminEmail,
+        notification.subject,
+        notification.html,
+        { idempotencyKey: notification.idempotencyKey },
+      )
+
+      if (!delivery.success || !delivery.resendId) {
+        throw new Error(`Payment notification delivery was not accepted for event ${event.id}`)
+      }
+      console.log(JSON.stringify({
+        event: 'aerotrade_payment_notification',
+        stripeEventId: event.id,
+        status: 'accepted',
+        providerMessageId: delivery.resendId,
+      }))
       break;
     }
 
