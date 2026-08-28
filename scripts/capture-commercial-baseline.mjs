@@ -22,7 +22,13 @@ async function exactCount(table, configure = (query) => query) {
   return Number(count || 0)
 }
 
-const [users, premiumUsers, stripePremiumUsers, adminPremiumUsers, legacyPremiumUsers, activeListings, views30d, contactReveals30d, quoteRequests30d, wonQuoteRequests] = await Promise.all([
+async function selectedRows(table, columns, configure = (query) => query) {
+  const { data, error } = await configure(supabase.from(table).select(columns))
+  if (error) throw new Error(`${table}: ${error.message}`)
+  return data || []
+}
+
+const [users, premiumUsers, stripePremiumUsers, adminPremiumUsers, legacyPremiumUsers, activeListings, views30d, contactReveals30d, quoteRequests30d, wonQuoteRequests, succeededCharges30d, paymentReceipts30d] = await Promise.all([
   exactCount('users'),
   exactCount('users', (query) => query.eq('is_premium', true)),
   exactCount('users', (query) => query.eq('is_premium', true).eq('premium_source', 'stripe')),
@@ -33,7 +39,26 @@ const [users, premiumUsers, stripePremiumUsers, adminPremiumUsers, legacyPremium
   exactCount('listing_events', (query) => query.eq('event_type', 'CONTACT_REVEAL').gte('created_at', since)),
   exactCount('quote_requests', (query) => query.gte('created_at', since)),
   exactCount('quote_requests', (query) => query.eq('status', 'WON')),
+  exactCount('stripe_webhook_events', (query) => query.eq('event_type', 'charge.succeeded').gte('stripe_created_at', since)),
+  selectedRows(
+    'payment_notification_receipts',
+    'amount_minor,currency,payment_type,livemode,accepted_at',
+    (query) => query.gte('accepted_at', since),
+  ),
 ])
+
+const livePaymentReceipts30d = paymentReceipts30d.filter((receipt) => receipt.livemode === true)
+const testPaymentReceipts30d = paymentReceipts30d.filter((receipt) => receipt.livemode !== true)
+const grossAcceptedByCurrency = livePaymentReceipts30d.reduce((totals, receipt) => {
+  const currency = String(receipt.currency || '').toLowerCase()
+  totals[currency] = (totals[currency] || 0) + Number(receipt.amount_minor || 0)
+  return totals
+}, {})
+const receiptsByType = paymentReceipts30d.reduce((totals, receipt) => {
+  const type = String(receipt.payment_type || 'other')
+  totals[type] = (totals[type] || 0) + 1
+  return totals
+}, {})
 
 const payload = {
   version: 1,
@@ -73,9 +98,23 @@ const payload = {
       ],
       caveat: 'Un contacto revelado o una solicitud no demuestra una venta; WON depende del registro manual del estado.',
     },
+    revenue: {
+      status: succeededCharges30d === paymentReceipts30d.length ? 'verified' : 'attention_required',
+      label: 'Cobros aceptados y notificación verificable en 30 días',
+      metrics: [
+        { name: 'eventos charge.succeeded', value: succeededCharges30d },
+        { name: 'recibos de notificación persistidos', value: paymentReceipts30d.length },
+        { name: 'recibos live', value: livePaymentReceipts30d.length },
+        { name: 'recibos test', value: testPaymentReceipts30d.length },
+        { name: 'cobertura pendiente', value: Math.max(0, succeededCharges30d - paymentReceipts30d.length) },
+        { name: 'importe bruto live por moneda (minor units)', value: grossAcceptedByCurrency },
+        { name: 'recibos por tipo', value: receiptsByType },
+      ],
+      caveat: 'Importe bruto cobrado: no descuenta comisiones, reembolsos, disputas ni impuestos y no debe interpretarse como ingreso neto.',
+    },
   },
   integrity: {
-    queryProfile: crypto.createHash('sha256').update('aerotrade-commercial-baseline-v1-read-only').digest('hex'),
+    queryProfile: crypto.createHash('sha256').update('aerotrade-commercial-baseline-v2-read-only').digest('hex'),
   },
 }
 

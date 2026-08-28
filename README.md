@@ -58,7 +58,15 @@ It promotes eligible active listings, avoiding sold, archived, draft, pending pa
 
 Live social runs classify token, permission, timeout, rate-limit and configuration failures. Provider failures return a non-2xx response so the scheduler cannot report a false success. Meta read-only status checks use bounded retries; publication POST requests are not automatically repeated.
 
-Successful Stripe charges send one idempotent administrative email to `ADMIN_EMAIL`. The Stripe event is marked processed only after Resend returns a provider acceptance identifier; failed delivery remains retryable through Stripe without creating duplicate notices.
+Successful Stripe charges send one idempotent administrative email to `ADMIN_EMAIL`. Idempotency is bound to the Stripe charge, not merely to one delivery of the webhook event. The Stripe event is marked processed only after Resend returns a provider acceptance identifier and a private, non-PII receipt is persisted and read back from `payment_notification_receipts`. Failed delivery or failed persistence remains retryable through Stripe without counting an unverifiable notice as complete.
+
+Commercial measurement records bounded listing views, successful seller-contact reveals (including anonymous public visitors), durably stored new-balloon quote requests and payment-notification coverage. Generate a read-only 30-day snapshot only with explicit production-read approval:
+
+```bash
+CONFIRM_READ_ONLY_PRODUCTION=1 npm run baseline:commercial
+```
+
+The payment totals in that snapshot are gross Stripe charges in minor currency units. They are not net revenue and do not subtract fees, refunds, disputes or tax.
 
 Required runtime variables are configured in the hosting environment, not in this repository:
 
@@ -70,3 +78,5 @@ Required runtime variables are configured in the hosting environment, not in thi
 - `INSTAGRAM_USER_ID` plus `INSTAGRAM_ACCESS_TOKEN` or `META_ACCESS_TOKEN`
 - `FACEBOOK_PAGE_ID` plus `FACEBOOK_PAGE_ACCESS_TOKEN` or `META_ACCESS_TOKEN`
 - `ADMIN_EMAIL`
+
+The Stripe endpoint must explicitly subscribe to `charge.succeeded` before payment notices can be considered operational. Enabling that live event and applying database migrations require separate production approval.

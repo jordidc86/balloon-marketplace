@@ -3,7 +3,12 @@ import { stripe } from '@/utils/stripe';
 import { createClient } from '@supabase/supabase-js';
 import { escapeHtml } from '@/utils/html';
 import { sendPremiumListingAlert } from '@/utils/premium-alerts';
-import { buildPaymentNotification } from '@/utils/payment-notification.mjs';
+import {
+  buildPaymentNotification,
+  buildPaymentNotificationReceipt,
+  matchesPaymentNotificationReceipt,
+  normalizePaymentType,
+} from '@/utils/payment-notification.mjs';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -58,24 +63,103 @@ async function resolvePremiumUserId(
   return String(matchingUsers[0].id)
 }
 
+const stripeObjectId = <T extends { id: string }>(value: string | T | null | undefined) =>
+  typeof value === 'string' ? value : value?.id || null
+
+const uniqueLabels = (values: Array<string | null | undefined>) =>
+  [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))].join(' | ')
+
 async function chargeNotificationContext(charge: Stripe.Charge) {
   const paymentIntentId = typeof charge.payment_intent === 'string'
     ? charge.payment_intent
     : charge.payment_intent?.id
   let paymentType = String(charge.metadata?.type || '').trim() || null
   let product = ''
+  let customerEmail = normalizedEmail(charge.billing_details?.email || charge.receipt_email) || null
+  let invoiceId: string | null = null
+  let subscriptionId: string | null = null
 
   if (paymentIntentId) {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+    paymentType = String(paymentIntent.metadata?.type || paymentType || '').trim() || null
+    customerEmail = customerEmail || normalizedEmail(paymentIntent.receipt_email) || null
+
     const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 })
     const session = sessions.data[0]
     paymentType = String(session?.metadata?.type || paymentType || '').trim() || null
     if (session) {
       const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 })
-      product = lineItems.data.map((item) => item.description).filter(Boolean).join(' | ')
+      product = uniqueLabels(lineItems.data.map((item) => item.description))
+      customerEmail = customerEmail || normalizedEmail(
+        session.customer_details?.email || session.customer_email,
+      ) || null
+      invoiceId = stripeObjectId(session.invoice)
+      subscriptionId = stripeObjectId(session.subscription)
+    }
+
+    if (!invoiceId) {
+      const invoicePayments = await stripe.invoicePayments.list({
+        limit: 1,
+        status: 'paid',
+        payment: { type: 'payment_intent', payment_intent: paymentIntentId },
+      })
+      invoiceId = stripeObjectId(invoicePayments.data[0]?.invoice)
+    }
+
+    if (invoiceId) {
+      const invoice = await stripe.invoices.retrieve(invoiceId)
+      if (!('deleted' in invoice && invoice.deleted)) {
+        customerEmail = customerEmail || normalizedEmail(invoice.customer_email) || null
+        subscriptionId = subscriptionId || stripeObjectId(
+          invoice.parent?.subscription_details?.subscription,
+        )
+        product = product || uniqueLabels(invoice.lines.data.map((line) => line.description))
+      }
+    }
+
+    if (subscriptionId) {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+      paymentType = String(
+        subscription.metadata?.type || paymentType || 'premium_subscription',
+      ).trim()
     }
   }
 
-  return { paymentType, product }
+  return {
+    paymentType: normalizePaymentType(paymentType),
+    product,
+    customerEmail,
+    paymentIntentId: paymentIntentId || null,
+    invoiceId,
+    subscriptionId,
+  }
+}
+
+async function persistPaymentNotificationReceipt(
+  supabase: SupabaseClient,
+  receipt: ReturnType<typeof buildPaymentNotificationReceipt>,
+) {
+  const { error: insertError } = await supabase
+    .from('payment_notification_receipts')
+    .insert(receipt)
+
+  if (insertError && insertError.code !== '23505') {
+    throw new Error(`Could not persist payment notification receipt: ${insertError.message}`)
+  }
+
+  const { data: stored, error: readError } = await supabase
+    .from('payment_notification_receipts')
+    .select('stripe_event_id,charge_id,amount_minor,currency,payment_type,provider_message_id')
+    .eq('charge_id', receipt.charge_id)
+    .single()
+
+  if (readError || !stored) {
+    throw new Error(`Could not read back payment notification receipt for ${receipt.stripe_event_id}`)
+  }
+
+  if (!matchesPaymentNotificationReceipt(stored, receipt)) {
+    throw new Error(`Payment notification receipt mismatch for ${receipt.stripe_event_id}`)
+  }
 }
 
 async function claimWebhookEvent(supabase: SupabaseClient, event: Stripe.Event) {
@@ -153,7 +237,7 @@ async function finishWebhookEvent(
     .eq('event_id', eventId)
 
   if (updateError) {
-    console.error(`[Stripe Webhook] Failed to update audit state for ${eventId}:`, updateError)
+    throw new Error(`Failed to update Stripe event audit state for ${eventId}: ${updateError.message}`)
   }
 }
 
@@ -327,11 +411,11 @@ export async function POST(req: Request) {
 
       const context = await chargeNotificationContext(charge)
       const notification = buildPaymentNotification({
-        eventId: event.id,
+        chargeId: charge.id,
         amount: charge.amount,
         currency: charge.currency,
         createdAt: new Date(charge.created * 1000).toISOString(),
-        customerEmail: charge.billing_details?.email || charge.receipt_email,
+        customerEmail: context.customerEmail,
         paymentType: context.paymentType,
         product: context.product,
         description: charge.description,
@@ -347,11 +431,29 @@ export async function POST(req: Request) {
       if (!delivery.success || !delivery.resendId) {
         throw new Error(`Payment notification delivery was not accepted for event ${event.id}`)
       }
+      const acceptedAt = new Date().toISOString()
+
+      const receipt = buildPaymentNotificationReceipt({
+        eventId: event.id,
+        chargeId: charge.id,
+        paymentIntentId: context.paymentIntentId,
+        invoiceId: context.invoiceId,
+        subscriptionId: context.subscriptionId,
+        amount: charge.amount,
+        currency: charge.currency,
+        paymentType: notification.paymentType,
+        product: notification.productLabel,
+        providerMessageId: delivery.resendId,
+        livemode: event.livemode,
+        acceptedAt,
+      })
+      await persistPaymentNotificationReceipt(supabaseAdmin, receipt)
       console.log(JSON.stringify({
         event: 'aerotrade_payment_notification',
         stripeEventId: event.id,
         status: 'accepted',
         providerMessageId: delivery.resendId,
+        receiptPersisted: true,
       }))
       break;
     }

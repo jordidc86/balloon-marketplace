@@ -7,14 +7,24 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8')
 
 const checks = [
   {
+    name: 'Runtime dependencies are pinned to the audited release line',
+    file: 'package.json',
+    required: ['"next": "16.3.3"', '"eslint-config-next": "16.3.3"', '"resend": "6.25.0"'],
+  },
+  {
     name: 'Stripe webhook verifies signatures and audits idempotency',
     file: 'src/app/api/webhooks/stripe/route.ts',
-    required: ['stripe.webhooks.constructEvent', "from('stripe_webhook_events')", "finishWebhookEvent(supabaseAdmin, event.id, 'processed')", "case 'charge.succeeded'", 'buildPaymentNotification', 'Premium fulfillment readback failed'],
+    required: ['stripe.webhooks.constructEvent', "from('stripe_webhook_events')", "from('payment_notification_receipts')", "finishWebhookEvent(supabaseAdmin, event.id, 'processed')", "case 'charge.succeeded'", 'buildPaymentNotification', 'buildPaymentNotificationReceipt', 'matchesPaymentNotificationReceipt', 'Premium fulfillment readback failed'],
   },
   {
     name: 'Stripe event audit migration exists and is private',
     file: 'supabase/migrations/20260711120000_audit_stripe_webhook_events.sql',
     required: ['event_id text primary key', 'enable row level security', 'revoke all'],
+  },
+  {
+    name: 'Payment notifications have a private durable receipt',
+    file: 'supabase/migrations/20260828120000_payment_notification_receipts.sql',
+    required: ['charge_id text primary key', 'stripe_event_id text not null unique', 'provider_message_id text not null unique', 'enable row level security', 'revoke all'],
   },
   {
     name: 'Premium checkout validates current entitlement and uses trusted returns',
@@ -30,7 +40,12 @@ const checks = [
   {
     name: 'Seller contact uses active-listing visibility rules',
     file: 'src/app/catalog/[id]/actions.ts',
-    required: ['canRevealSellerContact', 'Premium access is required to reveal this contact'],
+    required: ['canRevealSellerContact', 'Premium access is required to reveal this contact', "event_type: 'CONTACT_REVEAL'", 'user_id: user?.id || null'],
+  },
+  {
+    name: 'New-balloon quotes fail closed unless the lead is durably stored',
+    file: 'src/app/new-balloon/actions.ts',
+    required: ["select('id')", 'Quote request readback did not return an id', 'aerotrade-quote-${requestId}'],
   },
   {
     name: 'Listing detail image stays bounded on mobile',

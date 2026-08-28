@@ -40,15 +40,22 @@ export async function submitNewBalloonQuote(formData: FormData) {
     redirect('/new-balloon?error=' + encodeURIComponent('Please complete name, email and equipment type.'))
   }
 
+  let requestId: string
   try {
     const supabase = await createAdminClient()
-    const { error } = await supabase.from('quote_requests').insert(request)
+    const { data, error } = await supabase
+      .from('quote_requests')
+      .insert(request)
+      .select('id')
+      .single()
 
-    if (error) {
-      console.error('Could not save quote request:', error)
+    if (error || !data?.id) {
+      throw new Error(error?.message || 'Quote request readback did not return an id')
     }
+    requestId = String(data.id)
   } catch (error) {
     console.error('Quote request storage is not available:', error)
+    redirect('/new-balloon?error=' + encodeURIComponent('We could not save your request. Please try again.'))
   }
 
   const rows = Object.entries(request)
@@ -61,15 +68,20 @@ export async function submitNewBalloonQuote(formData: FormData) {
     `)
     .join('')
 
-  await sendEmail(
+  const delivery = await sendEmail(
     adminEmail,
     `New Pasha/Schroeder balloon quote request: ${request.name}`,
     `
       <h2>New AeroTrade balloon quote request</h2>
       <p>A buyer is asking for a fast price indication and first visual concept for a new Pasha or Schroeder balloon.</p>
       <table style="border-collapse: collapse; width: 100%; max-width: 720px;">${rows}</table>
-    `
+    `,
+    { idempotencyKey: `aerotrade-quote-${requestId}` },
   )
+
+  if (!delivery.success || !delivery.resendId) {
+    console.error(`Quote request ${requestId} was stored but its admin notification was not accepted`)
+  }
 
   redirect('/new-balloon?success=true')
 }

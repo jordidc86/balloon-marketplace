@@ -1,7 +1,7 @@
 # AeroTrade Source Index
 
 Status: Production routing index.
-Last updated: 2026-07-31.
+Last updated: 2026-08-28.
 
 ## Primary Orientation Files
 
@@ -22,6 +22,7 @@ Last updated: 2026-07-31.
 | Admin | `src/app/admin/`, `src/components/admin/` | Operational risk; check role/access assumptions. |
 | Cron endpoints | `src/app/api/cron/newsletter/route.ts`, `src/app/api/cron/social/route.ts`, `src/app/api/cron/instagram/route.ts`, `.github/workflows/newsletter.yml`, `netlify/functions/social-scheduled.mjs` | Live dispatch risk; default to dry-run/proposal. |
 | Payments | `src/app/api/webhooks/stripe/`, `src/utils/stripe.ts`, pricing actions | Do not change without exact approval. |
+| Commercial measurement | `src/app/catalog/[id]/ListingViewTracker.tsx`, catalog actions, new-balloon actions, `scripts/capture-commercial-baseline.mjs` | Views, contact reveals, quote persistence and gross payment-notification coverage. |
 | Email | `src/utils/resend.ts`, premium alerts, newsletter cron | Customer-facing; dispatch requires approval. |
 | Database | `supabase/schema.sql`, Supabase utilities | Treat production data as external system. |
 | Deployment | `netlify.toml`, `.github/workflows/` | `.netlify/` is local generated output, not source. Read-only unless deployment/config action is approved. |
@@ -36,7 +37,10 @@ Last updated: 2026-07-31.
 | SEO canonical | `Fixed`: `robots.txt`, `sitemap.xml`, and listing JSON-LD use `https://aerotrade.app`. |
 | Premium seller/buyer funnel | `Proposed`: needs business review against competitors and listing supply. |
 | Critical stabilization | `Deployed`: Supabase migrations, Stripe webhook audit, trusted returns, image requirements, contact visibility and mobile listing layout are live. |
-| Outbound delivery verification | `Prepared locally`: Resend acceptance IDs, partial-run tracking, Meta credential preflight and actionable failure classes await migration and deploy. |
+| Outbound delivery verification | `In origin/main`: Resend acceptance IDs, partial-run tracking, Meta credential preflight and actionable failure classes are present in the reconciled base; production evidence was not rechecked in this work. |
+| Commercial funnel instrumentation | `Release candidate`: anonymous/public contact reveals, fail-closed quote storage and 30-day baseline are locally verified. |
+| Payment notification evidence | `Release candidate`: charge-bound idempotency plus private receipt/readback await approved migration, webhook event enablement and deploy. |
+| Dependency security | `Release candidate`: Next.js 16.3.3, matching ESLint config and Resend 6.25.0 are pinned; npm audit reports zero known vulnerabilities locally. |
 
 ## Local Artifacts
 

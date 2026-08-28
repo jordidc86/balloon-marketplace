@@ -20,31 +20,6 @@ const createAdminClient = () => {
   return createSupabaseClient(supabaseUrl, serviceRoleKey)
 }
 
-export async function logContactReveal(listingId: string) {
-  const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  if (!user) {
-    throw new Error('User must be logged in to track intent')
-  }
-
-  const { error } = await supabase
-    .from('listing_events')
-    .insert({
-      listing_id: listingId,
-      user_id: user.id,
-      event_type: 'CONTACT_REVEAL'
-    })
-
-  if (error) {
-    console.error('Failed to log contact reveal:', error)
-    throw new Error('Failed to log event')
-  }
-
-  return true
-}
-
 export async function logListingView(listingId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -107,15 +82,13 @@ export async function revealSellerContact(listingId: string) {
     throw new Error('Premium access is required to reveal this contact')
   }
 
-  const { error: eventError } = user
-    ? await supabase
-      .from('listing_events')
-      .insert({
-        listing_id: listingId,
-        user_id: user.id,
-        event_type: 'CONTACT_REVEAL'
-      })
-    : { error: null }
+  const { error: eventError } = await supabaseAdmin
+    .from('listing_events')
+    .insert({
+      listing_id: listingId,
+      user_id: user?.id || null,
+      event_type: 'CONTACT_REVEAL',
+    })
 
   if (eventError) {
     console.error('Failed to log contact reveal:', eventError)

@@ -22,7 +22,10 @@ import {
 } from '../src/utils/newsletter-safety.mjs'
 import {
   buildPaymentNotification,
+  buildPaymentNotificationReceipt,
   formatPaymentAmount,
+  matchesPaymentNotificationReceipt,
+  normalizePaymentType,
   paymentNotificationIdempotencyKey,
 } from '../src/utils/payment-notification.mjs'
 
@@ -51,7 +54,7 @@ test('production Stripe returns always use the configured public origin', () => 
 
 test('successful AeroTrade payments create one safe, useful admin notification', () => {
   const notification = buildPaymentNotification({
-    eventId: 'evt_payment_123',
+    chargeId: 'ch_payment_123',
     amount: 999,
     currency: 'eur',
     createdAt: '2026-08-09T18:11:25.000Z',
@@ -67,9 +70,74 @@ test('successful AeroTrade payments create one safe, useful admin notification',
   assert.match(notification.html, /AeroTrade Premium Club/)
   assert.match(notification.html, /buyer@example\.com/)
   assert.match(notification.html, /evento firmado de Stripe/)
-  assert.equal(notification.idempotencyKey, 'aerotrade-payment-evt_payment_123')
-  assert.equal(paymentNotificationIdempotencyKey('evt_payment_123'), notification.idempotencyKey)
-  assert.throws(() => paymentNotificationIdempotencyKey('not-an-event'), /valid Stripe event id/i)
+  assert.equal(notification.idempotencyKey, 'aerotrade-payment-ch_payment_123')
+  assert.equal(notification.paymentType, 'premium_subscription')
+  assert.equal(notification.productLabel, 'AeroTrade Premium Club')
+  assert.equal(paymentNotificationIdempotencyKey('ch_payment_123'), notification.idempotencyKey)
+  assert.throws(() => paymentNotificationIdempotencyKey('not-a-charge'), /valid Stripe charge id/i)
+  assert.equal(buildPaymentNotification({
+    chargeId: 'ch_blank_product_123',
+    amount: 100,
+    currency: 'eur',
+    createdAt: '2026-08-09T18:11:25.000Z',
+    paymentType: 'unexpected',
+    product: '   ',
+    description: '   ',
+  }).productLabel, 'otro cobro de AeroTrade')
+})
+
+test('accepted payment notifications produce a private durable receipt', () => {
+  const receipt = buildPaymentNotificationReceipt({
+    eventId: 'evt_payment_123',
+    chargeId: 'ch_payment_123',
+    paymentIntentId: 'pi_payment_123',
+    invoiceId: 'in_payment_123',
+    subscriptionId: 'sub_payment_123',
+    amount: 999,
+    currency: 'EUR',
+    paymentType: 'premium_subscription',
+    product: 'AeroTrade Premium Club',
+    providerMessageId: 'resend-message-123',
+    livemode: true,
+    acceptedAt: '2026-08-09T18:11:26.000Z',
+  })
+
+  assert.deepEqual(receipt, {
+    stripe_event_id: 'evt_payment_123',
+    charge_id: 'ch_payment_123',
+    payment_intent_id: 'pi_payment_123',
+    invoice_id: 'in_payment_123',
+    subscription_id: 'sub_payment_123',
+    amount_minor: 999,
+    currency: 'eur',
+    payment_type: 'premium_subscription',
+    product_label: 'AeroTrade Premium Club',
+    livemode: true,
+    provider_message_id: 'resend-message-123',
+    accepted_at: '2026-08-09T18:11:26.000Z',
+  })
+  assert.equal(normalizePaymentType('unexpected'), 'other')
+  assert.equal(matchesPaymentNotificationReceipt(receipt, receipt), true)
+  assert.equal(matchesPaymentNotificationReceipt(
+    { ...receipt, stripe_event_id: 'evt_redelivery_456' },
+    receipt,
+  ), true)
+  assert.equal(matchesPaymentNotificationReceipt(
+    { ...receipt, amount_minor: 1000 },
+    receipt,
+  ), false)
+  assert.throws(
+    () => buildPaymentNotificationReceipt({
+      eventId: 'unsafe',
+      chargeId: 'ch_payment_123',
+      amount: 999,
+      currency: 'eur',
+      paymentType: 'other',
+      providerMessageId: 'resend-message-123',
+      acceptedAt: '2026-08-09T18:11:26.000Z',
+    }),
+    /valid Stripe event id/i,
+  )
 })
 
 test('premium listings always wait for their own payment', () => {
