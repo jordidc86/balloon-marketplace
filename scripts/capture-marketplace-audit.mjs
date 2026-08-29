@@ -51,6 +51,7 @@ const querySpecs = {
   listingWatchDispatches: ['listing_watch_dispatches', 'id,watcher_id,listing_id,status,created_at,accepted_at'],
   listingAvailabilityConfirmations: ['listing_availability_confirmations', 'id,listing_id,seller_id,listing_status,source,confirmed_on,confirmed_at'],
   listingLifecycleEvents: ['listing_lifecycle_events', 'id,listing_id,actor_role,event_type,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,previous_status,new_status,created_at'],
+  socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at'],
 }
 
 const auditData = Object.fromEntries(await Promise.all(Object.entries(querySpecs).map(async ([name, [table, columns]]) => [name, await rows(table, columns)])))
@@ -77,6 +78,7 @@ const {
   listingWatchDispatches,
   listingAvailabilityConfirmations,
   listingLifecycleEvents,
+  socialPublicationReceipts,
 } = auditData
 
 const countBy = (items, key) => items.reduce((counts, item) => {
@@ -321,6 +323,12 @@ const result = {
     exhaustedInquiryBuyerAcknowledgements: exhaustedInquiryBuyerAcknowledgements.length,
     listingWatchDispatches: listingWatchDispatches.length,
     listingWatchDispatchStatuses: countBy(listingWatchDispatches, 'status'),
+    socialPublications30d: socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d).length,
+    socialPublicationStatuses30d: countBy(socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d), 'status'),
+    socialPublicationNetworksAccepted30d: countBy(socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status === 'accepted'), 'network'),
+    socialPublicationPlacementsAccepted30d: countBy(socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status === 'accepted'), 'placement'),
+    socialPublicationNeedsAttention30d: socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status !== 'accepted').length,
+    socialPublicationRetryable30d: socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status === 'failed' && receipt.retryable).length,
     runStatuses: {
       newsletters: countBy(newsletterRuns, 'status'),
       premiumAlerts: countBy(premiumAlertRuns, 'status'),

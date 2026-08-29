@@ -663,6 +663,21 @@ const checks = [
     required: ['classifyMetaError', 'getMetaCredentialHealth', 'providerCheck', 'status: failures.length > 0 ? 502 : 200'],
   },
   {
+    name: 'Social publication evidence is private, placement-specific and fails closed',
+    file: 'supabase/migrations/20260829490000_social_publication_receipts.sql',
+    required: ['social_publication_receipts', 'publication_key text not null unique', "content_kind in ('listing', 'brand')", "network in ('instagram', 'facebook')", "status in ('pending', 'accepted', 'failed')", 'attempt_count between 0 and 2', 'provider_id is not null', 'enable row level security', 'revoke all on public.social_publication_receipts from public, anon, authenticated'],
+  },
+  {
+    name: 'Each social placement is claimed before publishing and accepted by provider ID',
+    file: 'src/utils/social-publication-receipt.ts',
+    required: ['buildSocialPublicationKey', 'getSocialPublicationDecision', "status: 'pending'", 'attempt_count: attemptNumber', 'const providerId', "status: 'accepted'", 'do not retry automatically', 'isSocialPublicationRetrySafe'],
+  },
+  {
+    name: 'Scheduled social acquisition uses attributable links and durable per-placement receipts',
+    file: 'src/app/api/cron/instagram/route.ts',
+    required: ['getAttributedSocialUrl', 'publishSocialPlacement', 'publishTracked', "contentKind: 'listing'", "contentKind: 'brand'", "network: 'instagram'", "network: 'facebook'"],
+  },
+  {
     name: 'Meta credential fallback cannot repeat timed-out publications',
     file: 'src/utils/meta-social.ts',
     required: ['shouldTryNextMetaCredential', 'if (!shouldTryNextMetaCredential(error))'],

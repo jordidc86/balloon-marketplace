@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/utils/supabase/server'
-import { BellRing, CircleDollarSign, CreditCard, MessageSquare, Plane, Store, TriangleAlert } from 'lucide-react'
+import { BellRing, CheckCircle2, CircleDollarSign, CreditCard, MessageSquare, Plane, Store, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/utils/new-balloon-manufacturers.mjs'
@@ -235,6 +235,17 @@ type IndexingSubmissionReceipt = {
   accepted_at: string | null
 }
 
+type SocialPublicationReceipt = {
+  status: 'pending' | 'accepted' | 'failed'
+  network: 'instagram' | 'facebook'
+  placement: 'post' | 'story' | 'carousel' | 'reel' | 'video'
+  content_kind: 'listing' | 'brand'
+  attempt_count: number
+  retryable: boolean
+  created_at: string
+  accepted_at: string | null
+}
+
 const formatDate = (value: string) => new Intl.DateTimeFormat('en-GB', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -251,7 +262,7 @@ export default async function CommercialPage() {
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
   const defaultProposalValidUntil = new Date(nowMs + 30 * 86_400_000).toISOString().slice(0, 10)
-  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }, { data: socialPublicationReceipts, error: socialPublicationError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,listing_id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(id,title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('quote_requests').select('id,name,email,equipment_type,manufacturer_preference,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
@@ -271,6 +282,7 @@ export default async function CommercialPage() {
     supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
     supabase.from('listing_watchers').select('id,listing_id,status,journey_key,created_at,confirmed_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('listing_watch_dispatches').select('id,watcher_id,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
+    supabase.from('social_publication_receipts').select('status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(1000),
   ])
 
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
@@ -289,6 +301,7 @@ export default async function CommercialPage() {
   const typedListingEvents = (events || []) as ListingEvent[]
   const typedListingWatchers = (listingWatchers || []) as ListingWatcher[]
   const typedListingWatchDispatches = (listingWatchDispatches || []) as ListingWatchDispatch[]
+  const typedSocialPublicationReceipts = (socialPublicationReceipts || []) as SocialPublicationReceipt[]
   const { data: listingAvailabilityConfirmations, error: listingAvailabilityError } = await supabase
     .from('listing_availability_confirmations')
     .select('listing_id,confirmed_at')
@@ -447,6 +460,13 @@ export default async function CommercialPage() {
     totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.gross_amount_minor || 0)
     return totals
   }, {})
+  const acceptedSocialPublications = typedSocialPublicationReceipts.filter((receipt) => receipt.status === 'accepted')
+  const pendingSocialPublications = typedSocialPublicationReceipts.filter((receipt) => receipt.status === 'pending')
+  const failedSocialPublications = typedSocialPublicationReceipts.filter((receipt) => receipt.status === 'failed')
+  const retryableSocialPublications = failedSocialPublications.filter((receipt) => receipt.retryable)
+  const instagramSocialPublications = acceptedSocialPublications.filter((receipt) => receipt.network === 'instagram').length
+  const facebookSocialPublications = acceptedSocialPublications.filter((receipt) => receipt.network === 'facebook').length
+  const socialPublicationAttention = pendingSocialPublications.length + failedSocialPublications.length
 
   return (
     <div className="space-y-8">
@@ -459,7 +479,7 @@ export default async function CommercialPage() {
         <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${activeListingWatchers} active watchers · ${closedListingWatchers} closed with listing · ${sharedLinkViews} from shared links`} />
         <Metric title="Open opportunities" value={openInquiries + openWanted + openSellerAssistance + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon · ${typedSellerAssistance.length} assisted sellers`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
-        <Metric title="Needs attention" value={failedNotifications + pendingReportedSaleReview.length} icon={<TriangleAlert className="h-5 w-5" />} detail={`${failedNotifications} email delivery · ${pendingReportedSaleReview.length} reported sale review`} warning={failedNotifications + pendingReportedSaleReview.length > 0} />
+        <Metric title="Needs attention" value={failedNotifications + pendingReportedSaleReview.length + socialPublicationAttention} icon={<TriangleAlert className="h-5 w-5" />} detail={`${failedNotifications} email delivery · ${pendingReportedSaleReview.length} reported sale review · ${socialPublicationAttention} social publication`} warning={failedNotifications + pendingReportedSaleReview.length + socialPublicationAttention > 0} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -485,6 +505,19 @@ export default async function CommercialPage() {
           <ConversionRate label="Form start → stored" value={comparableBuyerFunnel.rates.formStartToStoredInquiry} />
         </div>
         <p className="mt-4 text-xs text-muted-foreground">Comparable since {formatDate(comparableBuyerFunnel.comparableFrom)} · {comparableBuyerFunnel.observedDays} observed day(s) · {comparableBuyerFunnel.excludedEarlierEvents} earlier event(s) excluded from rate denominators.</p>
+      </section>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">Social acquisition delivery (30d)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Each content, network and placement needs its own Meta acceptance identifier. Accepted placements are never repeated; interrupted or ambiguous operations fail closed for manual reconciliation.</p>
+        {socialPublicationError ? <p className="mt-4 text-sm text-destructive">Social publication evidence is unavailable: {socialPublicationError.message}</p> : (
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Metric title="Accepted placements" value={acceptedSocialPublications.length} icon={<CheckCircle2 className="h-5 w-5" />} detail={`${instagramSocialPublications} Instagram · ${facebookSocialPublications} Facebook`} />
+            <Metric title="Unverified pending" value={pendingSocialPublications.length} icon={<TriangleAlert className="h-5 w-5" />} detail="Do not repeat automatically" warning={pendingSocialPublications.length > 0} />
+            <Metric title="Failed placements" value={failedSocialPublications.length} icon={<TriangleAlert className="h-5 w-5" />} detail={`${retryableSocialPublications.length} bounded safe retry`} warning={failedSocialPublications.length > 0} />
+            <Metric title="Attributed social views" value={typedListingEvents.filter((event) => ['instagram', 'facebook'].includes(event.utm_source || '')).length} icon={<Plane className="h-5 w-5" />} detail="Comparable against accepted publication evidence" />
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border bg-card p-6">

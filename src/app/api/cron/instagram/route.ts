@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { Jimp, JimpMime, loadFont, measureTextHeight } from 'jimp';
 import https from 'node:https';
 import {
@@ -22,6 +22,8 @@ import {
   publishInstagramReel,
 } from '@/utils/meta-social';
 import { classifyMetaError } from '@/utils/delivery-safety.mjs';
+import { getAttributedSocialUrl } from '@/utils/social-publication.mjs';
+import { publishSocialPlacement } from '@/utils/social-publication-receipt';
 import { escapeHtml } from '@/utils/html';
 import { siteUrl } from '@/utils/site';
 import { getSocialCardUrl } from '@/utils/social-card';
@@ -294,7 +296,7 @@ const getPublicJpegSocialImageUrl = async (
   return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/listing_images/${storagePath}`;
 }
 
-const formatCaption = (listing: ListingForInstagram) => {
+const formatCaption = (listing: ListingForInstagram, destinationUrl = getListingUrl(listing)) => {
   const details = listing.details || {}
   const facts = [
     `${listing.price.toLocaleString()} ${listing.currency}`,
@@ -315,7 +317,7 @@ const formatCaption = (listing: ListingForInstagram) => {
     facts.join(' | '),
     description,
     '',
-    `View the full listing: ${getListingUrl(listing)}`,
+    `View the full listing: ${destinationUrl}`,
     '',
     '#AeroTrade #HotAirBalloon #Ballooning #Aviation #ForSale',
   ].join('\n')
@@ -360,40 +362,6 @@ const getAdminEmail = () => {
 };
 
 const getSocialRunDate = (date: Date) => date.toISOString().slice(0, 10);
-
-const tryCreateDailySocialLock = async (
-  supabase: SupabaseClient,
-  listing: Pick<ListingForInstagram, 'id' | 'title'>,
-  runDate: string,
-) => {
-  const lockPath = `social-locks/${runDate}/${listing.id}.json`;
-  const lockBody = Buffer.from(JSON.stringify({
-    listingId: listing.id,
-    title: listing.title,
-    runDate,
-    createdAt: new Date().toISOString(),
-  }));
-
-  const { error } = await supabase.storage
-    .from('listing_images')
-    .upload(lockPath, lockBody, {
-      contentType: 'application/json',
-      upsert: false,
-    });
-
-  if (!error) {
-    return true;
-  }
-
-  const duplicateLock = /already exists|duplicate|resource already exists/i.test(error.message);
-
-  if (duplicateLock) {
-    console.log(`Skipping listing ${listing.id}; daily social lock already exists for ${runDate}.`);
-    return false;
-  }
-
-  throw error;
-};
 
 export async function GET(request: Request) {
   try {
@@ -485,6 +453,7 @@ export async function GET(request: Request) {
     let facebookStoryCount = 0;
     let facebookVideoCount = 0;
     let skippedLockedCount = 0;
+    let duplicatePublicationCount = 0;
 
     // 4. Publish ready listings or brand interstitials to configured Meta channels.
     const instagramConfigured = canPublishToInstagram();
@@ -529,6 +498,25 @@ export async function GET(request: Request) {
       console.error(`Failed to send the operational alert for ${id}:`, err);
     };
 
+    const publishTracked = async (
+      input: {
+        contentKind: 'listing' | 'brand'
+        contentId: string
+        contentVariant: string
+        network: 'instagram' | 'facebook'
+        placement: 'post' | 'story' | 'carousel' | 'reel' | 'video'
+        destinationUrl: string
+      },
+      operation: () => Promise<string>,
+    ) => {
+      const result = await publishSocialPlacement(supabase, { runDate, ...input }, operation);
+      if (result.duplicate) duplicatePublicationCount++;
+      if (result.skipped) {
+        throw new Error(`Social publication receipt blocked the provider call (${result.reason || 'unknown'}); reconcile the existing receipt instead of creating a duplicate.`);
+      }
+      return result;
+    };
+
     const providerCheckRequested = requestUrl.searchParams.get('providerCheck') === '1'
       || requestUrl.searchParams.get('providerCheck') === 'true';
     const shouldCheckProvider = !dryRun || providerCheckRequested;
@@ -568,7 +556,16 @@ export async function GET(request: Request) {
       const videoUrl = getBrandReelVideoUrl(siteUrl, concept.slug);
       const reelCoverImageUrl = getBrandReelCoverImageUrl(siteUrl, concept.slug);
       const linkUrl = getBrandSocialLinkUrl(siteUrl);
-      const brandCaption = concept.caption;
+      const brandDestination = (network: 'instagram' | 'facebook', placement: 'post' | 'story' | 'carousel' | 'reel' | 'video') => getAttributedSocialUrl(linkUrl, {
+        network,
+        placement,
+        contentKind: 'brand',
+      });
+      const brandCaption = (network: 'instagram' | 'facebook', placement: 'post' | 'carousel' | 'reel' | 'video') => [
+        concept.caption,
+        '',
+        `Explore AeroTrade: ${brandDestination(network, placement)}`,
+      ].join('\n');
       const pendingNetworks = socialSlot.type === 'brand-post'
         ? ['Instagram post', 'Instagram story', 'Facebook post', 'Facebook story']
         : socialSlot.type === 'brand-carousel'
@@ -601,20 +598,16 @@ export async function GET(request: Request) {
         }, { status: failures.length > 0 ? 502 : 200 });
       }
 
-      const lockCreated = await tryCreateDailySocialLock(supabase, brandPublication, runDate);
-
-      if (!lockCreated) {
-        skippedLockedCount++;
-      } else {
-        const publishBrandStories = async () => {
+      const publishBrandStories = async () => {
           if (shouldPublishToInstagram) {
             try {
-              const instagramStory = await publishInstagramImageStory({
-                imageUrl: storyImageUrl,
-              });
-
-              instagramStoryCount++;
-              console.log(`Published ${brandPublication.id} to Instagram story as media ${instagramStory.mediaId}.`);
+              const result = await publishTracked({
+                contentKind: 'brand', contentId: concept.slug, contentVariant: socialSlot.type,
+                network: 'instagram', placement: 'story', destinationUrl: brandDestination('instagram', 'story'),
+              }, async () => (await publishInstagramImageStory({ imageUrl: storyImageUrl })).mediaId);
+              if (result.accepted && !result.duplicate) instagramStoryCount++;
+              if (result.skipped) skippedLockedCount++;
+              if (result.accepted) console.log(`Published or verified ${brandPublication.id} on Instagram story as ${result.providerId}.`);
             } catch (err) {
               recordFailure(brandPublication.id, 'Instagram story', err);
             }
@@ -624,30 +617,34 @@ export async function GET(request: Request) {
 
           if (shouldPublishToFacebook) {
             try {
-              const facebookStory = await publishFacebookPhotoStory({
-                imageUrl: storyImageUrl,
-              });
-
-              facebookStoryCount++;
-              console.log(`Published ${brandPublication.id} to Facebook story as post ${facebookStory.postId}.`);
+              const result = await publishTracked({
+                contentKind: 'brand', contentId: concept.slug, contentVariant: socialSlot.type,
+                network: 'facebook', placement: 'story', destinationUrl: brandDestination('facebook', 'story'),
+              }, async () => (await publishFacebookPhotoStory({ imageUrl: storyImageUrl })).postId);
+              if (result.accepted && !result.duplicate) facebookStoryCount++;
+              if (result.skipped) skippedLockedCount++;
+              if (result.accepted) console.log(`Published or verified ${brandPublication.id} on Facebook story as ${result.providerId}.`);
             } catch (err) {
               recordFailure(brandPublication.id, 'Facebook story', err);
             }
           } else {
             recordFailure(brandPublication.id, 'Facebook story', new Error('Facebook credentials are not configured'));
           }
-        };
+      };
 
-        if (socialSlot.type === 'brand-post') {
+      if (socialSlot.type === 'brand-post') {
           if (shouldPublishToInstagram) {
             try {
-              const instagramPost = await publishInstagramImagePost({
+              const result = await publishTracked({
+                contentKind: 'brand', contentId: concept.slug, contentVariant: socialSlot.type,
+                network: 'instagram', placement: 'post', destinationUrl: brandDestination('instagram', 'post'),
+              }, async () => (await publishInstagramImagePost({
                 imageUrl: postImageUrl,
-                caption: brandCaption,
-              });
-
-              instagramCount++;
-              console.log(`Published ${brandPublication.id} to Instagram as media ${instagramPost.mediaId}.`);
+                caption: brandCaption('instagram', 'post'),
+              })).mediaId);
+              if (result.accepted && !result.duplicate) instagramCount++;
+              if (result.skipped) skippedLockedCount++;
+              if (result.accepted) console.log(`Published or verified ${brandPublication.id} on Instagram as ${result.providerId}.`);
             } catch (err) {
               recordFailure(brandPublication.id, 'Instagram post', err);
             }
@@ -657,14 +654,18 @@ export async function GET(request: Request) {
 
           if (shouldPublishToFacebook) {
             try {
-              const facebookPost = await publishFacebookPhotoPost({
+              const destinationUrl = brandDestination('facebook', 'post');
+              const result = await publishTracked({
+                contentKind: 'brand', contentId: concept.slug, contentVariant: socialSlot.type,
+                network: 'facebook', placement: 'post', destinationUrl,
+              }, async () => (await publishFacebookPhotoPost({
                 imageUrl: postImageUrl,
-                caption: brandCaption,
-                linkUrl,
-              });
-
-              facebookCount++;
-              console.log(`Published ${brandPublication.id} to Facebook as post ${facebookPost.postId}.`);
+                caption: brandCaption('facebook', 'post'),
+                linkUrl: destinationUrl,
+              })).postId);
+              if (result.accepted && !result.duplicate) facebookCount++;
+              if (result.skipped) skippedLockedCount++;
+              if (result.accepted) console.log(`Published or verified ${brandPublication.id} on Facebook as ${result.providerId}.`);
             } catch (err) {
               recordFailure(brandPublication.id, 'Facebook post', err);
             }
@@ -675,16 +676,19 @@ export async function GET(request: Request) {
           await publishBrandStories();
         }
 
-        if (socialSlot.type === 'brand-carousel') {
+      if (socialSlot.type === 'brand-carousel') {
           if (shouldPublishToInstagram) {
             try {
-              const instagramCarousel = await publishInstagramImageCarousel({
+              const result = await publishTracked({
+                contentKind: 'brand', contentId: concept.slug, contentVariant: socialSlot.type,
+                network: 'instagram', placement: 'carousel', destinationUrl: brandDestination('instagram', 'carousel'),
+              }, async () => (await publishInstagramImageCarousel({
                 imageUrls: carouselImageUrls,
-                caption: brandCaption,
-              });
-
-              instagramCarouselCount++;
-              console.log(`Published ${brandPublication.id} to Instagram as carousel ${instagramCarousel.mediaId}.`);
+                caption: brandCaption('instagram', 'carousel'),
+              })).mediaId);
+              if (result.accepted && !result.duplicate) instagramCarouselCount++;
+              if (result.skipped) skippedLockedCount++;
+              if (result.accepted) console.log(`Published or verified ${brandPublication.id} on Instagram carousel as ${result.providerId}.`);
             } catch (err) {
               recordFailure(brandPublication.id, 'Instagram carousel', err);
             }
@@ -694,14 +698,18 @@ export async function GET(request: Request) {
 
           if (shouldPublishToFacebook) {
             try {
-              const facebookPost = await publishFacebookPhotoPost({
+              const destinationUrl = brandDestination('facebook', 'post');
+              const result = await publishTracked({
+                contentKind: 'brand', contentId: concept.slug, contentVariant: socialSlot.type,
+                network: 'facebook', placement: 'post', destinationUrl,
+              }, async () => (await publishFacebookPhotoPost({
                 imageUrl: carouselImageUrls[0],
-                caption: brandCaption,
-                linkUrl,
-              });
-
-              facebookCount++;
-              console.log(`Published ${brandPublication.id} carousel cover to Facebook as post ${facebookPost.postId}.`);
+                caption: brandCaption('facebook', 'post'),
+                linkUrl: destinationUrl,
+              })).postId);
+              if (result.accepted && !result.duplicate) facebookCount++;
+              if (result.skipped) skippedLockedCount++;
+              if (result.accepted) console.log(`Published or verified ${brandPublication.id} carousel cover on Facebook as ${result.providerId}.`);
             } catch (err) {
               recordFailure(brandPublication.id, 'Facebook post', err);
             }
@@ -712,20 +720,23 @@ export async function GET(request: Request) {
           await publishBrandStories();
         }
 
-        if (socialSlot.type === 'brand-story') {
+      if (socialSlot.type === 'brand-story') {
           await publishBrandStories();
         }
 
-        if (socialSlot.type === 'brand-reel') {
+      if (socialSlot.type === 'brand-reel') {
           if (shouldPublishToInstagram) {
             try {
-              const instagramReel = await publishInstagramReel({
+              const result = await publishTracked({
+                contentKind: 'brand', contentId: concept.slug, contentVariant: socialSlot.type,
+                network: 'instagram', placement: 'reel', destinationUrl: brandDestination('instagram', 'reel'),
+              }, async () => (await publishInstagramReel({
                 videoUrl,
-                caption: brandCaption,
-              });
-
-              instagramReelCount++;
-              console.log(`Published ${brandPublication.id} to Instagram as reel ${instagramReel.mediaId}.`);
+                caption: brandCaption('instagram', 'reel'),
+              })).mediaId);
+              if (result.accepted && !result.duplicate) instagramReelCount++;
+              if (result.skipped) skippedLockedCount++;
+              if (result.accepted) console.log(`Published or verified ${brandPublication.id} on Instagram reel as ${result.providerId}.`);
             } catch (err) {
               recordFailure(brandPublication.id, 'Instagram reel', err);
             }
@@ -735,26 +746,34 @@ export async function GET(request: Request) {
 
           if (shouldPublishToFacebook) {
             try {
-              const facebookVideo = await publishFacebookVideoPost({
+              const destinationUrl = brandDestination('facebook', 'video');
+              const result = await publishTracked({
+                contentKind: 'brand', contentId: concept.slug, contentVariant: socialSlot.type,
+                network: 'facebook', placement: 'video', destinationUrl,
+              }, async () => (await publishFacebookVideoPost({
                 videoUrl,
-                caption: brandCaption,
-                linkUrl,
-              });
-
-              facebookVideoCount++;
-              console.log(`Published ${brandPublication.id} to Facebook as video ${facebookVideo.videoId}.`);
+                caption: brandCaption('facebook', 'video'),
+                linkUrl: destinationUrl,
+              })).videoId);
+              if (result.accepted && !result.duplicate) facebookVideoCount++;
+              if (result.skipped) skippedLockedCount++;
+              if (result.accepted) console.log(`Published or verified ${brandPublication.id} on Facebook video as ${result.providerId}.`);
             } catch (err) {
               recordFailure(brandPublication.id, 'Facebook video', err);
 
               try {
-                const fallbackPost = await publishFacebookPhotoPost({
+                const destinationUrl = brandDestination('facebook', 'post');
+                const result = await publishTracked({
+                  contentKind: 'brand', contentId: concept.slug, contentVariant: `${socialSlot.type}-fallback`,
+                  network: 'facebook', placement: 'post', destinationUrl,
+                }, async () => (await publishFacebookPhotoPost({
                   imageUrl: reelCoverImageUrl,
-                  caption: brandCaption,
-                  linkUrl,
-                });
-
-                facebookCount++;
-                console.log(`Published ${brandPublication.id} reel cover to Facebook as fallback post ${fallbackPost.postId}.`);
+                  caption: brandCaption('facebook', 'post'),
+                  linkUrl: destinationUrl,
+                })).postId);
+                if (result.accepted && !result.duplicate) facebookCount++;
+                if (result.skipped) skippedLockedCount++;
+                if (result.accepted) console.log(`Published or verified ${brandPublication.id} reel cover fallback on Facebook as ${result.providerId}.`);
               } catch (fallbackErr) {
                 recordFailure(brandPublication.id, 'Facebook reel cover fallback', fallbackErr);
               }
@@ -764,7 +783,6 @@ export async function GET(request: Request) {
           }
 
           await publishBrandStories();
-        }
       }
 
       if (!dryRun && failures.length > 0) {
@@ -814,6 +832,7 @@ export async function GET(request: Request) {
         facebookTrackingColumn: hasFacebookPostedColumn,
         socialRotationColumn: hasSocialLastPostedAtColumn,
         skippedLocked: skippedLockedCount,
+        duplicatePlacements: duplicatePublicationCount,
         planned,
         failures,
         warnings,
@@ -867,7 +886,11 @@ export async function GET(request: Request) {
     for (const listing of rotatingListings as SocialListing[]) {
       const plannedImageUrl = getSocialCardUrl(siteUrl, listing.id, 'post');
       const plannedStoryImageUrl = getSocialCardUrl(siteUrl, listing.id, 'story');
-      const caption = formatCaption(listing);
+      const listingDestination = (network: 'instagram' | 'facebook', placement: 'post' | 'story') => getAttributedSocialUrl(getListingUrl(listing), {
+        network,
+        placement,
+        contentKind: 'listing',
+      });
       const pendingNetworks = [
         'Instagram post',
         'Instagram story',
@@ -886,13 +909,6 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const lockCreated = await tryCreateDailySocialLock(supabase, listing, runDate);
-
-      if (!lockCreated) {
-        skippedLockedCount++;
-        continue;
-      }
-
       try {
         const imageUrl = await getPublicJpegSocialImageUrl(listing, 'post');
         const storyImageUrl = await getPublicJpegSocialImageUrl(listing, 'story');
@@ -902,28 +918,33 @@ export async function GET(request: Request) {
 
         if (shouldPublishToInstagram) {
           try {
-            const instagramPost = await publishInstagramImagePost({
+            const destinationUrl = listingDestination('instagram', 'post');
+            const result = await publishTracked({
+              contentKind: 'listing', contentId: listing.id, contentVariant: 'listing',
+              network: 'instagram', placement: 'post', destinationUrl,
+            }, async () => (await publishInstagramImagePost({
               imageUrl,
-              caption,
-            });
-
-            instagramCount++;
-            publishedToAnyNetwork = true;
-            publishedToInstagram = true;
-            console.log(`Published listing ${listing.id} to Instagram as media ${instagramPost.mediaId}.`);
+              caption: formatCaption(listing, destinationUrl),
+            })).mediaId);
+            if (result.accepted && !result.duplicate) instagramCount++;
+            if (result.skipped) skippedLockedCount++;
+            publishedToAnyNetwork ||= result.accepted;
+            publishedToInstagram ||= result.accepted;
+            if (result.accepted) console.log(`Published or verified listing ${listing.id} on Instagram as ${result.providerId}.`);
           } catch (err) {
             recordFailure(listing.id, 'Instagram post', err);
           }
 
           try {
-            const instagramStory = await publishInstagramImageStory({
-              imageUrl: storyImageUrl,
-            });
-
-            instagramStoryCount++;
-            publishedToAnyNetwork = true;
-            publishedToInstagram = true;
-            console.log(`Published listing ${listing.id} to Instagram story as media ${instagramStory.mediaId}.`);
+            const result = await publishTracked({
+              contentKind: 'listing', contentId: listing.id, contentVariant: 'listing',
+              network: 'instagram', placement: 'story', destinationUrl: listingDestination('instagram', 'story'),
+            }, async () => (await publishInstagramImageStory({ imageUrl: storyImageUrl })).mediaId);
+            if (result.accepted && !result.duplicate) instagramStoryCount++;
+            if (result.skipped) skippedLockedCount++;
+            publishedToAnyNetwork ||= result.accepted;
+            publishedToInstagram ||= result.accepted;
+            if (result.accepted) console.log(`Published or verified listing ${listing.id} on Instagram story as ${result.providerId}.`);
           } catch (err) {
             recordFailure(listing.id, 'Instagram story', err);
           }
@@ -933,29 +954,34 @@ export async function GET(request: Request) {
 
         if (shouldPublishToFacebook) {
           try {
-            const facebookPost = await publishFacebookPhotoPost({
+            const destinationUrl = listingDestination('facebook', 'post');
+            const result = await publishTracked({
+              contentKind: 'listing', contentId: listing.id, contentVariant: 'listing',
+              network: 'facebook', placement: 'post', destinationUrl,
+            }, async () => (await publishFacebookPhotoPost({
               imageUrl,
-              caption,
-              linkUrl: getListingUrl(listing),
-            });
-
-            facebookCount++;
-            publishedToAnyNetwork = true;
-            publishedToFacebook = true;
-            console.log(`Published listing ${listing.id} to Facebook as post ${facebookPost.postId}.`);
+              caption: formatCaption(listing, destinationUrl),
+              linkUrl: destinationUrl,
+            })).postId);
+            if (result.accepted && !result.duplicate) facebookCount++;
+            if (result.skipped) skippedLockedCount++;
+            publishedToAnyNetwork ||= result.accepted;
+            publishedToFacebook ||= result.accepted;
+            if (result.accepted) console.log(`Published or verified listing ${listing.id} on Facebook as ${result.providerId}.`);
           } catch (err) {
             recordFailure(listing.id, 'Facebook post', err);
           }
 
           try {
-            const facebookStory = await publishFacebookPhotoStory({
-              imageUrl: storyImageUrl,
-            });
-
-            facebookStoryCount++;
-            publishedToAnyNetwork = true;
-            publishedToFacebook = true;
-            console.log(`Published listing ${listing.id} to Facebook story as post ${facebookStory.postId}.`);
+            const result = await publishTracked({
+              contentKind: 'listing', contentId: listing.id, contentVariant: 'listing',
+              network: 'facebook', placement: 'story', destinationUrl: listingDestination('facebook', 'story'),
+            }, async () => (await publishFacebookPhotoStory({ imageUrl: storyImageUrl })).postId);
+            if (result.accepted && !result.duplicate) facebookStoryCount++;
+            if (result.skipped) skippedLockedCount++;
+            publishedToAnyNetwork ||= result.accepted;
+            publishedToFacebook ||= result.accepted;
+            if (result.accepted) console.log(`Published or verified listing ${listing.id} on Facebook story as ${result.providerId}.`);
           } catch (err) {
             recordFailure(listing.id, 'Facebook story', err);
           }
@@ -1037,6 +1063,7 @@ export async function GET(request: Request) {
       facebookTrackingColumn: hasFacebookPostedColumn,
       socialRotationColumn: hasSocialLastPostedAtColumn,
       skippedLocked: skippedLockedCount,
+      duplicatePlacements: duplicatePublicationCount,
       planned,
       failures,
       warnings,

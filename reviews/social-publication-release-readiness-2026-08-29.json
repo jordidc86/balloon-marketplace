@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_social_publication_release_readiness",
+  "capturedAt": "2026-08-29T16:07:47.300Z",
+  "productionChanged": false,
+  "messagesOrPostsSent": 0,
+  "databaseWritesPerformed": 0,
+  "runtime": {
+    "migration": "20260829490000_social_publication_receipts.sql",
+    "ledgerScope": "content_network_placement",
+    "providerAcceptanceIdRequired": true,
+    "ambiguousAutomaticRetryBlocked": true,
+    "boundedRetryCategories": [
+      "rate_limit"
+    ],
+    "maxAttempts": 2,
+    "attribution": {
+      "utmSource": [
+        "instagram",
+        "facebook"
+      ],
+      "utmMedium": "organic_social",
+      "campaigns": [
+        "scheduled_listing",
+        "scheduled_brand"
+      ]
+    }
+  },
+  "validation": {
+    "tests": 138,
+    "testsPassed": 138,
+    "operationalContracts": 133,
+    "operationalContractsPassed": 133,
+    "lint": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "diffCheck": "passed"
+  },
+  "releaseGate": {
+    "readyForGroupedRelease": true,
+    "applyMigrationBeforeRuntime": true,
+    "productionDryRunRequiredBeforeLiveSchedule": true,
+    "scoreChangeAuthorized": false
+  }
+}
