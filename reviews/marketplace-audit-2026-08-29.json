@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T13:39:44.482Z",
+  "capturedAt": "2026-08-29T14:00:23.090Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T13:39:44.482Z"
+    "since": "2026-07-30T14:00:23.090Z"
   },
   "supply": {
     "listingsTotal": 14,

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_buyer_deal_room_production_verification",
+  "capturedAt": "2026-08-29T14:00:23.090Z",
+  "containsPii": false,
+  "deployment": {
+    "site": "https://aerotrade.app",
+    "deployId": "6a92e584c4131c0008a0706c",
+    "sourceCommit": "b0cdeb59cffa6a3cf206ebddb158bdf9cab99722",
+    "state": "ready",
+    "publishedAt": "2026-08-29T13:59:42.417Z"
+  },
+  "capability": {
+    "accountRequired": false,
+    "purposeBound": true,
+    "inquiryBound": true,
+    "buyerEmailBound": true,
+    "lifetimeDays": 90,
+    "rawTokenStored": false,
+    "canReserveEquipment": false,
+    "canMoveMoney": false,
+    "canCreateContract": false
+  },
+  "productionReadback": {
+    "routeStatus": 200,
+    "invalidOrMissingCapabilityFailsClosed": true,
+    "cacheControl": "private, no-store, max-age=0",
+    "referrerPolicy": "no-referrer",
+    "robotsPolicy": "noindex, nofollow, noarchive, nosnippet",
+    "responseRouteHasSamePrivateHeaders": true
+  },
+  "validation": {
+    "testsPassed": 112,
+    "operationalContractsPassed": 107,
+    "lintPassed": true,
+    "productionBuildPassed": true
+  },
+  "liveData": {
+    "readOnlyAuditPassed": true,
+    "marketplaceInquiries": 0,
+    "buyerResponses": 0,
+    "sellerResponses": 0,
+    "syntheticRecordsCreated": 0,
+    "customerEmailsSentDuringVerification": 0,
+    "paymentActions": 0
+  },
+  "scoreChanged": false
+}
