@@ -109,6 +109,16 @@ const checks = [
     required: ['commercial_outcome_events', 'record_commercial_outcome', 'for update', 'enforce_commercial_outcome_status', 'WON status requires an atomic commercial outcome', 'Outcome evidence cannot be downgraded', "p_evidence_source not in ('bank_transfer', 'stripe_payment')", 'grant execute on function public.record_commercial_outcome', 'enable row level security', 'revoke all on public.commercial_outcome_events from anon, authenticated'],
   },
   {
+    name: 'New-balloon requests can become traceable operator-priced proposals',
+    file: 'supabase/migrations/20260829340000_new_balloon_proposals.sql',
+    required: ['new_balloon_quote_proposals', 'proposal_fingerprint text not null unique', 'accept_new_balloon_proposal_delivery', "status='QUOTE_SENT'", 'new_balloon_proposal_buyer', 'enable row level security', 'revoke all on public.new_balloon_quote_proposals from anon, authenticated'],
+  },
+  {
+    name: 'New-balloon proposal stores before sending and advances only after provider acceptance',
+    file: 'src/app/admin/actions.ts',
+    required: ['sendNewBalloonProposal', 'parseNewBalloonProposal', "from('new_balloon_quote_proposals').insert", 'new_balloon_proposal_buyer', "rpc('accept_new_balloon_proposal_delivery'", 'Provider accepted the proposal, but its commercial transition was not verified'],
+  },
+  {
     name: 'Unmet buyer demand is durable, consented and private',
     file: 'supabase/migrations/20260829150000_wanted_requests.sql',
     required: ['wanted_requests', 'notify_on_match boolean not null default false', 'privacy_consent_at', 'wanted_requests_budget_order', 'submission_key text', 'enable row level security', 'revoke all on public.wanted_requests from anon, authenticated'],

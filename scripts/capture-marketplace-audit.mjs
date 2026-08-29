@@ -57,6 +57,7 @@ const [
   rows('listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'),
   rows('commercial_notification_receipts', 'id,notification_type,entity_type,status,created_at,attempted_at,accepted_at'),
   rows('commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'),
+  rows('new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'),
   rows('wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'),
   rows('catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'),
   rows('seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'),

@@ -15,6 +15,7 @@ import { assertStoredListingRequiredFields } from '@/utils/listing-submission.mj
 import { parseListingVerificationDecision } from '@/utils/listing-verification.mjs'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeSellerAssistanceStatus } from '@/utils/seller-assistance.mjs'
+import { newBalloonProposalFingerprint, parseNewBalloonProposal } from '@/utils/new-balloon-proposal.mjs'
 
 async function checkAdmin() {
   const sessionSupabase = await createClient()
@@ -316,6 +317,45 @@ export async function recordCommercialOutcome(
 
   revalidatePath('/admin/commercial')
   revalidatePath('/dashboard')
+}
+
+export async function sendNewBalloonProposal(requestId: string, formData: FormData) {
+  const { supabase, sessionSupabase, adminUserId } = await checkAdmin()
+  const proposal = parseNewBalloonProposal(formData)
+  const { data: quote, error: quoteError } = await supabase.from('quote_requests').select('id,name,email,status').eq('id', requestId).single()
+  if (quoteError || !quote || ['WON', 'LOST'].includes(quote.status)) throw new Error('This quote request is not open')
+
+  const fingerprint = newBalloonProposalFingerprint(requestId, proposal)
+  let { data: stored } = await supabase.from('new_balloon_quote_proposals').select('id,delivery_status,provider_message_id').eq('proposal_fingerprint', fingerprint).maybeSingle()
+  if (!stored) {
+    const { data, error } = await supabase.from('new_balloon_quote_proposals').insert({ quote_request_id: requestId, proposal_fingerprint: fingerprint, ...proposal, recorded_by: adminUserId }).select('id,delivery_status,provider_message_id').single()
+    if (error || !data?.id) throw new Error('The proposal could not be stored before delivery')
+    stored = data
+  }
+
+  const amount = `${(proposal.amount_min_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: proposal.currency })}–${(proposal.amount_max_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: proposal.currency })}`
+  const delivery = await sendCommercialReceiptEmail(supabase, {
+    notificationType: 'new_balloon_proposal_buyer', entityType: 'quote_proposal', entityId: stored.id, recipientRole: 'buyer', to: quote.email,
+    subject: `AeroTrade indicative ${proposal.manufacturer === 'pasha' ? 'Pasha' : 'Schroeder'} balloon proposal`,
+    html: `<h2>Your indicative new-balloon proposal</h2><p>Hello ${escapeHtml(quote.name)},</p><p>AeroTrade has prepared an initial, non-binding price direction for a factory-new <strong>${proposal.manufacturer === 'pasha' ? 'Pasha' : 'Schroeder'}</strong> balloon.</p><p><strong>Indicative range:</strong> ${escapeHtml(amount)}</p><p><strong>Configuration:</strong><br>${escapeHtml(proposal.configuration_summary).replaceAll('\n', '<br>')}</p><p><strong>Delivery guidance:</strong> ${escapeHtml(proposal.delivery_guidance)}</p><p><strong>Valid for discussion until:</strong> ${escapeHtml(proposal.valid_until)}</p>${proposal.terms ? `<p><strong>Conditions:</strong><br>${escapeHtml(proposal.terms).replaceAll('\n', '<br>')}</p>` : ''}<p>This is an invitation to discuss configuration and price. It is not a binding factory quotation, reservation or sale contract.</p><p>Reply to this email to continue with AeroTrade.</p>`,
+    idempotencyKey: `new-balloon-proposal-${fingerprint}`,
+  })
+
+  if (!delivery.success || !delivery.providerMessageId) {
+    const { data, error } = await supabase.from('new_balloon_quote_proposals').update({ delivery_status: 'failed', provider_message_id: null, delivery_error: 'Provider acceptance was not confirmed.', accepted_at: null }).eq('id', stored.id).select('id,delivery_status').single()
+    if (error || data?.delivery_status !== 'failed') throw new Error('Proposal delivery failed and its result needs review')
+    throw new Error('The proposal was stored but email acceptance was not confirmed')
+  }
+
+  const { data: acceptedId, error: acceptanceError } = await sessionSupabase.rpc('accept_new_balloon_proposal_delivery', { p_proposal_id: stored.id, p_provider_message_id: delivery.providerMessageId })
+  const [{ data: proposalReadback }, { data: quoteReadback }] = await Promise.all([
+    supabase.from('new_balloon_quote_proposals').select('id,delivery_status,provider_message_id,accepted_at').eq('id', stored.id).single(),
+    supabase.from('quote_requests').select('id,status').eq('id', requestId).single(),
+  ])
+  if (acceptanceError || acceptedId !== stored.id || proposalReadback?.delivery_status !== 'accepted' || !proposalReadback.accepted_at || quoteReadback?.status !== 'QUOTE_SENT') {
+    throw new Error('Provider accepted the proposal, but its commercial transition was not verified')
+  }
+  revalidatePath('/admin/commercial')
 }
 
 export async function setListingVerification(listingId: string, formData: FormData) {

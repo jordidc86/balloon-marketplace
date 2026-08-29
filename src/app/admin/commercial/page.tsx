@@ -2,7 +2,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { CircleDollarSign, CreditCard, MessageSquare, Plane, Store, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
-import { recordCommercialOutcome, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
+import { recordCommercialOutcome, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,11 +36,14 @@ type Quote = {
   name: string
   email: string
   equipment_type: string
+  manufacturer_preference: string | null
   source_context: string
   status: string
   created_at: string
   journey_key: string | null
 }
+
+type NewBalloonProposal = { id: string; quote_request_id: string; manufacturer: string; currency: string; amount_min_minor: number; amount_max_minor: number; delivery_status: string; valid_until: string; created_at: string }
 
 type WantedRequest = {
   id: string
@@ -195,10 +198,12 @@ export default async function CommercialPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
-  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }] = await Promise.all([
+  const defaultProposalValidUntil = new Date(nowMs + 30 * 86_400_000).toISOString().slice(0, 10)
+  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
-    supabase.from('quote_requests').select('id,name,email,equipment_type,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
+    supabase.from('quote_requests').select('id,name,email,equipment_type,manufacturer_preference,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
+    supabase.from('new_balloon_quote_proposals').select('id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,created_at').order('created_at', { ascending: false }).limit(300),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
@@ -217,6 +222,7 @@ export default async function CommercialPage() {
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
   const typedNegotiationEvents = (negotiationEvents || []) as NegotiationEvent[]
   const typedQuotes = (quotes || []) as Quote[]
+  const typedProposals = (proposals || []) as NewBalloonProposal[]
   const typedWantedRequests = (wantedRequests || []) as WantedRequest[]
   const typedWantedMatchDispatches = (wantedMatchDispatches || []) as WantedMatchDispatch[]
   const typedMatchableListings = (matchableListings || []) as MatchableListing[]
@@ -246,6 +252,8 @@ export default async function CommercialPage() {
   const typedIndexingReceipts = (indexingReceipts || []) as IndexingSubmissionReceipt[]
   const latestIndexingReceipt = typedIndexingReceipts[0]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
+  const latestProposalByQuote = new Map<string, NewBalloonProposal>()
+  for (const proposal of typedProposals) if (!latestProposalByQuote.has(proposal.quote_request_id)) latestProposalByQuote.set(proposal.quote_request_id, proposal)
   const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
   const reveals = typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL').length
   const recentInquiries = typedInquiries.filter((inquiry) => inquiry.created_at >= thirtyDaysAgo)
@@ -504,12 +512,13 @@ export default async function CommercialPage() {
 
       <section className="rounded-2xl border bg-card overflow-hidden">
         <div className="border-b p-6"><h2 className="text-xl font-semibold">New balloon opportunities</h2></div>
-        {quotesError ? <p className="p-6 text-destructive">Quote pipeline unavailable: {quotesError.message}</p> : typedQuotes.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No new-balloon requests yet.</p> : (
+        {quotesError || proposalsError ? <p className="p-6 text-destructive">Quote pipeline unavailable: {quotesError?.message || proposalsError?.message}</p> : typedQuotes.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No new-balloon requests yet.</p> : (
           <div className="divide-y">
-            {typedQuotes.map((quote) => (
-              <div key={quote.id} className="grid gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
+            {typedQuotes.map((quote) => {
+              const latestProposal = latestProposalByQuote.get(quote.id)
+              return <div key={quote.id} className="grid gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
                 <div><p className="font-semibold">{quote.name} · {quote.equipment_type}</p><a href={`mailto:${quote.email}`} className="text-sm text-primary hover:underline">{quote.email}</a><p className="mt-1 text-xs text-muted-foreground">Source: {quote.source_context} · {formatDate(quote.created_at)}</p></div>
-                <span className="text-sm font-bold">{quote.status}</span>
+                <div><span className="text-sm font-bold">{quote.status}</span>{latestProposal ? <p className={`mt-1 text-xs font-semibold ${latestProposal.delivery_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Latest proposal: {latestProposal.delivery_status} · {(Number(latestProposal.amount_min_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: latestProposal.currency })}–{(Number(latestProposal.amount_max_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: latestProposal.currency })}</p> : null}</div>
                 {quote.status === 'WON' ? <p className="text-sm font-semibold text-emerald-700">Won · managed through the outcome evidence below</p> : <form action={updateQuoteRequestStatus.bind(null, quote.id)} className="flex gap-2">
                   <select name="status" defaultValue={quote.status} className="rounded-lg border bg-background px-3 py-2 text-sm">
                     {['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'LOST'].map((status) => <option value={status} key={status}>{status}</option>)}
@@ -517,10 +526,13 @@ export default async function CommercialPage() {
                   <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
                 </form>}
                 <div className="lg:col-span-3">
+                  {!['WON', 'LOST'].includes(quote.status) ? <NewBalloonProposalEditor quote={quote} defaultValidUntil={defaultProposalValidUntil} /> : null}
+                </div>
+                <div className="lg:col-span-3">
                   <OutcomeEditor entityType="quote_request" entityId={quote.id} outcome={outcomesByEntity.get(`quote_request:${quote.id}`)} />
                 </div>
               </div>
-            ))}
+            })}
           </div>
         )}
       </section>
@@ -575,4 +587,22 @@ function OutcomeEditor({ entityType, entityId, outcome }: {
       </form>
     </details>
   )
+}
+
+function NewBalloonProposalEditor({ quote, defaultValidUntil }: { quote: Quote; defaultValidUntil: string }) {
+  return <details className="rounded-xl border bg-primary/5">
+    <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">Prepare and send an indicative new-balloon proposal</summary>
+    <form action={sendNewBalloonProposal.bind(null, quote.id)} className="grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <select name="proposal_manufacturer" defaultValue={['pasha', 'schroeder'].includes(quote.manufacturer_preference || '') ? quote.manufacturer_preference || 'pasha' : 'pasha'} className="rounded-lg border bg-background px-3 py-2 text-sm"><option value="pasha">Pasha</option><option value="schroeder">Schroeder</option></select>
+      <select name="proposal_currency" defaultValue="EUR" className="rounded-lg border bg-background px-3 py-2 text-sm"><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="USD">USD</option></select>
+      <input name="proposal_amount_min" required inputMode="decimal" placeholder="Minimum indicative amount" aria-label="Minimum indicative amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+      <input name="proposal_amount_max" required inputMode="decimal" placeholder="Maximum indicative amount" aria-label="Maximum indicative amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+      <textarea name="proposal_configuration" required minLength={20} maxLength={2000} placeholder="Configuration included in this range" className="min-h-24 rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2 lg:col-span-4" />
+      <input name="proposal_delivery_guidance" required maxLength={500} placeholder="Indicative delivery guidance" className="rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2" />
+      <label className="grid gap-1 text-xs font-medium">Valid until<input name="proposal_valid_until" type="date" required defaultValue={defaultValidUntil} className="rounded-lg border bg-background px-3 py-2 text-sm" /></label>
+      <button className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Store and send proposal</button>
+      <textarea name="proposal_terms" maxLength={2000} placeholder="Conditions, exclusions and assumptions. Never include passwords or payment-card data." className="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2 lg:col-span-4" />
+      <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-4">Nothing is sent until this button is pressed. The proposal is explicitly non-binding. QUOTE_SENT is recorded only after provider acceptance and database readback.</p>
+    </form>
+  </details>
 }
