@@ -637,6 +637,12 @@ const checks = [
     required: ["'SELLER_EMAIL_CAPABILITY'", "receipt.status = 'accepted'", 'receipt.provider_message_id is not null', "interval '15 days'", 'p_listing_ids uuid[]', 'grant execute on function public.confirm_listing_availability_from_seller_digest', 'to service_role'],
   },
   {
+    name: 'Seller confirmation converts trust into voluntary measurable distribution',
+    file: 'src/app/seller/availability/SellerAvailabilityConfirmationForm.tsx',
+    required: ['Availability confirmed', 'Put the confirmed listings in front of buyers', 'Nothing is sent automatically', 'ListingShare', 'source="seller_share"'],
+    forbidden: ['sendEmail', 'sendCommercialReceiptEmail', 'fetch('],
+  },
+  {
     name: 'Listing verification decisions store only closed evidence categories and atomic audit events',
     file: 'supabase/migrations/20260829280000_listing_verification_workflow.sql',
     required: ['listing_verification_events', 'request_listing_verification', 'decide_listing_verification', 'for update', "grant execute on function public.request_listing_verification", 'stores no document copy'],

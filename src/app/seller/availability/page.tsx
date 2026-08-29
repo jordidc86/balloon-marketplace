@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { sellerAvailabilityDigestIdempotencyKey } from '@/utils/seller-availability-digest.mjs'
 import { verifySellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
+import { siteUrl } from '@/utils/site'
 import SellerAvailabilityConfirmationForm from './SellerAvailabilityConfirmationForm'
 
 export const metadata: Metadata = {
@@ -99,7 +100,13 @@ export default async function SellerAvailabilityPage({ searchParams }: { searchP
           })}
         </ul>
       </section>
-      <SellerAvailabilityConfirmationForm sellerId={seller.id} digestKey={digestKey} token={token} listingCount={dueListings.length} />
+      <SellerAvailabilityConfirmationForm
+        sellerId={seller.id}
+        digestKey={digestKey}
+        token={token}
+        baseUrl={siteUrl}
+        listings={dueListings.map((listing) => ({ id: listing.id, title: listing.title }))}
+      />
       <section className="flex items-start gap-3 rounded-xl border bg-muted/30 p-4"><Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><p className="text-sm text-muted-foreground">Confirmation creates one dated evidence record per listed advert. It does not change price, publication, ownership, payment or claim that AeroTrade inspected the equipment. If an advert is no longer available, do not confirm it; sign in and close or edit it instead.</p></section>
     </main>
   )

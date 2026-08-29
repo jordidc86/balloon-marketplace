@@ -1,16 +1,28 @@
 'use client'
 
 import { useActionState } from 'react'
-import { CheckCircle2, Loader2, TriangleAlert } from 'lucide-react'
+import { CheckCircle2, Loader2, Share2, TriangleAlert } from 'lucide-react'
+import ListingShare from '@/components/ListingShare'
 import { submitSellerAvailabilityConfirmation, type SellerAvailabilityConfirmationState } from './actions'
 
 const initialState: SellerAvailabilityConfirmationState = { success: false, message: '' }
 
-export default function SellerAvailabilityConfirmationForm({ sellerId, digestKey, token, listingCount }: { sellerId: string; digestKey: string; token: string; listingCount: number }) {
+type ConfirmableListing = { id: string; title: string }
+
+export default function SellerAvailabilityConfirmationForm({ sellerId, digestKey, token, baseUrl, listings }: { sellerId: string; digestKey: string; token: string; baseUrl: string; listings: ConfirmableListing[] }) {
   const [state, formAction, pending] = useActionState(submitSellerAvailabilityConfirmation, initialState)
+  const listingCount = listings.length
 
   if (state.success) {
-    return <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950"><CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0" /><div><h2 className="font-semibold">Availability confirmed</h2><p className="mt-1 text-sm">{state.message}</p></div></div>
+    return <div className="space-y-4">
+      <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950"><CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0" /><div><h2 className="font-semibold">Availability confirmed</h2><p className="mt-1 text-sm">{state.message}</p></div></div>
+      <section className="rounded-xl border bg-card p-5">
+        <div className="flex items-start gap-3"><Share2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><div><h2 className="font-semibold">Put the confirmed listings in front of buyers</h2><p className="mt-1 text-sm text-muted-foreground">Choose any listing below to share it through your own network. Nothing is sent automatically; AeroTrade only measures visits to these seller-share links.</p></div></div>
+        <div className="mt-4 divide-y rounded-xl border">
+          {listings.map((listing) => <div key={listing.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="font-semibold">{listing.title}</p><ListingShare baseUrl={baseUrl} listingId={listing.id} title={listing.title} source="seller_share" compact /></div>)}
+        </div>
+      </section>
+    </div>
   }
 
   return (
