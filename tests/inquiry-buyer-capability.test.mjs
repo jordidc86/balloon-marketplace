@@ -2,8 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   inquiryBuyerCapabilityLifetimeMs,
+  inquiryBuyerPortalCapabilityLifetimeMs,
+  isInquiryBuyerResponseWindowOpen,
   signInquiryBuyerCapability,
+  signInquiryBuyerPortalCapability,
   verifyInquiryBuyerCapability,
+  verifyInquiryBuyerPortalCapability,
 } from '../src/utils/inquiry-buyer-capability.mjs'
 import { parseBuyerInquiryResponse } from '../src/utils/inquiry-safety.mjs'
 
@@ -20,6 +24,22 @@ test('buyer negotiation capability is email, inquiry, event and expiry bound', (
   assert.equal(verifyInquiryBuyerCapability({ inquiryId, eventId: inquiryId, buyerEmail: 'buyer@example.com', expiresAt, secret, token }, now), false)
   assert.equal(verifyInquiryBuyerCapability({ inquiryId, eventId, buyerEmail: 'other@example.com', expiresAt, secret, token }, now), false)
   assert.equal(verifyInquiryBuyerCapability({ inquiryId, eventId, buyerEmail: 'buyer@example.com', expiresAt, secret, token }, new Date(expiresAt.getTime() + 1000)), false)
+})
+
+test('buyer deal-room capability is inquiry, email and 90-day expiry bound', () => {
+  const portalExpiry = new Date(now.getTime() + inquiryBuyerPortalCapabilityLifetimeMs)
+  const token = signInquiryBuyerPortalCapability({ inquiryId, buyerEmail: ' Buyer@Example.com ', expiresAt: portalExpiry, secret })
+  assert.match(token, /^\d{10}\.[0-9a-f]{64}$/)
+  assert.equal(verifyInquiryBuyerPortalCapability({ inquiryId, buyerEmail: 'buyer@example.com', secret, token }, now), true)
+  assert.equal(verifyInquiryBuyerPortalCapability({ inquiryId: eventId, buyerEmail: 'buyer@example.com', secret, token }, now), false)
+  assert.equal(verifyInquiryBuyerPortalCapability({ inquiryId, buyerEmail: 'other@example.com', secret, token }, now), false)
+  assert.equal(verifyInquiryBuyerPortalCapability({ inquiryId, buyerEmail: 'buyer@example.com', secret, token }, new Date(portalExpiry.getTime() + 1000)), false)
+})
+
+test('buyer response window closes exactly after its signed expiry', () => {
+  assert.equal(isInquiryBuyerResponseWindowOpen(expiresAt, now), true)
+  assert.equal(isInquiryBuyerResponseWindowOpen(expiresAt, new Date(expiresAt.getTime() + 1)), false)
+  assert.equal(isInquiryBuyerResponseWindowOpen('invalid', now), false)
 })
 
 test('buyer response accepts only one closed action contract', () => {

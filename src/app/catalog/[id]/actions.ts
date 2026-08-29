@@ -16,6 +16,7 @@ import { createPremiumListingCheckout } from '@/utils/listing-checkout'
 import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeListingCommercialIntentStage } from '@/utils/listing-commercial-intent.mjs'
+import { inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
 
 type ListingDetailsForm = Record<string, string | number | boolean | null | undefined>
 
@@ -229,6 +230,15 @@ export async function submitListingInquiry(listingId: string, formData: FormData
   }
 
   const listingUrl = `${siteUrl}/catalog/${listing.id}`
+  const buyerPortalToken = signInquiryBuyerPortalCapability({
+    inquiryId: stored.id,
+    buyerEmail: inquiry.buyer_email,
+    expiresAt: new Date(Date.now() + inquiryBuyerPortalCapabilityLifetimeMs),
+    secret: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  })
+  const buyerPortalUrl = buyerPortalToken
+    ? `${siteUrl}/inquiry/status?id=${encodeURIComponent(stored.id)}&token=${encodeURIComponent(buyerPortalToken)}`
+    : null
   const indicativeOffer = inquiry.initial_offer_amount_minor === null
     ? null
     : (inquiry.initial_offer_amount_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: listing.currency })
@@ -294,7 +304,8 @@ export async function submitListingInquiry(listingId: string, formData: FormData
       html: `<h2>Your enquiry is safely recorded</h2>
       <p>We have sent your enquiry about <strong>${escapeHtml(listing.title)}</strong> to the seller.</p>
       ${indicativeOffer ? `<p>Your non-binding price indication of <strong>${escapeHtml(indicativeOffer)}</strong> was recorded. It does not reserve the equipment or form a sale contract.</p>` : ''}
-      <p>The seller now has your contact details and can respond directly. AeroTrade has retained the opportunity so it can be followed up if it remains unattended.</p>
+      <p>The seller now has your contact details and can respond through AeroTrade. The opportunity remains recorded so it can be followed up if it is unattended.</p>
+      ${buyerPortalUrl ? `<p><a href="${escapeHtml(buyerPortalUrl)}">Open your private enquiry status and negotiation history</a>. This private link expires after 90 days.</p>` : ''}
       <p><a href="${escapeHtml(listingUrl)}">Return to the listing</a></p>`,
       idempotencyKey: `inquiry-buyer-ack-${stored.id}`,
     })

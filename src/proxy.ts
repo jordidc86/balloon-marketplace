@@ -2,7 +2,13 @@ import { type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
 export async function proxy(request: NextRequest) {
-  return await updateSession(request)
+  const response = await updateSession(request)
+  if (request.nextUrl.pathname === '/inquiry/status' || request.nextUrl.pathname === '/inquiry/respond') {
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0')
+    response.headers.set('Referrer-Policy', 'no-referrer')
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet')
+  }
+  return response
 }
 
 export const config = {
@@ -10,4 +16,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-

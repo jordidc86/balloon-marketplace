@@ -147,9 +147,30 @@ const checks = [
     required: ['inquiryBuyerCapabilityLifetimeMs', 'inquiry-buyer-response|v1', 'createHmac', 'timingSafeEqual', 'maximumFutureLifetimeMs'],
   },
   {
+    name: 'Buyers receive a private account-free deal room with bounded authority',
+    file: 'src/app/inquiry/status/page.tsx',
+    required: ['verifyInquiryBuyerPortalCapability', 'Private AeroTrade deal room', 'responding_to_event_id', 'signInquiryBuyerCapability', 'noarchive: true', 'No status on this page reserves equipment, moves money or creates a sale contract.'],
+    forbidden: ['contact_email', 'mailto:${inquiry.buyer_email}'],
+  },
+  {
+    name: 'Private enquiry capabilities are never cached, indexed or leaked as referrers',
+    file: 'src/proxy.ts',
+    required: ["request.nextUrl.pathname === '/inquiry/status'", "request.nextUrl.pathname === '/inquiry/respond'", "'Cache-Control', 'private, no-store, max-age=0'", "'Referrer-Policy', 'no-referrer'", "'X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet'"],
+  },
+  {
+    name: 'Buyer deal-room links are inquiry and email bound for 90 days',
+    file: 'src/utils/inquiry-buyer-capability.mjs',
+    required: ['inquiryBuyerPortalCapabilityLifetimeMs', 'inquiry-buyer-portal|v1', 'maximumFuturePortalLifetimeMs', 'verifyInquiryBuyerPortalCapability'],
+  },
+  {
+    name: 'Stored enquiries and seller updates issue fresh private status links',
+    file: 'src/app/catalog/[id]/actions.ts',
+    required: ['signInquiryBuyerPortalCapability', '/inquiry/status?id=', 'private enquiry status and negotiation history', 'This private link expires after 90 days.'],
+  },
+  {
     name: 'Seller responses issue a buyer capability without weakening delivery evidence',
     file: 'src/app/dashboard/actions.ts',
-    required: ['signInquiryBuyerCapability', 'capabilityExpiresAt', 'Respond securely through AeroTrade', 'This private link expires after 30 days.', 'inquiry_buyer_seller_response'],
+    required: ['signInquiryBuyerCapability', 'signInquiryBuyerPortalCapability', 'capabilityExpiresAt', 'Respond securely through AeroTrade', 'This private link expires after 30 days.', 'Open the complete private enquiry history', 'This status link expires after 90 days.', 'inquiry_buyer_seller_response'],
   },
   {
     name: 'Buyer replies verify authority before atomic storage and seller notification',

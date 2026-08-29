@@ -14,7 +14,7 @@ import { assertListingHasReachableImage } from '@/utils/listing-image-quality-se
 import { assertStoredListingRequiredFields } from '@/utils/listing-submission.mjs'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { escapeHtml } from '@/utils/html'
-import { inquiryBuyerCapabilityLifetimeMs, signInquiryBuyerCapability } from '@/utils/inquiry-buyer-capability.mjs'
+import { inquiryBuyerCapabilityLifetimeMs, inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerCapability, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
@@ -243,6 +243,15 @@ export async function respondToBuyerInquiry(inquiryId: string, formData: FormDat
     const buyerResponseUrl = buyerCapability
       ? `${siteUrl}/inquiry/respond?id=${encodeURIComponent(inquiry.id)}&event=${encodeURIComponent(event.id)}&token=${encodeURIComponent(buyerCapability)}`
       : null
+    const buyerPortalCapability = signInquiryBuyerPortalCapability({
+      inquiryId: inquiry.id,
+      buyerEmail: inquiry.buyer_email,
+      expiresAt: new Date(Date.now() + inquiryBuyerPortalCapabilityLifetimeMs),
+      secret: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    })
+    const buyerPortalUrl = buyerPortalCapability
+      ? `${siteUrl}/inquiry/status?id=${encodeURIComponent(inquiry.id)}&token=${encodeURIComponent(buyerPortalCapability)}`
+      : null
     let notificationStatus: 'accepted' | 'failed' = 'failed'
     let providerMessageId: string | null = null
     try {
@@ -259,6 +268,7 @@ export async function respondToBuyerInquiry(inquiryId: string, formData: FormDat
         ${event.note ? `<p><strong>Seller note:</strong><br />${escapeHtml(event.note).replaceAll('\n', '<br />')}</p>` : ''}
         <p>All amounts in this message are invitations to negotiate only. This message does not reserve the equipment, execute a payment or form a sale contract.</p>
         ${buyerResponseUrl ? `<p><a href="${escapeHtml(buyerResponseUrl)}">Respond securely through AeroTrade</a>. This private link expires after 30 days.</p>` : ''}
+        ${buyerPortalUrl ? `<p><a href="${escapeHtml(buyerPortalUrl)}">Open the complete private enquiry history</a>. This status link expires after 90 days.</p>` : ''}
         <p>You can also contact the seller at <a href="mailto:${escapeHtml(listing.contact_email)}">${escapeHtml(listing.contact_email)}</a> or <a href="${escapeHtml(`${siteUrl}/catalog/${listing.id}`)}">return to the listing</a>.</p>`,
         idempotencyKey: `inquiry-buyer-seller-response-${event.id}`,
       })
