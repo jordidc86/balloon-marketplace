@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
   const { data: listings, error: listingError } = await supabase
     .from('listings')
-    .select('id,title,details,category,status,public_at')
+    .select('id,title,details,category,location_country,status,public_at')
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
   if (listingError) return NextResponse.json({ error: 'Public inventory could not be loaded' }, { status: 500 })
 

@@ -4,6 +4,7 @@ import { siteUrl } from '@/utils/site';
 import { isListingPubliclyIndexable } from '@/utils/marketplace-seo.mjs';
 import { getCatalogCategory, getCatalogCategoryPath } from '@/utils/catalog-categories.mjs';
 import { getCatalogManufacturerPath, getCatalogManufacturersWithInventory, minimumManufacturerInventoryForIndexing } from '@/utils/catalog-manufacturers.mjs';
+import { getCatalogCountriesWithInventory, getCatalogCountryPath, minimumCountryInventoryForIndexing } from '@/utils/catalog-countries.mjs';
 
 // Listing visibility depends on the current Premium release timestamp. Generate
 // the sitemap at request time so builds never freeze or require production data.
@@ -34,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createAdminClient();
   const { data: listings } = await supabase
     .from('listings')
-    .select('id, title, details, category, status, public_at, updated_at, images(url, is_primary)')
+    .select('id, title, details, category, location_country, status, public_at, updated_at, images(url, is_primary)')
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']);
 
   const listingRoutes = (listings || [])
@@ -70,5 +71,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...routes, ...categoryRoutes, ...publicManufacturerRoutes, ...listingRoutes];
+  const publicCountryRoutes = getCatalogCountriesWithInventory(
+    (listings || []).filter((listing) => isListingPubliclyIndexable(listing)),
+    minimumCountryInventoryForIndexing,
+  ).map((country) => ({
+    url: `${siteUrl}${getCatalogCountryPath(country.slug)}`,
+    changeFrequency: 'daily' as const,
+    priority: 0.8,
+  }));
+
+  return [...routes, ...categoryRoutes, ...publicManufacturerRoutes, ...publicCountryRoutes, ...listingRoutes];
 }

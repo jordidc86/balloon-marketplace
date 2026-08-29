@@ -150,7 +150,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const displayTitle = canViewFully ? typedListing.title : getPublicTeaserTitle(typedListing.category)
   const displayPrice = canViewFully
     ? typedListing.price === 0 ? 'Inquire for Pricing' : `${Number(typedListing.price).toLocaleString()} ${typedListing.currency}`
-    : 'Premium Exclusive'
+    : 'Buyer Early Access'
   const publicAtLabel = typedListing.public_at
     ? formatDistanceToNow(new Date(typedListing.public_at))
     : 'soon'
@@ -181,11 +181,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <div className="flex items-center gap-3">
             <Lock className="w-5 h-5 shrink-0" />
             <p className="font-medium text-sm sm:text-base">
-              This listing is in the 48-hour Premium Exclusive window. It will be public in {publicAtLabel}.
+              This promoted listing is in its 48-hour Buyer Early Access window. It will be public in {publicAtLabel}.
             </p>
           </div>
           <Link href="/pricing" className="bg-background text-foreground hover:bg-muted px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors">
-            Unlock Now
+            Get Buyer Early Access
           </Link>
         </div>
       )}
@@ -259,12 +259,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             {!canViewFully && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/20 backdrop-blur-[2px] text-center p-6">
                 <Lock className="w-12 h-12 text-accent mb-4" />
-                <h3 className="text-2xl font-extrabold shadow-sm">Premium Exclusive</h3>
+                <h3 className="text-2xl font-extrabold shadow-sm">Buyer Early Access</h3>
                 <p className="text-muted-foreground font-medium mt-2 max-w-sm">
-                  Photos and full details are currently locked. Upgrade to unlock this listing immediately.
+                  Photos and full details are locked for the 48-hour buyer window. Get Buyer Early Access to view them now.
                 </p>
                 <Link href="/pricing" className="mt-6 bg-accent text-accent-foreground px-8 py-3 rounded-full font-bold hover:opacity-90 transition-opacity">
-                  View Full Listing
+                  Get Buyer Early Access
                 </Link>
               </div>
             )}
@@ -350,7 +350,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <div className="mt-8">
               <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-2">Description</span>
               <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed">
-                {canViewFully ? typedListing.description : 'Full equipment details are available to Premium members during the exclusive window.'}
+                {canViewFully ? typedListing.description : 'Full equipment details are available to Buyer Early Access members during the 48-hour window.'}
               </p>
             </div>
           </div>
@@ -361,7 +361,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               <div className="space-y-3">
                 <Link href="/pricing" className="w-full flex justify-center items-center gap-2 bg-accent text-accent-foreground py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity">
                   <Lock className="w-5 h-5" />
-                  Upgrade to Contact Seller
+                  Get Buyer Early Access to Contact Seller
                 </Link>
                 <Link href={newBalloonHref} className="w-full flex justify-center items-center gap-2 border border-primary/30 bg-primary/5 py-3 rounded-xl font-bold text-primary hover:bg-primary/10 transition-colors">
                   Get an approximate new-balloon budget

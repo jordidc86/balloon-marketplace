@@ -15,6 +15,13 @@ import {
   minimumManufacturerInventoryForIndexing,
 } from '@/utils/catalog-manufacturers.mjs'
 import { isListingPubliclyIndexable } from '@/utils/marketplace-seo.mjs'
+import {
+  getCatalogCountriesWithInventory,
+  getCatalogCountry,
+  getCatalogCountryPath,
+  listingMatchesCatalogCountry,
+  minimumCountryInventoryForIndexing,
+} from '@/utils/catalog-countries.mjs'
 import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = {
@@ -48,10 +55,12 @@ export async function CatalogExperience({
   searchParams,
   fixedCategory,
   fixedManufacturer,
+  fixedCountry,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
   fixedCategory?: string | null
   fixedManufacturer?: string | null
+  fixedCountry?: string | null
 }) {
   const supabase = await createClient()
   const supabaseAdmin = await createAdminClient()
@@ -59,9 +68,10 @@ export async function CatalogExperience({
 
   const category = getCatalogCategory(fixedCategory || (typeof params.category === 'string' ? params.category : null))
   const manufacturer = getCatalogManufacturer(fixedManufacturer || '')
+  const country = getCatalogCountry(fixedCountry || '')
   const categoryFilter = category?.slug || null
   const searchQuery = typeof params.q === 'string' ? params.q.trim() : ''
-  const countryFilter = typeof params.country === 'string' ? params.country.trim() : ''
+  const countryFilter = country?.name || (typeof params.country === 'string' ? params.country.trim() : '')
   const sort = typeof params.sort === 'string' && ['newest', 'price_asc', 'price_desc'].includes(params.sort) ? params.sort : 'newest'
   const newBalloonParams = new URLSearchParams({ source: searchQuery || categoryFilter || countryFilter ? 'catalog-empty' : 'catalog' })
   if (categoryFilter) newBalloonParams.set('category', categoryFilter)
@@ -86,11 +96,16 @@ export async function CatalogExperience({
   const scopedInventory = (inventoryRows || []).filter((listing) => (
     (!categoryFilter || listing.category === categoryFilter)
       && (!manufacturer || listingMatchesCatalogManufacturer(listing, manufacturer))
+      && (!country || listingMatchesCatalogCountry(listing, country))
   ))
   const countries = Array.from(new Set(scopedInventory.map((row) => row.location_country).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const publicManufacturerLinks = getCatalogManufacturersWithInventory(
     (inventoryRows || []).filter((listing) => isListingPubliclyIndexable(listing)),
     minimumManufacturerInventoryForIndexing,
+  )
+  const publicCountryLinks = getCatalogCountriesWithInventory(
+    (inventoryRows || []).filter((listing) => isListingPubliclyIndexable(listing)),
+    minimumCountryInventoryForIndexing,
   )
 
   let query = supabaseAdmin
@@ -122,7 +137,11 @@ export async function CatalogExperience({
     query = query.or(`title.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,location_country.ilike.%${escapedQuery}%`)
   }
 
-  if (countryFilter) query = query.eq('location_country', countryFilter)
+  if (country) {
+    query = query.in('location_country', country.inventoryValues)
+  } else if (countryFilter) {
+    query = query.eq('location_country', countryFilter)
+  }
   query = sort === 'price_asc'
     ? query.order('price', { ascending: true }).order('created_at', { ascending: false })
     : sort === 'price_desc'
@@ -139,7 +158,9 @@ export async function CatalogExperience({
   const catalogListings = (rawListings || []).filter((listing) => (
     !manufacturer || listingMatchesCatalogManufacturer(listing, manufacturer)
   ))
-  const catalogPath = manufacturer
+  const catalogPath = country
+    ? getCatalogCountryPath(country.slug)
+    : manufacturer
     ? getCatalogManufacturerPath(manufacturer.slug)
     : categoryFilter
       ? getCatalogCategoryPath(categoryFilter)
@@ -147,16 +168,16 @@ export async function CatalogExperience({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <CatalogSearchTracker search={{ query: searchQuery || manufacturer?.name || '', category: categoryFilter, country: countryFilter, sort, resultCount: catalogListings.length }} />
+      <CatalogSearchTracker search={{ query: searchQuery || manufacturer?.name || '', category: categoryFilter, country: country?.name || countryFilter, sort, resultCount: catalogListings.length }} />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{manufacturer?.heading || category?.heading || 'Marketplace Catalog'}</h1>
-          <p className="text-muted-foreground mt-1">{manufacturer?.description || category?.description || 'Browse the latest hot air balloon equipment worldwide.'}</p>
+          <h1 className="text-3xl font-bold tracking-tight">{country?.heading || manufacturer?.heading || category?.heading || 'Marketplace Catalog'}</h1>
+          <p className="text-muted-foreground mt-1">{country?.description || manufacturer?.description || category?.description || 'Browse the latest hot air balloon equipment worldwide.'}</p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold"><Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="text-primary hover:underline">Cannot find it used? Record what you need →</Link><Link href={newBalloonHref} className="text-primary hover:underline">Prefer factory-new? Buy through AeroTrade →</Link></div>
         </div>
 
         <div className="flex max-w-full flex-wrap items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
-          <Link href="/catalog" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!categoryFilter && !manufacturer ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>All</Link>
+          <Link href="/catalog" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!categoryFilter && !manufacturer && !country ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>All</Link>
           <Link href={getCatalogCategoryPath('complete')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'complete' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Balloons</Link>
           <Link href={getCatalogCategoryPath('envelopes')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'envelopes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Envelopes</Link>
           <Link href={getCatalogCategoryPath('baskets')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'baskets' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Baskets</Link>
@@ -176,16 +197,27 @@ export async function CatalogExperience({
         </div>
       ) : null}
 
+      {publicCountryLinks.length ? (
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-muted-foreground">Browse real inventory by location:</span>
+          {publicCountryLinks.map((item) => (
+            <Link key={item.slug} href={getCatalogCountryPath(item.slug)} className={`rounded-full border px-3 py-1.5 font-semibold transition-colors ${country?.slug === item.slug ? 'border-primary bg-primary text-primary-foreground' : 'bg-background text-foreground hover:border-primary hover:text-primary'}`}>{item.name}</Link>
+          ))}
+        </div>
+      ) : null}
+
       <form method="get" action={catalogPath} className="mb-8 grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1fr_220px_180px_auto]">
         <label className="relative">
           <span className="sr-only">Search equipment</span>
           <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <input name="q" defaultValue={searchQuery} placeholder="Manufacturer, model, country…" className="w-full rounded-lg border bg-background py-2.5 pl-9 pr-3" />
         </label>
-        <select name="country" defaultValue={countryFilter} className="rounded-lg border bg-background px-3 py-2.5">
-          <option value="">All countries</option>
-          {countries.map((country) => <option key={country} value={country}>{country.trim()}</option>)}
-        </select>
+        {country ? <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm font-semibold">Located in {country.name}</div> : (
+          <select name="country" defaultValue={countryFilter} className="rounded-lg border bg-background px-3 py-2.5">
+            <option value="">All countries</option>
+            {countries.map((countryName) => <option key={countryName} value={countryName}>{countryName.trim()}</option>)}
+          </select>
+        )}
         <select name="sort" defaultValue={sort} className="rounded-lg border bg-background px-3 py-2.5">
           <option value="newest">Newest first</option>
           <option value="price_asc">Lowest price</option>
@@ -209,7 +241,7 @@ export async function CatalogExperience({
           const displayTitle = canViewFully ? listing.title : getPublicTeaserTitle(listing.category)
           const displayPrice = canViewFully
             ? listing.price === 0 ? 'Inquire for Pricing' : `${Number(listing.price).toLocaleString()} ${listing.currency}`
-            : 'Premium Exclusive'
+            : 'Buyer Early Access'
           const publicAtLabel = listing.public_at
             ? formatDistanceToNow(new Date(listing.public_at))
             : 'soon'
@@ -221,7 +253,7 @@ export async function CatalogExperience({
                 <div className="h-48 bg-slate-200 relative overflow-hidden flex items-center justify-center shrink-0">
                   <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-white px-4 text-center">
                     <Lock className="w-8 h-8 mb-2 text-accent" />
-                    <span className="font-bold tracking-tight text-sm">PREMIUM EXCLUSIVE</span>
+                    <span className="font-bold tracking-tight text-sm">BUYER EARLY ACCESS</span>
                     <p className="text-xs mt-1 text-slate-300">Public in {publicAtLabel}</p>
                   </div>
                 </div>
@@ -255,7 +287,7 @@ export async function CatalogExperience({
                 )}
                 {isPremiumExclusive && (
                   <div className="absolute top-2 right-2 bg-accent text-accent-foreground text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
-                    Premium Active
+                    Early Access Active
                   </div>
                 )}
               </div>

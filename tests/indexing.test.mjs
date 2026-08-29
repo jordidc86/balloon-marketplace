@@ -5,8 +5,8 @@ import { buildIndexNowSubmission, buildPublicIndexingUrls } from '../src/utils/i
 
 const now = new Date('2026-08-29T10:00:00Z')
 const listings = [
-  { id: 'public-complete', title: 'Cameron Z77', details: { manufacturer: 'Cameron Balloons' }, category: 'complete', status: 'ACTIVE_PUBLIC', public_at: null },
-  { id: 'mature-premium', title: 'Cameron Shadow', details: { manufacturer: 'Cameron' }, category: 'burners', status: 'ACTIVE_PREMIUM', public_at: '2026-08-28T10:00:00Z' },
+  { id: 'public-complete', title: 'Cameron Z77', details: { manufacturer: 'Cameron Balloons' }, category: 'complete', location_country: 'Spain', status: 'ACTIVE_PUBLIC', public_at: null },
+  { id: 'mature-premium', title: 'Cameron Shadow', details: { manufacturer: 'Cameron' }, category: 'burners', location_country: 'Spain', status: 'ACTIVE_PREMIUM', public_at: '2026-08-28T10:00:00Z' },
   { id: 'locked-premium', category: 'envelopes', status: 'ACTIVE_PREMIUM', public_at: '2026-08-30T10:00:00Z' },
   { id: 'draft', category: 'baskets', status: 'DRAFT', public_at: null },
 ]
@@ -19,6 +19,7 @@ test('public indexing includes commercial routes and only releasable inventory',
   assert.ok(urls.includes('https://aerotrade.app/catalog/category/complete'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/category/burners'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/manufacturer/cameron'))
+  assert.ok(urls.includes('https://aerotrade.app/catalog/country/spain'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/public-complete'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/mature-premium'))
   assert.ok(!urls.some((url) => url.includes('locked-premium')))

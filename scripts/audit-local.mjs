@@ -197,6 +197,16 @@ const checks = [
     required: ['getCatalogManufacturer', 'getPublicManufacturerInventory', 'minimumManufacturerInventoryForIndexing', 'isListingPubliclyIndexable', 'robots:', '<CatalogExperience'],
   },
   {
+    name: 'Country acquisition pages exist only for a closed inventory-backed set',
+    file: 'src/utils/catalog-countries.mjs',
+    required: ['minimumCountryInventoryForIndexing = 2', 'getCatalogCountriesWithInventory', 'listingMatchesCatalogCountry', '/catalog/country/'],
+  },
+  {
+    name: 'Country discovery is linked, measured and falls back to real commercial alternatives',
+    file: 'src/app/catalog/page.tsx',
+    required: ['Browse real inventory by location:', 'getCatalogCountryPath', 'fixedCountry', 'CatalogSearchTracker', 'Get a new-balloon estimate'],
+  },
+  {
     name: 'Manufacturer discovery is linked, measured and falls back to real commercial alternatives',
     file: 'src/app/catalog/page.tsx',
     required: ['publicManufacturerLinks', 'Browse real inventory by manufacturer:', 'fixedManufacturer', 'listingMatchesCatalogManufacturer', 'Get a new-balloon estimate'],
