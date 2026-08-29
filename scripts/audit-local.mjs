@@ -198,6 +198,16 @@ const checks = [
     required: ['sendNewBalloonProposal', 'parseNewBalloonProposal', "from('new_balloon_quote_proposals').insert", 'new_balloon_proposal_buyer', "rpc('accept_new_balloon_proposal_delivery'", 'Provider accepted the proposal, but its commercial transition was not verified'],
   },
   {
+    name: 'Stored new-balloon requests acknowledge the buyer independently with durable evidence',
+    file: 'src/app/new-balloon/actions.ts',
+    required: ['sendCommercialReceiptEmail', "notificationType: 'new_balloon_buyer_ack'", "recipientRole: 'buyer'", 'new-balloon-buyer-ack-${requestId}', 'Any initial configuration or budget range is non-binding.', 'buyer acknowledgement could not be completed'],
+  },
+  {
+    name: 'New-balloon buyer acknowledgements use a closed transactional receipt type',
+    file: 'supabase/migrations/20260829430000_new_balloon_buyer_acknowledgement.sql',
+    required: ['new_balloon_buyer_ack', 'commercial_notification_receipts_notification_type_check', 'not a quotation, order or marketing subscription'],
+  },
+  {
     name: 'Unmet buyer demand is durable, consented and private',
     file: 'supabase/migrations/20260829150000_wanted_requests.sql',
     required: ['wanted_requests', 'notify_on_match boolean not null default false', 'privacy_consent_at', 'wanted_requests_budget_order', 'submission_key text', 'enable row level security', 'revoke all on public.wanted_requests from anon, authenticated'],

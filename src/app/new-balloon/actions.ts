@@ -1,11 +1,12 @@
 'use server'
 
 import { createAdminClient } from '@/utils/supabase/server'
-import { sendEmail } from '@/utils/resend'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { newBalloonQuoteSubmissionKey, parseNewBalloonQuoteRequest } from '@/utils/new-balloon-request.mjs'
 import { commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
+import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
+import { siteUrl } from '@/utils/site'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
@@ -116,54 +117,48 @@ export async function submitNewBalloonQuote(formData: FormData) {
     `)
     .join('')
 
-  const notificationKey = `aerotrade-quote-${requestId}`
-  const { data: receipt, error: receiptError } = await supabase
-    .from('commercial_notification_receipts')
-    .upsert({
-      notification_type: 'quote_created_admin',
-      entity_type: 'quote_request',
-      entity_id: requestId,
-      recipient_role: 'admin',
-      status: 'pending',
-      idempotency_key: notificationKey,
-    }, { onConflict: 'idempotency_key' })
-    .select('id')
-    .single()
-
-  if (receiptError || !receipt?.id) {
-    console.error(`Quote request ${requestId} was stored but its notification receipt could not be created`)
-    redirect('/new-balloon?success=true')
+  if (adminEmail) {
+    try {
+      await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'quote_created_admin',
+        entityType: 'quote_request',
+        entityId: requestId,
+        recipientRole: 'admin',
+        to: adminEmail,
+        subject: `New Pasha/Schroeder balloon quote request: ${request.name}`,
+        html: `<h2>New AeroTrade balloon quote request</h2>
+          <p>A buyer is asking for a fast price indication and first visual concept for a new Pasha or Schroeder balloon.</p>
+          <table style="border-collapse: collapse; width: 100%; max-width: 720px;">${rows}</table>`,
+        idempotencyKey: `aerotrade-quote-${requestId}`,
+      })
+    } catch (error) {
+      console.error(`Quote request ${requestId} was stored but its admin notification could not be completed`, error)
+    }
+  } else {
+    console.error(`Quote request ${requestId} was stored but ADMIN_EMAIL is not configured`)
   }
 
-  const delivery = adminEmail ? await sendEmail(
-    adminEmail,
-    `New Pasha/Schroeder balloon quote request: ${request.name}`,
-    `
-      <h2>New AeroTrade balloon quote request</h2>
-      <p>A buyer is asking for a fast price indication and first visual concept for a new Pasha or Schroeder balloon.</p>
-      <table style="border-collapse: collapse; width: 100%; max-width: 720px;">${rows}</table>
-    `,
-    { idempotencyKey: notificationKey },
-  ) : { success: false, resendId: undefined }
-
-  const accepted = delivery.success && delivery.resendId
-  const expectedStatus = accepted ? 'accepted' : 'failed'
-  const now = new Date().toISOString()
-  const { data: notificationReadback, error: notificationError } = await supabase
-    .from('commercial_notification_receipts')
-    .update({
-      status: expectedStatus,
-      provider_message_id: accepted ? delivery.resendId : null,
-      error_message: accepted ? null : adminEmail ? 'Provider acceptance was not confirmed.' : 'ADMIN_EMAIL is not configured.',
-      attempted_at: now,
-      accepted_at: accepted ? now : null,
+  const manufacturerLabel = request.manufacturer_preference === 'advice'
+    ? 'a new Pasha or Schroeder balloon'
+    : `a new ${request.manufacturer_preference === 'pasha' ? 'Pasha' : 'Schroeder'} balloon`
+  const equipmentLabel = request.equipment_type.replaceAll('-', ' ')
+  try {
+    await sendCommercialReceiptEmail(supabase, {
+      notificationType: 'new_balloon_buyer_ack',
+      entityType: 'quote_request',
+      entityId: requestId,
+      recipientRole: 'buyer',
+      to: request.email,
+      subject: 'AeroTrade received your new-balloon request',
+      html: `<h2>Your request is safely recorded</h2>
+        <p>AeroTrade received your request for <strong>${escapeHtml(manufacturerLabel)}</strong> with the equipment scope <strong>${escapeHtml(equipmentLabel)}</strong>.</p>
+        <p>We will review the intended use, capacity, operating country and timing you supplied, then contact you if a detail is needed before preparing an indicative direction.</p>
+        <p>Any initial configuration or budget range is non-binding. It is not a factory order, does not reserve production and creates no payment obligation.</p>
+        <p><a href="${escapeHtml(`${siteUrl}/new-balloon`)}">Review AeroTrade's new-balloon service</a>.</p>`,
+      idempotencyKey: `new-balloon-buyer-ack-${requestId}`,
     })
-    .eq('id', receipt.id)
-    .select('id,status')
-    .single()
-
-  if (notificationError || notificationReadback?.status !== expectedStatus) {
-    console.error(`Quote request ${requestId} was stored but its notification result could not be verified`)
+  } catch (error) {
+    console.error(`Quote request ${requestId} was stored but its buyer acknowledgement could not be completed`, error)
   }
 
   redirect('/new-balloon?success=true')

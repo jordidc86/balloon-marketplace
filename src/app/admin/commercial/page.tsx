@@ -357,6 +357,9 @@ export default async function CommercialPage() {
     + typedNotifications.filter((notification) => notification.status === 'failed').length
     + failedBuyerResponseNotifications
     + failedSellerResponseNotifications
+  const newBalloonBuyerAcknowledgements = typedNotifications.filter((notification) => notification.notification_type === 'new_balloon_buyer_ack')
+  const acceptedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'accepted').length
+  const failedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed').length
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
   const settledRevenueByCurrency = typedOutcomes
@@ -510,6 +513,7 @@ export default async function CommercialPage() {
           })}
         </div>
         <p className="mt-4 text-xs text-muted-foreground">Requests marked “advise me” remain outside either manufacturer until an operator proposal selects one.</p>
+        <p className={`mt-2 text-xs ${failedNewBalloonBuyerAcknowledgements > 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>Buyer acknowledgements: {acceptedNewBalloonBuyerAcknowledgements} accepted · {failedNewBalloonBuyerAcknowledgements} failed.</p>
       </section>
 
       <section className="rounded-2xl border bg-card overflow-hidden">

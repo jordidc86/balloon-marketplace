@@ -136,6 +136,7 @@ const uniqueContactedListings = new Set(recentContacts.map((event) => event.list
 const registeredContacts = recentContacts.filter((event) => event.user_id).length
 const anonymousContacts = recentContacts.length - registeredContacts
 const recentQuotes = quotes.filter((quote) => quote.created_at >= since30d)
+const newBalloonBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'new_balloon_buyer_ack')
 const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   quotes,
   proposals: newBalloonProposals,
@@ -269,6 +270,8 @@ const result = {
     premiumAlertRecipientsAccepted: successfulPremiumAlerts.reduce((sum, run) => sum + Number(run.sent_count || 0), 0),
     commercialNotificationReceipts: commercialNotifications.length,
     commercialNotificationStatuses: countBy(commercialNotifications, 'status'),
+    newBalloonBuyerAcknowledgements: newBalloonBuyerAcknowledgements.length,
+    newBalloonBuyerAcknowledgementStatuses: countBy(newBalloonBuyerAcknowledgements, 'status'),
     listingWatchDispatches: listingWatchDispatches.length,
     listingWatchDispatchStatuses: countBy(listingWatchDispatches, 'status'),
     runStatuses: {
