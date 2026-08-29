@@ -1,8 +1,9 @@
 import { Metadata } from 'next'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'About | AeroTrade Marketplace',
-  description: 'Learn about AeroTrade, the premium global exchange for hot air balloon equipment.',
+  description: 'Learn how AeroTrade helps pilots buy and sell used hot air balloon equipment or source a factory-new Pasha or Schroeder balloon.',
 }
 
 export default function AboutPage() {
@@ -21,6 +22,16 @@ export default function AboutPage() {
         </p>
         <p className="mb-6 leading-relaxed">
           AeroTrade centralizes the global inventory. We act as an open directory where sellers can list equipment easily, and serious buyers can find exactly what they need based on detailed technical specifications.
+        </p>
+
+        <h2 className="text-2xl font-bold mt-12 mb-4">Used is not the only option</h2>
+        <p className="mb-6 leading-relaxed">
+          If the right second-hand aircraft is not available, the search does not end there. AeroTrade can also help you buy a factory-new Pasha or Schroeder balloon, define the intended configuration and prepare an indicative budget before you make a commitment.
+        </p>
+        <p className="mb-6">
+          <Link href="/new-balloon?source=about" className="font-semibold text-primary underline">
+            Request an indicative new-balloon budget
+          </Link>
         </p>
 
         <h2 className="text-2xl font-bold mt-12 mb-4">Trust and Security</h2>

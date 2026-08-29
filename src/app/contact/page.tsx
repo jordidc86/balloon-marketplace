@@ -1,10 +1,11 @@
 import { Metadata } from 'next'
 import { Mail, MessageCircle, Clock } from 'lucide-react'
 import { supportEmail } from '@/utils/site'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Contact Us | AeroTrade Marketplace',
-  description: 'Get in touch with the AeroTrade team for support with your listings or account.',
+  description: 'Contact AeroTrade for marketplace support or request an indicative budget for a factory-new Pasha or Schroeder hot air balloon.',
 }
 
 export default function ContactPage() {
@@ -44,13 +45,19 @@ export default function ContactPage() {
         </div>
 
         <div className="bg-card border p-8 rounded-2xl shadow-sm">
-          <h2 className="text-2xl font-bold mb-4">Send a Message</h2>
+          <h2 className="text-2xl font-bold mb-4">Need a new balloon?</h2>
           <p className="text-muted-foreground mb-6">
-            Email is the fastest way to reach us. Include your listing URL, account email, or balloon details so we can respond with useful context.
+            If you did not find the right used aircraft, AeroTrade can also help you buy a factory-new Pasha or Schroeder balloon. Tell us the intended use and configuration to receive an indicative budget.
           </p>
+          <Link
+            href="/new-balloon?source=contact"
+            className="mb-3 inline-flex w-full items-center justify-center bg-primary text-primary-foreground font-bold py-3 rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Request a New-Balloon Budget
+          </Link>
           <a
             href={`mailto:${supportEmail}?subject=AeroTrade%20support%20request`}
-            className="inline-flex w-full items-center justify-center bg-primary text-primary-foreground font-bold py-3 rounded-lg hover:bg-primary/90 transition-colors"
+            className="inline-flex w-full items-center justify-center border border-primary/30 bg-background text-primary font-bold py-3 rounded-lg hover:bg-primary/5 transition-colors"
           >
             Email AeroTrade Support
           </a>

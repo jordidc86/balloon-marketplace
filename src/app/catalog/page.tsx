@@ -242,13 +242,13 @@ export async function CatalogExperience({
         {rawListings?.length === 0 && (
           <div className="col-span-full py-20 text-center flex flex-col items-center">
             <Filter className="w-12 h-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium text-foreground">No equipment found</h3>
-            <p className="text-muted-foreground mt-1">Check back later or try a different category.</p>
+            <h3 className="text-lg font-medium text-foreground">No suitable used equipment found</h3>
+            <p className="mt-1 max-w-2xl text-muted-foreground">You do not have to wait for another listing. AeroTrade can also sell you a factory-new Pasha or Schroeder balloon and prepare an indicative budget for the configuration you need.</p>
             <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
               <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg bg-foreground px-5 py-2 text-sm font-bold text-background">Record what you need</Link>
               <Link href="/sell" className="text-primary hover:underline font-medium">Have something to sell?</Link>
               <Link href={newBalloonHref} className="bg-primary px-5 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">
-                Buy a new Pasha or Schroeder balloon
+                Request a new Pasha or Schroeder budget
               </Link>
             </div>
           </div>
