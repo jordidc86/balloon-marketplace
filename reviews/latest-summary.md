@@ -6,10 +6,10 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829470000`; four previously remote-only historical versions are also consolidated in source control.
-- Validation: 130 automated tests, 125 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Database migrations are registered and read back through `20260829480000`; four previously remote-only historical versions are also consolidated in source control.
+- Validation: 131 automated tests, 128 operational contracts, ESLint, TypeScript and a full Next.js production build.
 - Current evidence-based score: **92.8%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92f9ff168a0000089ee1af` is ready from tracked source commit `b99e292`.
+- Production deploy `6a92fc538c3abc00086dfed5` is ready from tracked source commit `6e65369`.
 - Buyer-to-seller negotiation replies and the private buyer response route are live. The additive migration is read back, the public route is noindexed, the service-only transition is denied to anonymous callers with `42501`, and verification created no synthetic response or customer email.
 - A conservative Netlify build gate is live: it skips only evidence, documentation, test, script and separately managed migration-only commits, and fails safe for application, function, configuration, unknown-file or diff errors. A replay of the latest 20 commits would have avoided 9 unnecessary builds (45%) while retaining all 11 runtime builds. Production then canceled evidence-only deploy `6a92e249c2b5da0008cf5bb6` for no content change while the runtime release remained ready, confirming the gate rather than merely simulating it.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
@@ -56,6 +56,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Assisted sellers can now provide an existing public advert URL once for private manual transfer review. The application validates and stores the reference but never fetches, copies or publishes its content automatically.
 - Every active public listing now has channel-specific WhatsApp, email, native-share and copy links, while active owners have the same compact controls in their dashboard. The links use bounded campaign labels so genuine seller-led distribution can be separated from legacy unattributed views without sending any message automatically.
 - A buyer not ready to contact can now request a private watch for one listing. Double opt-in, scanner-safe confirmation, material-change snapshots, final consent recheck, provider evidence, idempotent retry and signed unsubscribe keep the alert operational rather than promotional. Sellers see only the aggregate confirmed-watcher count, while Control Tower adds the watch stage to the measured buyer journey.
+- When a watched advert becomes sold or withdrawn, its final unavailable update must be provider-accepted before the watcher enters the terminal `LISTING_CLOSED` state. A failed final delivery remains safely retryable, and confirmation is serialized with listing state inside the database so an old email link cannot reactivate closed inventory. Production migration/function/column readback passed; current production contains 0 watchers, so verification sent no message and invented no demand.
 - The read-only production audit now uses named query specifications. This fixed a silent positional mismatch that had understated seller-funnel evidence and makes future table additions safe from cross-attribution.
 - Private Buyer Early Access checkout ledger, safe session resumption/replacement and signed-webhook closure.
 - Durable email/provider evidence, controlled recovery semantics and privacy-minimized attribution.

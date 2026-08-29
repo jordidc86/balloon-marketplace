@@ -1,7 +1,7 @@
 # AeroTrade Source Index
 
 Status: Production routing index.
-Last updated: 2026-08-28.
+Last updated: 2026-08-29.
 
 ## Primary Orientation Files
 
@@ -20,7 +20,7 @@ Last updated: 2026-08-28.
 | --- | --- | --- |
 | Public pages | `src/app/page.tsx`, `src/app/catalog/`, `src/app/pricing/`, `src/app/sell/`, `src/app/contact/` | Customer-facing; changes need approval. |
 | Admin | `src/app/admin/`, `src/components/admin/` | Operational risk; check role/access assumptions. |
-| Cron endpoints | `src/app/api/cron/newsletter/route.ts`, `src/app/api/cron/social/route.ts`, `src/app/api/cron/instagram/route.ts`, `.github/workflows/newsletter.yml`, `netlify/functions/social-scheduled.mjs` | Live dispatch risk; default to dry-run/proposal. |
+| Cron endpoints | `src/app/api/cron/newsletter/route.ts`, `src/app/api/cron/social/route.ts`, `src/app/api/cron/instagram/route.ts`, `src/app/api/cron/listing-watch/route.ts`, `.github/workflows/newsletter.yml`, `netlify/functions/social-scheduled.mjs` | Live dispatch risk; default to dry-run/proposal. Listing-watch closure preserves the final provider-accepted update before terminal cleanup. |
 | Payments | `src/app/api/webhooks/stripe/`, `src/utils/stripe.ts`, pricing actions | Do not change without exact approval. |
 | Commercial measurement | `src/app/catalog/[id]/ListingViewTracker.tsx`, catalog actions, new-balloon actions, `scripts/capture-commercial-baseline.mjs` | Views, contact reveals, quote persistence and gross payment-notification coverage. |
 | Email | `src/utils/resend.ts`, premium alerts, newsletter cron | Customer-facing; dispatch requires approval. |
