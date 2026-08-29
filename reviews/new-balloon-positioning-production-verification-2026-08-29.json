@@ -1,0 +1,52 @@
+{
+  "verified_at": "2026-08-29T10:43:38Z",
+  "production_origin": "https://aerotrade.app",
+  "code_commit": "17749558e1cd2d880c6883cb14835da392631b0e",
+  "netlify_deploy": {
+    "id": "6a92b77cdb316a41a446bc5b",
+    "state": "ready",
+    "context": "production",
+    "published_at": "2026-08-29T10:42:39.142Z"
+  },
+  "database": {
+    "migration": "20260829350000_new_balloon_positioning_sources",
+    "migration_registered": true,
+    "bounded_sources_include": ["about", "contact"]
+  },
+  "public_readback": [
+    {
+      "path": "/about",
+      "status": 200,
+      "evidence": ["Used is not the only option", "Request an indicative new-balloon budget"]
+    },
+    {
+      "path": "/contact",
+      "status": 200,
+      "evidence": ["Need a new balloon?", "Request a New-Balloon Budget"]
+    },
+    {
+      "path": "/catalog?q=no-such-balloon-zzzz",
+      "status": 200,
+      "evidence": ["No suitable used equipment found", "Request a new Pasha or Schroeder budget"]
+    },
+    {
+      "path": "/new-balloon?source=contact",
+      "status": 200,
+      "evidence": ["Buy a new balloon through AeroTrade", "Request an indicative budget"]
+    }
+  ],
+  "validation": {
+    "automated_tests": 88,
+    "tests_passed": 88,
+    "lint": "passed",
+    "typescript": "passed",
+    "production_build": "passed"
+  },
+  "safety": {
+    "synthetic_quote_requests_created": 0,
+    "proposals_sent": 0,
+    "prices_invented": false,
+    "instant_estimate_enabled": false,
+    "reason": "No authoritative current Pasha or Schroeder price matrix is available in the project."
+  }
+}

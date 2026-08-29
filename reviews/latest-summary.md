@@ -6,10 +6,10 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829340000`.
+- Database migrations are registered and read back through `20260829350000`.
 - Validation: 88 automated tests, 77 operational contracts, ESLint, TypeScript and a full Next.js production build.
-- Current evidence-based score: **90.8%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92b527168a000008049c3c` is live from commit `0886463`.
+- Current evidence-based score: **90.9%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92b77cdb316a41a446bc5b` is live from code commit `1774955`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -21,6 +21,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
 - Daily, opt-in wanted-equipment matching now sends at most five compatible active listings per digest, never repeats an accepted advert and retries failed or stale provider attempts through a private dispatch ledger.
 - First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source and demand context, explicit consent, server-side revalidation, duplicate/rate control and a one-time 24-hour operational follow-up.
+- AeroTrade now states explicitly in its company positioning and contact journey that it can sell a factory-new Pasha or Schroeder balloon when used inventory is unsuitable. About, contact and zero-result entry points route to the same structured quotation path and retain a bounded source for conversion measurement.
 - A stored new-balloon request can now become a structured operator-priced proposal with manufacturer, price range, configuration, delivery guidance, validity and conditions. It is saved before delivery, explicitly non-binding, deduplicated by content and advances to QUOTE_SENT only after provider acceptance plus database readback.
 - Used-catalogue searches now carry category, equipment wording and country into the new-balloon request; production verification preserved all three without creating a fictitious lead.
 - A specific used listing now carries its public model, category and country into the factory-new alternative, so the buyer does not restart the enquiry from zero.
