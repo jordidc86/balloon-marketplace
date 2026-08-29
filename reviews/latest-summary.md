@@ -7,9 +7,9 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 
 - Production: `https://aerotrade.app`, deployed from `main`.
 - Database migrations are registered and read back through `20260829360000`.
-- Validation: 90 automated tests, 81 operational contracts, ESLint, TypeScript and a full Next.js production build.
-- Current evidence-based score: **91.2%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92bbd7b8459d963676d3c6` is live from code commit `d931f665c5088b99638041f4fb86dd8db36edf92`.
+- Validation: 93 automated tests, 83 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Current evidence-based score: **91.5%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92be08f57b8fc130ddcbc0` is live from code commit `1f2213bb76e6fbca76f5902847aa94a204481b7a`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -30,6 +30,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - A daily IndexNow workflow submits only current public commercial URLs. The first 24-URL delivery was accepted with HTTP 202, the result was read back from a private receipt, a repeated execution was suppressed and the admin dashboard exposes aggregate status.
 - Public search contract shared by metadata, structured data and sitemap: 12/12 public listings verified with canonical, indexability, Open Graph and breadcrumbs; 7 truthful priced Product offers, 0 invalid offers, unreleased Premium inventory excluded, and authentication pages noindexed.
 - Four clean, inventory-backed category landing pages now target high-intent used-equipment demand; empty categories are noindexed, historical filter URLs redirect without losing the search and every category keeps a direct new-balloon alternative.
+- Three inventory-backed manufacturer pages now expose 6 Cameron, 3 Kubicek and 2 Ultramagic active matches. A two-public-listing threshold prevents thin pages; Schroeder and unknown manufacturers do not enter the sitemap. The 29-URL public set was accepted by IndexNow and a repeated run was deduplicated.
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
 - Two-check listing-image quarantine: one broken listing was paused, the seller notification was accepted and the post-action audit reports 0 inaccessible active image files.
 - One-time Premium listing checkout recovery: the real pending listing had one expired Stripe session and no paid session; one reminder was accepted, linked to the funnel and duplicate execution was suppressed.

@@ -1,0 +1,72 @@
+{
+  "verifiedAt": "2026-08-29T13:12:03+02:00",
+  "productionOrigin": "https://aerotrade.app",
+  "codeCommit": "1f2213bb76e6fbca76f5902847aa94a204481b7a",
+  "productionDeploy": "6a92be08f57b8fc130ddcbc0",
+  "deployState": "ready",
+  "inventoryRule": {
+    "closedManufacturers": ["cameron", "kubicek", "ultramagic"],
+    "minimumPublicListingsToIndex": 2,
+    "unknownOrThinManufacturerPages": "404 or noindex and excluded from sitemap"
+  },
+  "productionPages": [
+    {
+      "path": "/catalog/manufacturer/cameron",
+      "status": 200,
+      "robots": "index, follow",
+      "matchingActiveListings": 6,
+      "usedAndNewAlternativesPresent": true
+    },
+    {
+      "path": "/catalog/manufacturer/kubicek",
+      "status": 200,
+      "robots": "index, follow",
+      "matchingActiveListings": 3,
+      "usedAndNewAlternativesPresent": true
+    },
+    {
+      "path": "/catalog/manufacturer/ultramagic",
+      "status": 200,
+      "robots": "index, follow",
+      "matchingActiveListings": 2,
+      "usedAndNewAlternativesPresent": true
+    }
+  ],
+  "negativeChecks": {
+    "schroederRouteStatus": 404,
+    "unknownRouteStatus": 404,
+    "bothReturnNoindex": true,
+    "thinManufacturerPresentInSitemap": false
+  },
+  "discovery": {
+    "sitemapStatus": 200,
+    "manufacturerUrls": [
+      "https://aerotrade.app/catalog/manufacturer/cameron",
+      "https://aerotrade.app/catalog/manufacturer/kubicek",
+      "https://aerotrade.app/catalog/manufacturer/ultramagic"
+    ],
+    "indexNowUrlCount": 29,
+    "indexNowProviderStatus": 200,
+    "indexNowAccepted": true,
+    "duplicateRunSuppressed": true
+  },
+  "measurement": {
+    "manufacturerPageVisitsUseExistingPrivateCatalogSearchLedger": true,
+    "dailyDeduplication": true,
+    "rawVisitorIdentifierStored": false,
+    "pagePathIncludedInSessionDeduplication": true
+  },
+  "validation": {
+    "automatedTests": 93,
+    "operationalContracts": 83,
+    "lint": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed"
+  },
+  "sideEffects": {
+    "commercialLeadsCreated": 0,
+    "emailsSent": 0,
+    "listingOrUserRowsChanged": 0
+  },
+  "remainingGap": "IndexNow acceptance exposes these URLs to participating engines but does not prove Google indexing, qualified visits or buyer conversion."
+}
