@@ -6,6 +6,8 @@ import { Metadata } from 'next'
 import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
 import SafeListingImage from '@/components/SafeListingImage'
 import CatalogSearchTracker from './CatalogSearchTracker'
+import { getCatalogCategory, getCatalogCategoryPath } from '@/utils/catalog-categories.mjs'
+import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = {
   title: 'Catalog | AeroTrade Marketplace',
@@ -18,11 +20,35 @@ export default async function CatalogPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+  const params = await searchParams
+  const legacyCategory = getCatalogCategory(typeof params.category === 'string' ? params.category : null)
+
+  if (legacyCategory) {
+    const normalized = new URLSearchParams()
+    for (const key of ['q', 'country', 'sort']) {
+      const value = params[key]
+      if (typeof value === 'string' && value.trim()) normalized.set(key, value.trim())
+    }
+    const query = normalized.toString()
+    redirect(`${getCatalogCategoryPath(legacyCategory.slug)}${query ? `?${query}` : ''}`)
+  }
+
+  return <CatalogExperience searchParams={Promise.resolve(params)} />
+}
+
+export async function CatalogExperience({
+  searchParams,
+  fixedCategory,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  fixedCategory?: string | null
+}) {
   const supabase = await createClient()
   const supabaseAdmin = await createAdminClient()
   const params = await searchParams
-  
-  const categoryFilter = typeof params.category === 'string' ? params.category : null
+
+  const category = getCatalogCategory(fixedCategory || (typeof params.category === 'string' ? params.category : null))
+  const categoryFilter = category?.slug || null
   const searchQuery = typeof params.q === 'string' ? params.q.trim() : ''
   const countryFilter = typeof params.country === 'string' ? params.country.trim() : ''
   const sort = typeof params.sort === 'string' && ['newest', 'price_asc', 'price_desc'].includes(params.sort) ? params.sort : 'newest'
@@ -36,10 +62,12 @@ export default async function CatalogPage({
   }
 
   // Fetch active listings. Locked premium results are rendered with teaser-only fields.
-  const { data: countryRows } = await supabaseAdmin
+  let countryQuery = supabaseAdmin
     .from('listings')
     .select('location_country')
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+  if (categoryFilter) countryQuery = countryQuery.eq('category', categoryFilter)
+  const { data: countryRows } = await countryQuery
   const countries = Array.from(new Set((countryRows || []).map((row) => row.location_country).filter(Boolean))).sort((a, b) => a.localeCompare(b))
 
   let query = supabaseAdmin
@@ -89,25 +117,24 @@ export default async function CatalogPage({
       <CatalogSearchTracker search={{ query: searchQuery, category: categoryFilter, country: countryFilter, sort, resultCount: rawListings?.length || 0 }} />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Marketplace Catalog</h1>
-          <p className="text-muted-foreground mt-1">Browse the latest hot air balloon equipment worldwide.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{category?.heading || 'Marketplace Catalog'}</h1>
+          <p className="text-muted-foreground mt-1">{category?.description || 'Browse the latest hot air balloon equipment worldwide.'}</p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold"><Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="text-primary hover:underline">Cannot find it used? Record what you need →</Link><Link href="/new-balloon?source=catalog" className="text-primary hover:underline">Prefer factory-new? Buy through AeroTrade →</Link></div>
         </div>
 
         <div className="flex max-w-full flex-wrap items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
           <Link href="/catalog" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!categoryFilter ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>All</Link>
-          <Link href="/catalog?category=complete" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'complete' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Balloons</Link>
-          <Link href="/catalog?category=envelopes" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'envelopes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Envelopes</Link>
-          <Link href="/catalog?category=baskets" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'baskets' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Baskets</Link>
-          <Link href="/catalog?category=burners" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'burners' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Burners</Link>
-          <Link href="/catalog?category=bottom-end" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'bottom-end' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Bottom Ends</Link>
-          <Link href="/catalog?category=cylinders" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'cylinders' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Cylinders</Link>
-          <Link href="/catalog?category=other-equipment" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'other-equipment' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Other Equipment</Link>
+          <Link href={getCatalogCategoryPath('complete')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'complete' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Balloons</Link>
+          <Link href={getCatalogCategoryPath('envelopes')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'envelopes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Envelopes</Link>
+          <Link href={getCatalogCategoryPath('baskets')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'baskets' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Baskets</Link>
+          <Link href={getCatalogCategoryPath('burners')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'burners' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Burners</Link>
+          <Link href={getCatalogCategoryPath('bottom-end')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'bottom-end' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Bottom Ends</Link>
+          <Link href={getCatalogCategoryPath('cylinders')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'cylinders' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Cylinders</Link>
+          <Link href={getCatalogCategoryPath('other-equipment')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'other-equipment' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Other Equipment</Link>
         </div>
       </div>
 
-      <form method="get" action="/catalog" className="mb-8 grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1fr_220px_180px_auto]">
-        {categoryFilter ? <input type="hidden" name="category" value={categoryFilter} /> : null}
+      <form method="get" action={categoryFilter ? getCatalogCategoryPath(categoryFilter) : '/catalog'} className="mb-8 grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1fr_220px_180px_auto]">
         <label className="relative">
           <span className="sr-only">Search equipment</span>
           <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />

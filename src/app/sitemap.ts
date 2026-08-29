@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next';
 import { createAdminClient } from '@/utils/supabase/server';
 import { siteUrl } from '@/utils/site';
 import { isListingPubliclyIndexable } from '@/utils/marketplace-seo.mjs';
+import { getCatalogCategory, getCatalogCategoryPath } from '@/utils/catalog-categories.mjs';
 
 // Listing visibility depends on the current Premium release timestamp. Generate
 // the sitemap at request time so builds never freeze or require production data.
@@ -30,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createAdminClient();
   const { data: listings } = await supabase
     .from('listings')
-    .select('id, status, public_at, updated_at, images(url, is_primary)')
+    .select('id, category, status, public_at, updated_at, images(url, is_primary)')
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']);
 
   const listingRoutes = (listings || [])
@@ -45,5 +46,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .filter((url) => typeof url === 'string' && /^https?:\/\//.test(url)),
     }));
 
-  return [...routes, ...listingRoutes];
+  const publicCategories = Array.from(new Set(
+    (listings || [])
+      .filter((listing) => isListingPubliclyIndexable(listing))
+      .map((listing) => getCatalogCategory(listing.category)?.slug)
+      .filter((category): category is string => Boolean(category))
+  ));
+  const categoryRoutes = publicCategories.map((category) => ({
+    url: `${siteUrl}${getCatalogCategoryPath(category)}`,
+    changeFrequency: 'daily' as const,
+    priority: 0.8,
+  }));
+
+  return [...routes, ...categoryRoutes, ...listingRoutes];
 }

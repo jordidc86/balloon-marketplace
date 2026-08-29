@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { getCatalogCategoryPath } from '@/utils/catalog-categories.mjs'
 import { Plane } from 'lucide-react'
 
 export default function Footer() {
@@ -20,12 +21,12 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold text-white mb-4">Marketplace</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/catalog?category=complete" className="hover:text-primary transition-colors">Complete Balloons</Link></li>
-              <li><Link href="/catalog?category=envelopes" className="hover:text-primary transition-colors">Envelopes</Link></li>
-              <li><Link href="/catalog?category=baskets" className="hover:text-primary transition-colors">Baskets</Link></li>
-              <li><Link href="/catalog?category=burners" className="hover:text-primary transition-colors">Burners</Link></li>
-              <li><Link href="/catalog?category=cylinders" className="hover:text-primary transition-colors">Cylinders</Link></li>
-              <li><Link href="/catalog?category=other-equipment" className="hover:text-primary transition-colors">Other Equipment</Link></li>
+              <li><Link href={getCatalogCategoryPath('complete')} className="hover:text-primary transition-colors">Complete Balloons</Link></li>
+              <li><Link href={getCatalogCategoryPath('envelopes')} className="hover:text-primary transition-colors">Envelopes</Link></li>
+              <li><Link href={getCatalogCategoryPath('baskets')} className="hover:text-primary transition-colors">Baskets</Link></li>
+              <li><Link href={getCatalogCategoryPath('burners')} className="hover:text-primary transition-colors">Burners</Link></li>
+              <li><Link href={getCatalogCategoryPath('cylinders')} className="hover:text-primary transition-colors">Cylinders</Link></li>
+              <li><Link href={getCatalogCategoryPath('other-equipment')} className="hover:text-primary transition-colors">Other Equipment</Link></li>
             </ul>
           </div>
 

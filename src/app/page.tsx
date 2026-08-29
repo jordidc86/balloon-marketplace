@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
 import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings';
 import SafeListingImage from '@/components/SafeListingImage';
+import { getCatalogCategoryPath } from '@/utils/catalog-categories.mjs';
 
 import { Metadata } from "next";
 
@@ -112,7 +113,7 @@ export default async function Home() {
               </Link>
               {categories.map((cat) => (
                 <Link 
-                  href={`/catalog?category=${cat.slug}`} 
+                  href={getCatalogCategoryPath(cat.slug)}
                   key={cat.name} 
                   className="flex items-center gap-2 px-4 py-2 rounded-full border bg-white hover:bg-slate-50 text-sm font-medium whitespace-nowrap transition-colors"
                 >
