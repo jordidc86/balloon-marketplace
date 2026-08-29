@@ -8,6 +8,7 @@ import { buildNewBalloonManufacturerFunnel } from '../src/utils/new-balloon-manu
 import { getListingAvailabilityState } from '../src/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '../src/utils/buyer-funnel.mjs'
 import { isOptionalSupabaseSchemaError } from '../src/utils/audit-schema-compatibility.mjs'
+import { isActiveNewsletterConsent } from '../src/utils/newsletter-consent.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only after explicit approval for a read-only production audit.')
@@ -68,6 +69,7 @@ const optionalQuerySpecs = {
   commercialUnitEconomicsEvents: ['commercial_unit_economics_events', 'id,outcome_id,event_type,currency,aerotrade_revenue_minor,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,evidence_level,evidence_source,created_at'],
   newBalloonProposalResponses: ['new_balloon_proposal_response_events', 'id,proposal_id,quote_request_id,response_type,admin_notification_status,created_at'],
   socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at'],
+  newsletterConsentProfiles: ['users', 'id,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at'],
 }
 const optionalAuditResults = Object.fromEntries(await Promise.all(Object.entries(optionalQuerySpecs).map(async ([name, [table, columns]]) => [name, await optionalRows(table, columns)])))
 const {
@@ -110,6 +112,14 @@ const commercialOutcomes = baseCommercialOutcomes.map((outcome) => ({
 const commercialUnitEconomicsEvents = optionalAuditResults.commercialUnitEconomicsEvents.rows
 const newBalloonProposalResponses = optionalAuditResults.newBalloonProposalResponses.rows
 const socialPublicationReceipts = optionalAuditResults.socialPublicationReceipts.rows
+const newsletterConsentByUserId = new Map(optionalAuditResults.newsletterConsentProfiles.rows.map((row) => [row.id, row]))
+const newsletterConsentProfiles = users.map((user) => ({
+  id: user.id,
+  newsletter_consent_status: 'NOT_DEPLOYED',
+  newsletter_consented_at: null,
+  newsletter_unsubscribed_at: null,
+  ...(newsletterConsentByUserId.get(user.id) || {}),
+}))
 
 const countBy = (items, key) => items.reduce((counts, item) => {
   const value = String(item[key] ?? 'unknown')
@@ -357,6 +367,9 @@ const result = {
     caveat: 'WON is an explicit recorded outcome; transaction value, costs, contribution and settlement are never inferred. Missing economics remain null, and negative contribution is valid.',
   },
   communications: {
+    newsletterConsentProfiles: newsletterConsentProfiles.length,
+    newsletterActiveConsents: newsletterConsentProfiles.filter(isActiveNewsletterConsent).length,
+    newsletterConsentStatuses: countBy(newsletterConsentProfiles, 'newsletter_consent_status'),
     newsletterRuns: newsletterRuns.length,
     successfulLiveNewsletterRuns: successfulNewsletterRuns.length,
     newsletterRecipientsAccepted: successfulNewsletterRuns.reduce((sum, run) => sum + Number(run.sent_count || 0), 0),

@@ -718,6 +718,28 @@ const checks = [
     required: ['content_sha256', 'provider_dispatch_started_at', 'audit_uncertain', 'newsletter_recovery_runs', 'newsletter_recovery_recipients', "status in ('running', 'sent', 'partial', 'failed', 'audit_uncertain', 'abandoned')"],
   },
   {
+    name: 'Newsletter marketing requires explicit owner-controlled consent',
+    file: 'supabase/migrations/20260829530000_newsletter_consent.sql',
+    required: ["default 'NOT_REQUESTED'", "newsletter_consent_status in ('NOT_REQUESTED', 'ACTIVE', 'UNSUBSCRIBED')", 'auth.uid()', 'set_own_newsletter_consent', 'when p_enabled then v_now', 'revoke all on function', 'grant execute on function'],
+    forbidden: ["default 'ACTIVE'", "update public.users set newsletter_consent_status = 'ACTIVE'"],
+  },
+  {
+    name: 'Newsletter dispatch and recovery recheck live consent and include a signed stop control',
+    file: 'src/app/api/cron/newsletter/route.ts',
+    required: [".eq('newsletter_consent_status', 'ACTIVE')", 'isActiveNewsletterConsent(user)', 'signNewsletterUnsubscribeCapability', 'newsletterUnsubscribePlaceholder', 'eligibleRecoveryRecipients', 'excludedAfterConsentRecheck', 'predates explicit consent and unsubscribe controls'],
+    forbidden: ["select('email');", 'because you are a registered user'],
+  },
+  {
+    name: 'Newsletter unsubscribe is signed, purpose-bound and requires explicit POST',
+    file: 'src/app/newsletter/unsubscribe/actions.ts',
+    required: ['verifyNewsletterUnsubscribeCapability', "newsletter_consent_status: 'UNSUBSCRIBED'", 'newsletter_unsubscribed_at', "updated?.newsletter_consent_status !== 'UNSUBSCRIBED'"],
+  },
+  {
+    name: 'Registered users control the optional newsletter separately from account access',
+    file: 'src/app/dashboard/actions.ts',
+    required: ['updateNewsletterPreference', "rpc('set_own_newsletter_consent'", "const expectedStatus = enabled ? 'ACTIVE' : 'UNSUBSCRIBED'", 'Newsletter preference was not verified by readback'],
+  },
+  {
     name: 'Partial email runs block unsafe automatic retries',
     file: 'supabase/migrations/20260731170000_track_partial_email_delivery.sql',
     required: ["status in ('running', 'sent', 'partial')", "status in ('running', 'sent', 'partial', 'failed', 'skipped')"],

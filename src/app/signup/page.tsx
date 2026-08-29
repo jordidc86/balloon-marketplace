@@ -112,6 +112,24 @@ export default async function SignupPage({
             </div>
           </div>
 
+          <div className="flex items-start gap-3 rounded-xl border p-4">
+            <input
+              id="newsletter_updates"
+              name="newsletter_updates"
+              value="yes"
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <div>
+              <label htmlFor="newsletter_updates" className="text-sm font-medium text-foreground">
+                Email me the bi-weekly marketplace update
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Optional marketing consent. It is not required to create an account, buy or sell, and you can stop it at any time.
+              </p>
+            </div>
+          </div>
+
 
           <div className="pt-4">
             <button

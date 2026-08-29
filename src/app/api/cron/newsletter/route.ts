@@ -10,6 +10,12 @@ import {
 } from '@/utils/newsletter-recovery.mjs';
 import { siteUrl } from '@/utils/site';
 import { isPromotedListing } from '@/utils/listing-plans';
+import {
+  isActiveNewsletterConsent,
+  newsletterUnsubscribePlaceholder,
+  personalizeNewsletterHtml,
+  signNewsletterUnsubscribeCapability,
+} from '@/utils/newsletter-consent.mjs';
 
 type NewsletterImage = {
   url: string
@@ -30,8 +36,14 @@ type NewsletterListing = {
 }
 
 type NewsletterUser = {
+  id: string
   email: string | null
+  newsletter_consent_status: string
+  newsletter_consented_at: string | null
+  newsletter_unsubscribed_at: string | null
 }
+
+type NewsletterRecipient = { id: string | null; email: string }
 
 type NewsletterRunStatus = 'running' | 'sent' | 'partial' | 'failed' | 'skipped' | 'audit_uncertain'
 
@@ -83,6 +95,17 @@ const normalizeEmail = (email: string | null) => {
 
 const getPromotedNewsletterListings = (listings: NewsletterListing[]) =>
   listings.filter((listing) => isPromotedListing(listing.details));
+
+const getNewsletterUnsubscribeUrl = (recipient: NewsletterRecipient, secret: string) => {
+  if (!recipient.id) return `${siteUrl}/dashboard`;
+  const token = signNewsletterUnsubscribeCapability({
+    userId: recipient.id,
+    email: recipient.email,
+    secret,
+  });
+  if (!token) throw new Error('A newsletter unsubscribe capability could not be created.');
+  return `${siteUrl}/newsletter/unsubscribe?id=${encodeURIComponent(recipient.id)}&token=${encodeURIComponent(token)}`;
+};
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
@@ -160,7 +183,10 @@ const generateNewsletterHtml = (listings: NewsletterListing[]) => {
 
           <div style="text-align: center; margin-top: 48px; padding-top: 32px; border-top: 1px solid #e2e8f0;">
             <p style="color: #94a3b8; font-size: 14px;">
-              You received this email because you are a registered user of the AeroTrade Marketplace.
+              You received this optional update because you explicitly asked AeroTrade for the bi-weekly marketplace newsletter.
+            </p>
+            <p style="color: #94a3b8; font-size: 14px; margin-top: 8px;">
+              <a href="${newsletterUnsubscribePlaceholder}" style="color: #64748b;">Stop marketplace update emails</a>
             </p>
             <p style="color: #94a3b8; font-size: 14px; margin-top: 8px;">
               &copy; ${new Date().getFullYear()} AeroTrade. All rights reserved.
@@ -552,7 +578,8 @@ export async function GET(request: Request) {
 
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('email');
+      .select('id,email,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
+      .eq('newsletter_consent_status', 'ACTIVE');
 
     if (usersError) {
       await finishNewsletterRun(supabase, activeRun.id, {
@@ -562,7 +589,7 @@ export async function GET(request: Request) {
       return new NextResponse('Error fetching users', { status: 500 });
     }
 
-    if (!users || users.length === 0) {
+    if (!testEmail && (!users || users.length === 0)) {
       await finishNewsletterRun(supabase, activeRun.id, {
         status: 'skipped',
         listingsCount: recentListings.length,
@@ -581,19 +608,23 @@ export async function GET(request: Request) {
       });
     }
 
-    const recipientEmails = testEmail
-      ? [normalizeEmail(testEmail)].filter(Boolean) as string[]
-      : Array.from(new Set(
-          (users as NewsletterUser[])
-            .map(user => normalizeEmail(user.email))
-            .filter(Boolean)
-        )) as string[];
+    const recipientByEmail = new Map<string, NewsletterRecipient>();
+    for (const user of (users || []) as NewsletterUser[]) {
+      const email = normalizeEmail(user.email);
+      if (email && isActiveNewsletterConsent(user) && !recipientByEmail.has(email)) {
+        recipientByEmail.set(email, { id: user.id, email });
+      }
+    }
+    const testRecipientEmail = testEmail ? normalizeEmail(testEmail) : null;
+    const recipients: NewsletterRecipient[] = testEmail
+      ? (testRecipientEmail ? [{ id: null, email: testRecipientEmail }] : [])
+      : Array.from(recipientByEmail.values());
 
     const skippedInvalidRecipients = testEmail
-      ? Number(recipientEmails.length === 0)
-      : users.length - recipientEmails.length;
+      ? Number(recipients.length === 0)
+      : (users || []).length - recipients.length;
 
-    if (recipientEmails.length === 0) {
+    if (recipients.length === 0) {
       await finishNewsletterRun(supabase, activeRun.id, {
         status: 'skipped',
         skippedInvalidRecipients,
@@ -617,7 +648,7 @@ export async function GET(request: Request) {
     if (dryRun) {
       await finishNewsletterRun(supabase, activeRun.id, {
         status: 'skipped',
-        recipientsCount: recipientEmails.length,
+        recipientsCount: recipients.length,
         skippedInvalidRecipients,
         listingsCount: recentListings.length,
         primaryListingCount,
@@ -633,7 +664,7 @@ export async function GET(request: Request) {
         runId: activeRun.id,
         periodKey: activeRun.periodKey,
         auditUnavailable: activeRun.auditUnavailable || undefined,
-        recipients: recipientEmails.length,
+        recipients: recipients.length,
         skippedInvalidRecipients,
         daysFilter: days,
         mixWithLatest,
@@ -655,10 +686,13 @@ export async function GET(request: Request) {
       newsletterSubject,
       htmlBody,
     );
-    const emailBatch = recipientEmails.map(email => ({
-      to: email,
+    const emailBatch = recipients.map(recipient => ({
+      to: recipient.email,
       subject: newsletterSubject,
-      html: htmlBody,
+      html: personalizeNewsletterHtml(
+        htmlBody,
+        getNewsletterUnsubscribeUrl(recipient, supabaseServiceKey),
+      ),
     }));
 
     const { sendEmailBatch } = await import('@/utils/resend');
@@ -683,7 +717,7 @@ export async function GET(request: Request) {
         : 'failed';
     await finishNewsletterRun(supabase, activeRun.id, {
       status,
-      recipientsCount: recipientEmails.length,
+      recipientsCount: recipients.length,
       sentCount,
       failedCount,
       skippedInvalidRecipients,
@@ -720,7 +754,7 @@ export async function GET(request: Request) {
         message: sentCount > 0
           ? 'Newsletter partially sent; retry is blocked to avoid duplicate emails.'
           : 'Newsletter send failed before any accepted delivery.',
-        recipients: recipientEmails.length,
+        recipients: recipients.length,
         sentCount,
         failedCount,
         skippedInvalidRecipients,
@@ -734,7 +768,7 @@ export async function GET(request: Request) {
       runId: activeRun.id,
       periodKey: activeRun.periodKey,
       message: `Newsletter sent to ${sentCount} users detailing ${recentListings.length} listings.`,
-      recipients: recipientEmails.length,
+      recipients: recipients.length,
       sentCount,
       failedCount,
       skippedInvalidRecipients,
@@ -886,6 +920,23 @@ export async function POST(request: Request) {
       );
     }
 
+    const { data: currentlyConsentedUsers, error: consentReadError } = await supabase
+      .from('users')
+      .select('id,email,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
+      .eq('newsletter_consent_status', 'ACTIVE');
+    if (consentReadError) {
+      throw new Error(`Could not recheck newsletter consent: ${consentReadError.message}`);
+    }
+    const consentedByEmail = new Map<string, NewsletterRecipient>();
+    for (const user of (currentlyConsentedUsers || []) as NewsletterUser[]) {
+      const email = normalizeEmail(user.email);
+      if (email && isActiveNewsletterConsent(user)) consentedByEmail.set(email, { id: user.id, email });
+    }
+    const eligibleRecoveryRecipients = plan.failedRecipients
+      .map((recipient) => consentedByEmail.get(normalizeEmail(recipient.email) || ''))
+      .filter(Boolean) as NewsletterRecipient[];
+    const excludedAfterConsentRecheck = plan.failedRecipients.length - eligibleRecoveryRecipients.length;
+
     const currentContentHash = newsletterContentSha256(
       originalRun.subject,
       originalRun.html_body,
@@ -896,14 +947,30 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+    if (eligibleRecoveryRecipients.length > 0 && !originalRun.html_body.includes(newsletterUnsubscribePlaceholder)) {
+      return NextResponse.json(
+        { success: false, error: 'This newsletter predates explicit consent and unsubscribe controls; recovery is blocked.' },
+        { status: 409 },
+      );
+    }
 
     if (parsed.request.dryRun) {
       return NextResponse.json({
         success: true,
         dryRun: true,
         recovery: plan.summary,
+        eligibleAfterConsentRecheck: eligibleRecoveryRecipients.length,
+        excludedAfterConsentRecheck,
         message: 'Recovery plan verified; no email or database mutation was performed.',
       });
+    }
+
+    if (eligibleRecoveryRecipients.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'No previously failed recipient still has active newsletter consent.',
+        excludedAfterConsentRecheck,
+      }, { status: 409 });
     }
 
     const { data: recoveryRun, error: recoveryStartError } = await supabase
@@ -914,7 +981,7 @@ export async function POST(request: Request) {
         dry_run: false,
         reason: parsed.request.reason,
         expected_failed_count: parsed.request.expectedFailedCount,
-        recipient_count: plan.failedRecipients.length,
+        recipient_count: eligibleRecoveryRecipients.length,
         content_sha256: originalRun.content_sha256,
       })
       .select('id')
@@ -927,10 +994,13 @@ export async function POST(request: Request) {
     }
     recoveryRunId = recoveryRun.id;
 
-    const emailBatch = plan.failedRecipients.map(recipient => ({
+    const emailBatch = eligibleRecoveryRecipients.map(recipient => ({
       to: recipient.email,
       subject: originalRun.subject,
-      html: originalRun.html_body,
+      html: personalizeNewsletterHtml(
+        originalRun.html_body,
+        getNewsletterUnsubscribeUrl(recipient, supabaseServiceKey),
+      ),
     }));
     const { sendEmailBatch } = await import('@/utils/resend');
     const { data: dispatchLock, error: dispatchLockError } = await supabase

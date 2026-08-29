@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { escapeHtml } from '@/utils/html'
 import { sendEmail } from '@/utils/resend'
 import { getApplicationOrigin, getSafeRedirectPath } from '@/utils/navigation.mjs'
@@ -88,6 +88,7 @@ export async function signupWithDetails(formData: FormData) {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
     const isPremiumRequested = formData.get('is_premium') === 'on'
+    const newsletterRequested = formData.get('newsletter_updates') === 'yes'
     const redirectTo = getSafeRedirectPath(formData.get('redirectTo'))
 
     const { data: authData, error } = await supabase.auth.signUp({
@@ -118,6 +119,34 @@ export async function signupWithDetails(formData: FormData) {
     }
 
     const userId = authData?.user?.id;
+
+    if (newsletterRequested && userId) {
+      try {
+        const admin = await createAdminClient()
+        const consentedAt = new Date().toISOString()
+        const { data: preference, error: preferenceError } = await admin
+          .from('users')
+          .update({
+            newsletter_consent_status: 'ACTIVE',
+            newsletter_consented_at: consentedAt,
+            newsletter_unsubscribed_at: null,
+          })
+          .eq('id', userId)
+          .eq('newsletter_consent_status', 'NOT_REQUESTED')
+          .select('newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
+          .single()
+        if (
+          preferenceError
+          || preference?.newsletter_consent_status !== 'ACTIVE'
+          || !preference.newsletter_consented_at
+          || preference.newsletter_unsubscribed_at
+        ) {
+          throw new Error(preferenceError?.message || 'Newsletter preference was not verified by readback')
+        }
+      } catch (preferenceError) {
+        console.error('Optional newsletter consent was not stored; the account remains excluded from marketing:', preferenceError)
+      }
+    }
 
     if (isPremiumRequested && userId) {
       const headersList = await import('next/headers').then(m => m.headers())

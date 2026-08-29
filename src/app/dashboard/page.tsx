@@ -2,7 +2,7 @@ import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert, ShieldCheck, BellRing } from 'lucide-react'
-import { confirmListingAvailability, openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
+import { confirmListingAvailability, openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateNewsletterPreference, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 import SellerInquiryResponseForm from './SellerInquiryResponseForm'
@@ -92,7 +92,7 @@ export default async function DashboardPage({
   // Get user profile for premium status
   const { data: profile } = await supabase
     .from('users')
-    .select('is_premium, premium_source, stripe_customer_id')
+    .select('is_premium, premium_source, stripe_customer_id, newsletter_consent_status, newsletter_consented_at, newsletter_unsubscribed_at')
     .eq('id', user.id)
     .single()
 
@@ -247,6 +247,28 @@ export default async function DashboardPage({
                   Buyer Early Access is managed by AeroTrade admin.
                 </p>
               )}
+            </div>
+            <div className="mt-4 rounded-xl border p-4">
+              <div className="flex items-start gap-3">
+                <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="text-sm font-semibold">Bi-weekly marketplace update</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {profile?.newsletter_consent_status === 'ACTIVE'
+                      ? 'Active by your explicit choice. Every update includes a secure stop link.'
+                      : 'Inactive. Account registration alone does not subscribe you.'}
+                  </p>
+                </div>
+              </div>
+              <form action={updateNewsletterPreference} className="mt-3">
+                <button
+                  name="newsletter_preference"
+                  value={profile?.newsletter_consent_status === 'ACTIVE' ? 'disable' : 'enable'}
+                  className="w-full rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted"
+                >
+                  {profile?.newsletter_consent_status === 'ACTIVE' ? 'Stop marketplace updates' : 'Receive marketplace updates'}
+                </button>
+              </form>
             </div>
           </div>
 

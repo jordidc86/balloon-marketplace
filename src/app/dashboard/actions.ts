@@ -49,6 +49,43 @@ export async function openBillingPortal() {
   redirect(session.url)
 }
 
+export async function updateNewsletterPreference(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const requested = formData.get('newsletter_preference')
+  if (requested !== 'enable' && requested !== 'disable') {
+    throw new Error('A newsletter preference is required')
+  }
+
+  const enabled = requested === 'enable'
+  const { data, error } = await supabase.rpc('set_own_newsletter_consent', {
+    p_enabled: enabled,
+  })
+  const result = Array.isArray(data) ? data[0] : data
+  const expectedStatus = enabled ? 'ACTIVE' : 'UNSUBSCRIBED'
+  if (error || result?.newsletter_consent_status !== expectedStatus) {
+    throw new Error(error?.message || 'Newsletter preference could not be stored')
+  }
+
+  const { data: readback, error: readbackError } = await supabase
+    .from('users')
+    .select('newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
+    .eq('id', user.id)
+    .single()
+  if (
+    readbackError
+    || readback?.newsletter_consent_status !== expectedStatus
+    || (enabled && (!readback.newsletter_consented_at || readback.newsletter_unsubscribed_at))
+    || (!enabled && !readback?.newsletter_unsubscribed_at)
+  ) {
+    throw new Error('Newsletter preference was not verified by readback')
+  }
+
+  revalidatePath('/dashboard')
+}
+
 export async function resumePremiumListingCheckout(listingId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
