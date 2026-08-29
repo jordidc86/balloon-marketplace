@@ -165,7 +165,12 @@ const checks = [
   {
     name: 'Stored enquiries and seller updates issue fresh private status links',
     file: 'src/app/catalog/[id]/actions.ts',
-    required: ['signInquiryBuyerPortalCapability', '/inquiry/status?id=', 'private enquiry status and negotiation history', 'This private link expires after 90 days.'],
+    required: ['signInquiryBuyerPortalCapability', '/inquiry/status?id=', 'buildInquiryBuyerAcknowledgement', 'buyerPortalUrl'],
+  },
+  {
+    name: 'Marketplace acknowledgement copy preserves the private status boundary',
+    file: 'src/utils/inquiry-buyer-acknowledgement.mjs',
+    required: ['private enquiry status and negotiation history', 'This private link expires after 90 days.', 'does not reserve the equipment or form a sale contract', 'escapeHtml'],
   },
   {
     name: 'Seller responses issue a buyer capability without weakening delivery evidence',
@@ -221,6 +226,11 @@ const checks = [
     name: 'Commercial delivery claims are optimistic, idempotent and bounded',
     file: 'src/utils/commercial-notification.ts',
     required: ['getCommercialDeliveryDecision', 'getNextCommercialAttemptAt', ".eq('delivery_attempts', previousAttempts)", ".in('status', ['pending', 'failed'])", "'claim_conflict'", 'commercialDeliveryMaxAttempts'],
+  },
+  {
+    name: 'Marketplace buyer acknowledgement retries preserve the private deal room',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ["'inquiry_buyer_ack'", 'dueMarketplaceInquiryBuyerAcknowledgementRetries', 'signInquiryBuyerPortalCapability', 'buildInquiryBuyerAcknowledgement', 'inquiry-buyer-ack-${inquiry.id}', 'Marketplace enquiry buyer acknowledgement retry failed'],
   },
   {
     name: 'Unmet buyer demand is durable, consented and private',

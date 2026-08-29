@@ -363,6 +363,10 @@ export default async function CommercialPage() {
   const acceptedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'accepted').length
   const failedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed').length
   const exhaustedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
+  const inquiryBuyerAcknowledgements = typedNotifications.filter((notification) => notification.notification_type === 'inquiry_buyer_ack')
+  const acceptedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'accepted').length
+  const failedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed').length
+  const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
   const settledRevenueByCurrency = typedOutcomes
@@ -421,6 +425,7 @@ export default async function CommercialPage() {
           <FunnelStep label="Seller responses" value={sellerNegotiationResponses.length} />
           <FunnelStep label="Buyer emails failed" value={failedBuyerResponseNotifications} />
         </div>
+        <p className={`mt-4 text-xs ${failedInquiryBuyerAcknowledgements > 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>Initial buyer acknowledgements: {acceptedInquiryBuyerAcknowledgements} accepted · {failedInquiryBuyerAcknowledgements} failed · {exhaustedInquiryBuyerAcknowledgements} exhausted after the safe retry.</p>
       </section>
 
       <div className="rounded-2xl border bg-card p-6">

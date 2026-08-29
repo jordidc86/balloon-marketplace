@@ -17,6 +17,7 @@ import { assertListingHasReachableImage, markListingQualityResolved } from '@/ut
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeListingCommercialIntentStage } from '@/utils/listing-commercial-intent.mjs'
 import { inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
+import { buildInquiryBuyerAcknowledgement } from '@/utils/inquiry-buyer-acknowledgement.mjs'
 
 type ListingDetailsForm = Record<string, string | number | boolean | null | undefined>
 
@@ -294,19 +295,20 @@ export async function submitListingInquiry(listingId: string, formData: FormData
   }
 
   try {
+    const acknowledgement = buildInquiryBuyerAcknowledgement({
+      listingTitle: listing.title,
+      listingUrl,
+      buyerPortalUrl,
+      indicativeOffer,
+    })
     await sendCommercialReceiptEmail(supabaseAdmin, {
       notificationType: 'inquiry_buyer_ack',
       entityType: 'inquiry',
       entityId: stored.id,
       recipientRole: 'buyer',
       to: inquiry.buyer_email,
-      subject: `AeroTrade received your enquiry about ${listing.title}`,
-      html: `<h2>Your enquiry is safely recorded</h2>
-      <p>We have sent your enquiry about <strong>${escapeHtml(listing.title)}</strong> to the seller.</p>
-      ${indicativeOffer ? `<p>Your non-binding price indication of <strong>${escapeHtml(indicativeOffer)}</strong> was recorded. It does not reserve the equipment or form a sale contract.</p>` : ''}
-      <p>The seller now has your contact details and can respond through AeroTrade. The opportunity remains recorded so it can be followed up if it is unattended.</p>
-      ${buyerPortalUrl ? `<p><a href="${escapeHtml(buyerPortalUrl)}">Open your private enquiry status and negotiation history</a>. This private link expires after 90 days.</p>` : ''}
-      <p><a href="${escapeHtml(listingUrl)}">Return to the listing</a></p>`,
+      subject: acknowledgement.subject,
+      html: acknowledgement.html,
       idempotencyKey: `inquiry-buyer-ack-${stored.id}`,
     })
   } catch (acknowledgementError) {

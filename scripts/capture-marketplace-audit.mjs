@@ -138,6 +138,8 @@ const anonymousContacts = recentContacts.length - registeredContacts
 const recentQuotes = quotes.filter((quote) => quote.created_at >= since30d)
 const newBalloonBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'new_balloon_buyer_ack')
 const exhaustedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
+const inquiryBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'inquiry_buyer_ack')
+const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   quotes,
   proposals: newBalloonProposals,
@@ -275,6 +277,10 @@ const result = {
     newBalloonBuyerAcknowledgementStatuses: countBy(newBalloonBuyerAcknowledgements, 'status'),
     newBalloonBuyerAcknowledgementAttempts: countBy(newBalloonBuyerAcknowledgements, 'delivery_attempts'),
     exhaustedNewBalloonBuyerAcknowledgements: exhaustedNewBalloonBuyerAcknowledgements.length,
+    inquiryBuyerAcknowledgements: inquiryBuyerAcknowledgements.length,
+    inquiryBuyerAcknowledgementStatuses: countBy(inquiryBuyerAcknowledgements, 'status'),
+    inquiryBuyerAcknowledgementAttempts: countBy(inquiryBuyerAcknowledgements, 'delivery_attempts'),
+    exhaustedInquiryBuyerAcknowledgements: exhaustedInquiryBuyerAcknowledgements.length,
     listingWatchDispatches: listingWatchDispatches.length,
     listingWatchDispatchStatuses: countBy(listingWatchDispatches, 'status'),
     runStatuses: {
