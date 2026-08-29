@@ -2,6 +2,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { BellRing, CircleDollarSign, CreditCard, MessageSquare, Plane, Store, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
+import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/utils/new-balloon-manufacturers.mjs'
 import { recordCommercialOutcome, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -280,6 +281,11 @@ export default async function CommercialPage() {
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
   const latestProposalByQuote = new Map<string, NewBalloonProposal>()
   for (const proposal of typedProposals) if (!latestProposalByQuote.has(proposal.quote_request_id)) latestProposalByQuote.set(proposal.quote_request_id, proposal)
+  const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
+    quotes: typedQuotes,
+    proposals: typedProposals,
+    outcomes: typedOutcomes,
+  })
   const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
   const enquiryCtaClicks = typedListingEvents.filter((event) => event.event_type === 'ENQUIRY_CTA_CLICKED').length
   const enquiryFormViews = typedListingEvents.filter((event) => event.event_type === 'ENQUIRY_FORM_VIEWED').length
@@ -475,6 +481,35 @@ export default async function CommercialPage() {
             </div>
           </>
         )}
+      </section>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">New-balloon manufacturer funnel</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Preference, operator-priced proposal, provider acceptance and evidence-backed outcome. No sale or revenue is inferred.</p>
+          </div>
+          <Link href="/new-balloon" className="text-sm font-semibold text-primary underline">Open public request path</Link>
+        </div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {newBalloonManufacturers.map((manufacturer) => {
+            const manufacturerKey = manufacturer.slug === 'pasha' ? 'pasha' : 'schroeder'
+            const funnel = newBalloonManufacturerFunnel[manufacturerKey]
+            return <div key={manufacturer.slug} className="rounded-xl border bg-muted/20 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div><p className="font-bold">{manufacturer.name}</p><Link href={manufacturer.path} className="text-xs font-semibold text-primary underline">Open acquisition page</Link></div>
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{funnel.wonOutcomes} won</span>
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <FunnelStep label="Preferred" value={funnel.preferredRequests} />
+                <FunnelStep label="Proposals" value={funnel.proposals} />
+                <FunnelStep label="Accepted" value={funnel.acceptedProposals} />
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">Settled AeroTrade revenue: {formatCurrencyTotals(funnel.settledRevenueMinorByCurrency)}</p>
+            </div>
+          })}
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">Requests marked “advise me” remain outside either manufacturer until an operator proposal selects one.</p>
       </section>
 
       <section className="rounded-2xl border bg-card overflow-hidden">

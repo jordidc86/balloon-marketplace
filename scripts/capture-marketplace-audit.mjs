@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createClient } from '@supabase/supabase-js'
+import { buildNewBalloonManufacturerFunnel } from '../src/utils/new-balloon-manufacturers.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only after explicit approval for a read-only production audit.')
@@ -135,6 +136,11 @@ const uniqueContactedListings = new Set(recentContacts.map((event) => event.list
 const registeredContacts = recentContacts.filter((event) => event.user_id).length
 const anonymousContacts = recentContacts.length - registeredContacts
 const recentQuotes = quotes.filter((quote) => quote.created_at >= since30d)
+const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
+  quotes,
+  proposals: newBalloonProposals,
+  outcomes: commercialOutcomes,
+})
 const recentListingWatchers = listingWatchers.filter((watcher) => watcher.created_at >= since30d)
 const successfulNewsletterRuns = newsletterRuns.filter((run) => !run.dry_run && run.status === 'sent')
 const successfulPremiumAlerts = premiumAlertRuns.filter((run) => run.status === 'sent')
@@ -220,6 +226,7 @@ const result = {
     quoteRequestsTotal: quotes.length,
     quoteRequests30d: recentQuotes.length,
     quoteRequestsByStatus: countBy(quotes, 'status'),
+    newBalloonManufacturerFunnel,
     quotesWithMinimumContactData: quotes.filter((quote) => Boolean(quote.name && quote.email && quote.equipment_type)).length,
     marketplaceLeadPipelineAvailable: true,
     marketplaceInquiries: inquiries.length,

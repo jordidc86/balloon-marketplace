@@ -407,7 +407,17 @@ const checks = [
   {
     name: 'New-balloon alternatives preserve marketplace demand and source context',
     file: 'src/app/new-balloon/page.tsx',
-    required: ['normalizeNewBalloonDemandContext', 'We carried your marketplace search into this request.', '<CommercialAttributionFields />', 'Request an indicative budget'],
+    required: ['normalizeNewBalloonDemandContext', 'normalizeNewBalloonManufacturerPreference', 'We carried your marketplace search into this request.', '<CommercialAttributionFields />', 'Request an indicative budget', '/new-balloon/pasha', '/new-balloon/schroeder'],
+  },
+  {
+    name: 'Pasha and Schroeder acquisition paths stay non-binding and manufacturer-specific',
+    file: 'src/components/NewBalloonManufacturerLanding.tsx',
+    required: ['manufacturer.slug', 'Request a {manufacturer.shortName} budget', 'Any initial range is non-binding.', 'before any binding factory order or payment'],
+  },
+  {
+    name: 'New-balloon manufacturer funnel reaches proposal, outcome and settled revenue evidence',
+    file: 'src/utils/new-balloon-manufacturers.mjs',
+    required: ['preferredRequests', 'acceptedProposals', 'wonOutcomes', 'settledRevenueMinorByCurrency', "outcome.entity_type !== 'quote_request'", "outcome.evidence_level !== 'settled'"],
   },
   {
     name: 'Listing submissions are validated again on the server',

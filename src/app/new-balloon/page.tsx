@@ -1,10 +1,11 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRight, Brush, Calculator, Factory, Send } from 'lucide-react'
+import { ArrowRight, Calculator, Factory, Send } from 'lucide-react'
 import { siteUrl, supportEmail } from '@/utils/site'
 import { normalizeNewBalloonLeadSource } from '@/utils/new-balloon-lead.mjs'
 import { buildNewBalloonServiceJsonLd, serializeJsonLd } from '@/utils/marketplace-seo.mjs'
 import { equipmentTypeForCategory, normalizeNewBalloonDemandContext } from '@/utils/new-balloon-request.mjs'
+import { getNewBalloonManufacturer, normalizeNewBalloonManufacturerPreference } from '@/utils/new-balloon-manufacturers.mjs'
 import { submitNewBalloonQuote } from './actions'
 import CommercialAttributionFields from '@/components/CommercialAttributionFields'
 
@@ -41,6 +42,10 @@ export default async function NewBalloonPage({
     country: typeof params.country === 'string' ? params.country : null,
   })
   const defaultEquipmentType = equipmentTypeForCategory(demandContext.requested_category)
+  const manufacturerPreference = normalizeNewBalloonManufacturerPreference(
+    typeof params.manufacturer === 'string' ? params.manufacturer : null,
+  )
+  const selectedManufacturer = getNewBalloonManufacturer(manufacturerPreference)
 
   return (
     <div className="bg-secondary/40">
@@ -62,16 +67,16 @@ export default async function NewBalloonPage({
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <div className="border bg-card p-4">
+              <Link href="/new-balloon/pasha" className="border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-primary/5">
                 <Factory className="mb-3 h-5 w-5 text-primary" />
-                <p className="text-sm font-bold">Pasha or Schroeder</p>
-                <p className="mt-1 text-xs text-muted-foreground">Choose one, or tell us you want advice.</p>
-              </div>
-              <div className="border bg-card p-4">
-                <Brush className="mb-3 h-5 w-5 text-primary" />
-                <p className="text-sm font-bold">Quick visual idea</p>
-                <p className="mt-1 text-xs text-muted-foreground">Share colours, logo or a rough style.</p>
-              </div>
+                <p className="text-sm font-bold">New Pasha balloon</p>
+                <p className="mt-1 text-xs text-muted-foreground">See the Pasha request path and prepare a first budget.</p>
+              </Link>
+              <Link href="/new-balloon/schroeder" className="border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-primary/5">
+                <Factory className="mb-3 h-5 w-5 text-primary" />
+                <p className="text-sm font-bold">New Schroeder balloon</p>
+                <p className="mt-1 text-xs text-muted-foreground">See the Schroeder request path and prepare a first budget.</p>
+              </Link>
               <div className="border bg-card p-4 sm:col-span-2">
                 <Calculator className="mb-3 h-5 w-5 text-primary" />
                 <p className="text-sm font-bold">Indicative budget before commitment</p>
@@ -115,6 +120,12 @@ export default async function NewBalloonPage({
                   <p className="mt-1 text-muted-foreground">Confirm or adjust the equipment and configuration below; AeroTrade will use it to prepare the first price direction.</p>
                 </div>
               ) : null}
+              {selectedManufacturer ? (
+                <div className="border border-primary/20 bg-primary/5 p-4 text-sm">
+                  <p className="font-semibold">{selectedManufacturer.shortName} has been carried into this request.</p>
+                  <p className="mt-1 text-muted-foreground">You can keep this preference or ask AeroTrade to advise between both manufacturers.</p>
+                </div>
+              ) : null}
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-1.5 text-sm font-medium">
                   Name *
@@ -137,7 +148,7 @@ export default async function NewBalloonPage({
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-1.5 text-sm font-medium">
                   Manufacturer preference
-                  <select name="manufacturer_preference" defaultValue="advice" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
+                  <select name="manufacturer_preference" defaultValue={manufacturerPreference} className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
                     <option value="advice">Advise me</option>
                     <option value="pasha">Pasha</option>
                     <option value="schroeder">Schroeder</option>

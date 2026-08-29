@@ -6,6 +6,7 @@ import {
   normalizeNewBalloonDemandContext,
   parseNewBalloonQuoteRequest,
 } from '../src/utils/new-balloon-request.mjs'
+import { normalizeNewBalloonManufacturerPreference } from '../src/utils/new-balloon-manufacturers.mjs'
 
 const validForm = () => new FormData()
 const appendValidFields = (form) => {
@@ -65,4 +66,6 @@ test('category defaults and abuse keys are deterministic without retaining raw a
   assert.equal(key, newBalloonQuoteSubmissionKey('203.0.113.8', 'Browser', 'secret'))
   assert.equal(key.includes('203.0.113.8'), false)
   assert.equal(newBalloonQuoteSubmissionKey('', '', 'secret'), null)
+  assert.equal(normalizeNewBalloonManufacturerPreference('Pasha'), 'pasha')
+  assert.equal(normalizeNewBalloonManufacturerPreference('not-a-manufacturer'), 'advice')
 })
