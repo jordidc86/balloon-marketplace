@@ -6,10 +6,10 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829450000`; four previously remote-only historical versions are also consolidated in source control.
-- Validation: 123 automated tests, 119 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Database migrations are registered and read back through `20260829460000`; four previously remote-only historical versions are also consolidated in source control.
+- Validation: 126 automated tests, 120 operational contracts, ESLint, TypeScript and a full Next.js production build.
 - Current evidence-based score: **92.8%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92f419e011ce0008d0ae37` is ready from tracked source commit `ed32a11`.
+- Production deploy `6a92f5c4fd54d50008547256` is ready from tracked source commit `735d499`.
 - Buyer-to-seller negotiation replies and the private buyer response route are live. The additive migration is read back, the public route is noindexed, the service-only transition is denied to anonymous callers with `42501`, and verification created no synthetic response or customer email.
 - A conservative Netlify build gate is live: it skips only evidence, documentation, test, script and separately managed migration-only commits, and fails safe for application, function, configuration, unknown-file or diff errors. A replay of the latest 20 commits would have avoided 9 unnecessary builds (45%) while retaining all 11 runtime builds. Production then canceled evidence-only deploy `6a92e249c2b5da0008cf5bb6` for no content change while the runtime release remained ready, confirming the gate rather than merely simulating it.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
@@ -45,6 +45,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
 - Two-check listing-image quarantine: one broken listing was paused, the seller notification was accepted and the post-action audit reports 0 inaccessible active image files.
 - Active listing owners can now create dated, immutable availability evidence from their authenticated dashboard. The action is ownership- and active-status-gated in the database, idempotent per UTC day and read back before the UI updates. A public positive badge is shown only for an explicit confirmation no older than 90 days; listing age, edits and administrator activity never imply availability. Control Tower and the read-only audit separate fresh, expired and never-confirmed inventory. Production starts truthfully at 0 confirmations across 12 active listings; no historical state was invented and no seller was contacted.
+- Control Tower now turns that inventory evidence into an operable queue. An administrator may manually request reconfirmation for a never-confirmed or expired active listing; the system refuses fresh stock, uses one stable receipt cycle until the seller confirms, applies the global two-attempt delivery budget and records provider acceptance. This is not scheduled or bulk outreach. Production verification created 0 request receipts and sent 0 seller emails.
 - One-time Seller Launch Promotion checkout recovery: the real pending listing had one expired Stripe session and no paid session; one reminder was accepted, linked to the funnel and duplicate execution was suppressed.
 - Seller-requested listing verification: only eligible public listings can enter the private queue; decisions require bounded identity/evidence categories and an explicit scope acknowledgement, state plus audit event commit atomically, notification evidence is durable, and no document copy or identifier is retained.
 - Evidence-based admin commercial pipeline and outcome values separated from settled AeroTrade revenue.

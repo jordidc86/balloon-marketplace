@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_listing_availability_request_production_verification",
+  "capturedAt": "2026-08-29T15:09:00.000Z",
+  "containsPii": false,
+  "production": {
+    "url": "https://aerotrade.app",
+    "deployId": "6a92f5c4fd54d50008547256",
+    "commit": "735d49966f75ee4c1f9569de40b9102a38b4e685",
+    "state": "ready",
+    "publishedAt": "2026-08-29T15:08:48.497Z",
+    "migration": "20260829460000",
+    "migrationReadBack": true
+  },
+  "validation": {
+    "automatedTestsPassed": 126,
+    "operationalContractsPassed": 120,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "catalogStatus": 200,
+    "listingStatus": 200,
+    "protectedAdminRedirectedToLogin": true
+  },
+  "readOnlyProductionEvidence": {
+    "availabilityConfirmationEvents": 0,
+    "availabilityRequestReceipts": 0
+  },
+  "safety": {
+    "manualAdminActionOnly": true,
+    "oneReceiptCyclePerConfirmation": true,
+    "boundedProviderAttempts": 2,
+    "syntheticConfirmationCreated": false,
+    "sellerMessageSent": false,
+    "listingStatusChanged": false,
+    "priceChanged": false,
+    "paymentActionPerformed": false
+  }
+}
