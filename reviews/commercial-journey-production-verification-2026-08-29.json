@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_commercial_journey_production_verification",
+  "verifiedAt": "2026-08-29T09:25:00Z",
+  "containsPii": false,
+  "production": {
+    "url": "https://aerotrade.app",
+    "deployId": "6a92a51b8bf4c3000832fc54",
+    "commit": "2d0b7fb2cbcd14b001c0d9920abf1736f913a32e",
+    "state": "ready",
+    "publishedAt": "2026-08-29T09:24:27.939Z"
+  },
+  "validation": {
+    "automatedTests": 78,
+    "operationalContracts": 68,
+    "lint": "passed",
+    "productionBuild": "passed"
+  },
+  "database": {
+    "migration": "20260829290000",
+    "migrationRegistered": true,
+    "journeyColumns": 5,
+    "conversionAttributionColumns": 8,
+    "journeyConstraints": 5,
+    "journeyIndexes": 5,
+    "publicJourneyMutationGrants": 0,
+    "listingEventRowsBefore": 60,
+    "listingEventRowsAfter": 60,
+    "catalogSearchRows": 0,
+    "marketplaceInquiryRows": 0,
+    "wantedRequestRows": 0,
+    "newBalloonQuoteRows": 0
+  },
+  "publicRoutes": {
+    "/catalog": 200,
+    "/new-balloon": 200,
+    "/privacy": 200
+  },
+  "verifiedCapabilities": [
+    "Zero-result catalog demand carries bounded query, category and country into a new-balloon request.",
+    "A specific used listing carries its public title, category and country into the factory-new alternative.",
+    "Pasha and Schroeder are presented as explicit factory-new options with an indicative-budget request.",
+    "External referring host and bounded campaign context persist across internal navigation.",
+    "A daily server-HMAC journey key links search, view, contact reveal, tracked enquiry, wanted demand and new-balloon quotation without storing the raw browser or user identifier.",
+    "Administrator and listing-owner activity is excluded from new buyer conversion measurements.",
+    "The admin dashboard exposes only aggregate journey-stage counts and labels older evidence as unattributed."
+  ],
+  "safeVerification": {
+    "syntheticLeadsCreated": 0,
+    "economicActionsPerformed": 0,
+    "historicalJourneysReconstructed": 0
+  }
+}

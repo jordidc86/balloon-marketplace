@@ -1,15 +1,15 @@
 # AeroTrade Latest Summary
 
 Date: 2026-08-29
-Status: `Production deployed, reconciled and measurable; used-or-new journey and seller-requested trust workflow are operational, real liquidity remains unproven`
+Status: `Production deployed, reconciled and measurable; used-or-new demand now remains contextual and attributable, real liquidity remains unproven`
 
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829280000`.
-- Validation: 73 automated tests, 66 operational contracts, ESLint and a full Next.js production build.
-- Current evidence-based score: **88.7%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92a1780b60df9f871b85d4` is live from commit `0777cf2`.
+- Database migrations are registered and read back through `20260829290000`.
+- Validation: 78 automated tests, 68 operational contracts, ESLint and a full Next.js production build.
+- Current evidence-based score: **89.2%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92a51b8bf4c3000832fc54` is live from commit `2d0b7fb`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -20,6 +20,8 @@ Status: `Production deployed, reconciled and measurable; used-or-new journey and
 - Daily, opt-in wanted-equipment matching now sends at most five compatible active listings per digest, never repeats an accepted advert and retries failed or stale provider attempts through a private dispatch ledger.
 - First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source and demand context, explicit consent, server-side revalidation, duplicate/rate control and a one-time 24-hour operational follow-up.
 - Used-catalogue searches now carry category, equipment wording and country into the new-balloon request; production verification preserved all three without creating a fictitious lead.
+- A specific used listing now carries its public model, category and country into the factory-new alternative, so the buyer does not restart the enquiry from zero.
+- A daily server-HMAC journey key joins catalogue search, listing view, direct contact, tracked enquiry, wanted demand and new-balloon quotation without retaining a raw browser/user identifier; administrator and listing-owner activity is excluded and only aggregate stages are shown.
 - Public search contract shared by metadata, structured data and sitemap: 12/12 public listings verified with canonical, indexability, Open Graph and breadcrumbs; 7 truthful priced Product offers, 0 invalid offers, unreleased Premium inventory excluded, and authentication pages noindexed.
 - Four clean, inventory-backed category landing pages now target high-intent used-equipment demand; empty categories are noindexed, historical filter URLs redirect without losing the search and every category keeps a direct new-balloon alternative.
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
@@ -33,12 +35,12 @@ Status: `Production deployed, reconciled and measurable; used-or-new journey and
 
 ## Principal remaining constraints
 
-1. Real marketplace liquidity: no tracked enquiry, wanted request or new-balloon quote has yet produced a validated live opportunity; the new matching loop is healthy but has no real consented request to exercise it.
+1. Real marketplace liquidity: no tracked enquiry, wanted request or new-balloon quote has yet produced a validated live opportunity; the new matching and factory-new paths are healthy but have no real consented request to exercise them.
 2. Checkout economics: the first real recovery is live and verified but has not yet improved the historical 20% completion rate; its eventual payment or free publication remains to be observed.
 3. Supply quality: five sellers currently have active listings, no listing has yet requested or completed the controlled verification gate, and two historical flight records still lack a serial number that cannot be inferred.
-4. Acquisition: public inventory is technically discoverable and measurable, but search and source ledgers still have little or no production volume; Search Console performance evidence and seller recruitment remain absent.
+4. Acquisition: public inventory is technically discoverable and future journeys are now attributable, but the 60 legacy views cannot be reconstructed and search/source ledgers still have no useful production volume; Search Console performance evidence and seller recruitment remain absent.
 5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
 
 ## Next highest-value work
 
-Connect actual Search Console coverage/performance evidence to the existing source, search, contact and outcome ledgers, then recruit supply only against repeated verified demand. Do not inflate scores from implementation alone, infer revenue, alter prices, or launch unsolicited campaigns without the relevant evidence and authorization.
+Observe genuine post-release buyer journeys, connect Search Console coverage/performance evidence to the new acquisition-to-request ledger, then recruit supply only against repeated verified demand. Do not inflate scores from implementation alone, infer revenue, alter prices, or launch unsolicited campaigns without the relevant evidence and authorization.
