@@ -200,12 +200,27 @@ const checks = [
   {
     name: 'Stored new-balloon requests acknowledge the buyer independently with durable evidence',
     file: 'src/app/new-balloon/actions.ts',
-    required: ['sendCommercialReceiptEmail', "notificationType: 'new_balloon_buyer_ack'", "recipientRole: 'buyer'", 'new-balloon-buyer-ack-${requestId}', 'Any initial configuration or budget range is non-binding.', 'buyer acknowledgement could not be completed'],
+    required: ['sendCommercialReceiptEmail', 'buildNewBalloonBuyerAcknowledgement', "notificationType: 'new_balloon_buyer_ack'", "recipientRole: 'buyer'", 'new-balloon-buyer-ack-${requestId}', 'buyer acknowledgement could not be completed'],
+  },
+  {
+    name: 'New-balloon acknowledgement copy is transactional and non-binding',
+    file: 'src/utils/new-balloon-buyer-acknowledgement.mjs',
+    required: ['Any initial configuration or budget range is non-binding.', 'not a factory order', 'creates no payment obligation', 'escapeHtml'],
   },
   {
     name: 'New-balloon buyer acknowledgements use a closed transactional receipt type',
     file: 'supabase/migrations/20260829430000_new_balloon_buyer_acknowledgement.sql',
     required: ['new_balloon_buyer_ack', 'commercial_notification_receipts_notification_type_check', 'not a quotation, order or marketing subscription'],
+  },
+  {
+    name: 'Transactional email recovery has an auditable two-attempt budget',
+    file: 'supabase/migrations/20260829440000_commercial_notification_retry_budget.sql',
+    required: ['delivery_attempts integer not null default 0', 'delivery_attempts between 0 and 2', 'next_attempt_at', 'commercial_notification_receipts_retry_idx', 'closed budget of two attempts'],
+  },
+  {
+    name: 'Commercial delivery claims are optimistic, idempotent and bounded',
+    file: 'src/utils/commercial-notification.ts',
+    required: ['getCommercialDeliveryDecision', 'getNextCommercialAttemptAt', ".eq('delivery_attempts', previousAttempts)", ".in('status', ['pending', 'failed'])", "'claim_conflict'", 'commercialDeliveryMaxAttempts'],
   },
   {
     name: 'Unmet buyer demand is durable, consented and private',
@@ -458,7 +473,7 @@ const checks = [
   {
     name: 'Open commercial opportunities receive one evidence-backed operational follow-up',
     file: 'src/app/api/cron/opportunity-followup/route.ts',
-    required: ['getOpportunityFollowupCutoff', 'openInquiryStatuses', 'sendCommercialReceiptEmail', 'inquiry-seller-followup-', 'quote-admin-followup-', 'premium-listing-checkout-recovery-', 'single operational reminder'],
+    required: ['getOpportunityFollowupCutoff', 'openInquiryStatuses', 'sendCommercialReceiptEmail', 'inquiry-seller-followup-', 'quote-admin-followup-', 'premium-listing-checkout-recovery-', 'new-balloon-buyer-ack-', 'dueNewBalloonBuyerAcknowledgementRetries', 'single operational reminder'],
   },
   {
     name: 'Abandoned Premium listing checkout receives one non-destructive recovery path',

@@ -6,6 +6,7 @@ import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { getOpportunityFollowupCutoff, openInquiryStatuses, openQuoteStatuses } from '@/utils/opportunity-followup.mjs'
 import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 import { siteUrl } from '@/utils/site'
+import { buildNewBalloonBuyerAcknowledgement } from '@/utils/new-balloon-buyer-acknowledgement.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,17 @@ type SellerAssistance = {
   last_activity_at: string
 }
 
+type BuyerAcknowledgementRetry = {
+  entity_id: string
+}
+
+type NewBalloonQuote = {
+  id: string
+  email: string
+  manufacturer_preference: string
+  equipment_type: string
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -48,8 +60,9 @@ export async function GET(request: Request) {
 
   const commit = new URL(request.url).searchParams.get('commit') === '1'
   const cutoff = getOpportunityFollowupCutoff()
+  const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, premiumListingResult, sellerAssistanceResult] = await Promise.all([
+  const [inquiryResult, quoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -79,8 +92,17 @@ export async function GET(request: Request) {
       .lte('last_activity_at', cutoff)
       .order('last_activity_at', { ascending: true })
       .limit(100),
+    supabase
+      .from('commercial_notification_receipts')
+      .select('entity_id')
+      .eq('notification_type', 'new_balloon_buyer_ack')
+      .in('status', ['pending', 'failed'])
+      .lt('delivery_attempts', 2)
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+      .order('created_at', { ascending: true })
+      .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error || premiumListingResult.error || sellerAssistanceResult.error) {
+  if (inquiryResult.error || quoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
@@ -88,18 +110,62 @@ export async function GET(request: Request) {
   const quotes = quoteResult.data || []
   const premiumListings = (premiumListingResult.data || []) as PremiumListingRecovery[]
   const sellerAssistance = (sellerAssistanceResult.data || []) as SellerAssistance[]
+  const buyerAcknowledgementRetries = (buyerAcknowledgementRetryResult.data || []) as BuyerAcknowledgementRetry[]
+  const buyerAcknowledgementQuoteIds = [...new Set(buyerAcknowledgementRetries.map((retry) => retry.entity_id))]
+  const buyerAcknowledgementQuotesResult = buyerAcknowledgementQuoteIds.length > 0
+    ? await supabase
+      .from('quote_requests')
+      .select('id,email,manufacturer_preference,equipment_type')
+      .in('id', buyerAcknowledgementQuoteIds)
+    : { data: [], error: null }
+  if (buyerAcknowledgementQuotesResult.error) {
+    return NextResponse.json({ error: 'Buyer acknowledgement retries could not be loaded' }, { status: 500 })
+  }
+  const buyerAcknowledgementQuoteById = new Map(
+    ((buyerAcknowledgementQuotesResult.data || []) as NewBalloonQuote[]).map((quote) => [quote.id, quote]),
+  )
   const result = {
     dueSellerEnquiries: inquiries.length,
     dueNewBalloonQuotes: quotes.length,
     duePremiumListingCheckouts: premiumListings.length,
     dueSellerAssistance: sellerAssistance.length,
+    dueNewBalloonBuyerAcknowledgementRetries: buyerAcknowledgementRetries.length,
     accepted: 0,
     alreadyAccepted: 0,
+    retryDeferred: 0,
     failed: 0,
     configurationBlocked: 0,
     dryRun: !commit,
   }
   if (!commit) return NextResponse.json(result)
+
+  for (const retry of buyerAcknowledgementRetries) {
+    const quote = buyerAcknowledgementQuoteById.get(retry.entity_id)
+    if (!quote?.email) {
+      result.configurationBlocked += 1
+      continue
+    }
+    try {
+      const acknowledgement = buildNewBalloonBuyerAcknowledgement(quote, siteUrl)
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'new_balloon_buyer_ack',
+        entityType: 'quote_request',
+        entityId: quote.id,
+        recipientRole: 'buyer',
+        to: quote.email,
+        subject: acknowledgement.subject,
+        html: acknowledgement.html,
+        idempotencyKey: `new-balloon-buyer-ack-${quote.id}`,
+      })
+      if (delivery.duplicate) result.alreadyAccepted += 1
+      else if (delivery.success) result.accepted += 1
+      else if (delivery.skipped) result.retryDeferred += 1
+      else result.failed += 1
+    } catch (error) {
+      console.error('New-balloon buyer acknowledgement retry failed:', error)
+      result.failed += 1
+    }
+  }
 
   for (const inquiry of inquiries) {
     const listing = getInquiryListing(inquiry)

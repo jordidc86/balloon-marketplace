@@ -159,6 +159,8 @@ type CommercialNotification = {
   entity_type: string
   entity_id: string
   status: string
+  delivery_attempts: number
+  next_attempt_at: string | null
   created_at: string
 }
 
@@ -237,7 +239,7 @@ export default async function CommercialPage() {
     supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,existing_listing_url,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,utm_source,created_at').gte('created_at', thirtyDaysAgo),
-    supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
     supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
     supabase.from('listing_watchers').select('id,listing_id,status,journey_key,created_at,confirmed_at').order('created_at', { ascending: false }).limit(500),
@@ -360,6 +362,7 @@ export default async function CommercialPage() {
   const newBalloonBuyerAcknowledgements = typedNotifications.filter((notification) => notification.notification_type === 'new_balloon_buyer_ack')
   const acceptedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'accepted').length
   const failedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed').length
+  const exhaustedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
   const settledRevenueByCurrency = typedOutcomes
@@ -513,7 +516,7 @@ export default async function CommercialPage() {
           })}
         </div>
         <p className="mt-4 text-xs text-muted-foreground">Requests marked “advise me” remain outside either manufacturer until an operator proposal selects one.</p>
-        <p className={`mt-2 text-xs ${failedNewBalloonBuyerAcknowledgements > 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>Buyer acknowledgements: {acceptedNewBalloonBuyerAcknowledgements} accepted · {failedNewBalloonBuyerAcknowledgements} failed.</p>
+        <p className={`mt-2 text-xs ${failedNewBalloonBuyerAcknowledgements > 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>Buyer acknowledgements: {acceptedNewBalloonBuyerAcknowledgements} accepted · {failedNewBalloonBuyerAcknowledgements} failed · {exhaustedNewBalloonBuyerAcknowledgements} exhausted after the safe retry.</p>
       </section>
 
       <section className="rounded-2xl border bg-card overflow-hidden">

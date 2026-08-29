@@ -39,7 +39,7 @@ const querySpecs = {
   inquiries: ['marketplace_inquiries', 'id,listing_id,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,closed_at'],
   negotiationEvents: ['marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,responding_to_event_id,created_at'],
   verifications: ['listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'],
-  commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,status,created_at,attempted_at,accepted_at'],
+  commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,status,delivery_attempts,next_attempt_at,created_at,attempted_at,accepted_at'],
   commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'],
   newBalloonProposals: ['new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'],
   wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'],
@@ -137,6 +137,7 @@ const registeredContacts = recentContacts.filter((event) => event.user_id).lengt
 const anonymousContacts = recentContacts.length - registeredContacts
 const recentQuotes = quotes.filter((quote) => quote.created_at >= since30d)
 const newBalloonBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'new_balloon_buyer_ack')
+const exhaustedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   quotes,
   proposals: newBalloonProposals,
@@ -272,6 +273,8 @@ const result = {
     commercialNotificationStatuses: countBy(commercialNotifications, 'status'),
     newBalloonBuyerAcknowledgements: newBalloonBuyerAcknowledgements.length,
     newBalloonBuyerAcknowledgementStatuses: countBy(newBalloonBuyerAcknowledgements, 'status'),
+    newBalloonBuyerAcknowledgementAttempts: countBy(newBalloonBuyerAcknowledgements, 'delivery_attempts'),
+    exhaustedNewBalloonBuyerAcknowledgements: exhaustedNewBalloonBuyerAcknowledgements.length,
     listingWatchDispatches: listingWatchDispatches.length,
     listingWatchDispatchStatuses: countBy(listingWatchDispatches, 'status'),
     runStatuses: {
