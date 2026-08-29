@@ -40,6 +40,14 @@ Do not deploy, change Netlify settings, or modify production environment variabl
 
 Supabase schema and migrations live under `supabase/`. Do not run production migrations such as `supabase db push` without explicit approval and a rollback plan.
 
+The historical migration chain cannot bootstrap an empty database by itself because its oldest remote baseline is only a placeholder. The supported schema-recovery rehearsal uses a checksummed, schema-only production baseline plus every later migration:
+
+```bash
+npm run rehearse:db-recovery
+```
+
+This command requires Docker, creates and removes a disposable local Supabase database, strips linked-production credentials, and never calls Netlify or a remote database. It proves schema reconstruction and migration-history integrity; it is not a backup of table rows. See `docs/database-recovery-runbook.md` before changing the recovery baseline or performing an actual restore.
+
 ## Newsletter
 
 The bi-weekly newsletter is triggered by `.github/workflows/newsletter.yml` against `/api/cron/newsletter`.

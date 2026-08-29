@@ -14,6 +14,9 @@ Last updated: 2026-08-29.
 | `reviews/monetization-boundary-audit-2026-08-29.md` | Evidence and exact business choice separating current paid products, fixed services and commission models | Yes, before adding any transaction-fee payment path |
 | `reviews/seller-response-recovery-2026-08-29.md` | Bounded internal escalation after a provider-accepted seller reminder remains unresolved | Yes, when reviewing marketplace conversion recovery |
 | `reviews/grouped-migration-rehearsal-2026-08-29.md` | Isolated application, lint, permission and behavioral evidence for migrations `20260829490000` through `20260829590000` | Yes, before approving this release |
+| `reviews/database-recovery-rehearsal-2026-08-29.md` | Successful empty-target reconstruction evidence for all 60 committed migration versions | Yes, when assessing recovery readiness |
+| `docs/database-recovery-runbook.md` | Supported empty-target schema reconstruction, validation and production boundaries | Yes, before disaster-recovery work or changing the recovery baseline |
+| `scripts/rehearse-database-recovery.mjs` | Disposable local recovery rehearsal from a checksummed schema baseline plus forward migrations | Yes, after database migration changes |
 | `docs/production-audit-runbook.md` | Post-deploy verification and rollback gate | Yes, after an approved deploy |
 | `docs/grouped-release-social-economics-20260829.md` | Exact migration, one-deploy, verification and non-destructive rollback plan for the current release candidate | Yes, before approving this release |
 | `scripts/audit-local.mjs` | Static operational contract checks | Yes, before every release |
@@ -28,7 +31,7 @@ Last updated: 2026-08-29.
 | Payments | `src/app/api/webhooks/stripe/`, `src/utils/stripe.ts`, pricing actions | Do not change without exact approval. |
 | Commercial measurement | `src/app/catalog/[id]/ListingViewTracker.tsx`, `src/utils/buyer-funnel.mjs`, `src/utils/catalog-search.mjs`, `src/utils/social-publication.mjs`, `src/utils/commercial-economics.mjs`, catalog actions, new-balloon actions, `scripts/capture-commercial-baseline.mjs`, `scripts/capture-marketplace-audit.mjs` | Comparable post-instrumentation buyer conversion, localized European entry without PII, attributed social acquisition, contact reveals, quote persistence, payment evidence and release-candidate unit economics that keep unknown costs null. |
 | Email | `src/utils/resend.ts`, premium alerts, newsletter cron | Customer-facing; dispatch requires approval. |
-| Database | `supabase/schema.sql`, Supabase utilities | Treat production data as external system. |
+| Database | `supabase/schema.sql`, `supabase/migrations/`, `supabase/recovery/`, Supabase utilities | Treat production data as external system. The recovery snapshot is schema-only and does not replace production row backups. |
 | Deployment | `netlify.toml`, `.github/workflows/` | `.netlify/` is local generated output, not source. Read-only unless deployment/config action is approved. |
 
 ## Known Checks
