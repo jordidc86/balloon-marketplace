@@ -26,8 +26,8 @@ The release does not change prices, publish a post, send a message by itself, cr
 ## Exact source
 
 - Production base: `9880e56df0b1f47089c0ea176d57a613c25847a5`.
-- Runtime release candidate: `611c9df66ca7920c1d16d2aa9364a9b8ffd3117a`.
-- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3`, `8abde69`, `255f37e`, `c0589ea`, `5cddd94` and `611c9df`.
+- Runtime release candidate: `dfc54277364ea2482c71fad67c0271dc98220591`.
+- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3`, `8abde69`, `255f37e`, `c0589ea`, `5cddd94`, `611c9df` and `dfc5427`.
 - Required migrations, in order:
   1. `20260829490000_social_publication_receipts.sql`
   2. `20260829500000_commercial_unit_economics.sql`
@@ -48,14 +48,14 @@ Do not apply any production migration, merge/push to `main`, trigger a deploy or
 
 Exact approval wording:
 
-> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000, 20260829540000, 20260829550000, 20260829560000, 20260829570000, 20260829580000 y 20260829590000, publicar las cuatro entradas europeas de captación, su medición privada, la escalación interna de consultas sin respuesta y el paso voluntario de confirmación a distribución incluidos en el candidato 611c9df66ca7920c1d16d2aa9364a9b8ffd3117a, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros, el dry run de newsletter sin enviar emails y el dry run de oportunidades sin enviar emails. No autorizo enviar solicitudes de disponibilidad a vendedores durante esta liberación.
+> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000, 20260829540000, 20260829550000, 20260829560000, 20260829570000, 20260829580000 y 20260829590000, publicar las cuatro entradas europeas de captación, su medición privada, la escalación interna de consultas sin respuesta y el paso voluntario de confirmación a distribución incluidos en el candidato dfc54277364ea2482c71fad67c0271dc98220591, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros, el dry run de newsletter sin enviar emails y el dry run de oportunidades sin enviar emails. No autorizo enviar solicitudes de disponibilidad a vendedores durante esta liberación.
 
 ## Pre-release gate
 
 1. Confirm the feature branch and `origin/main` still resolve to the exact commits above or recalculate this plan.
 2. Confirm the worktree is clean and no secret or generated directory is tracked.
 3. Run `npm test`, `npm run audit:local`, `npm run lint`, `npx tsc --noEmit`, `git diff --check` and `npm run build`.
-4. Confirm the expected result remains 161/161 tests and 169/169 operational contracts.
+4. Confirm the expected result remains 161/161 tests and 170/170 operational contracts.
 5. Capture read-only counts of existing commercial outcomes and current Supabase migration versions without including personal data.
 6. Confirm GitHub Actions workflow `Send Bi-Weekly Newsletter Cron` remains `disabled_manually`; it was paused before the 1 September schedule so the old runtime cannot send another registration-based marketing batch.
 

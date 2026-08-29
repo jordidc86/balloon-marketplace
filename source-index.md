@@ -17,6 +17,7 @@ Last updated: 2026-08-29.
 | `reviews/grouped-migration-rehearsal-2026-08-29.md` | Isolated application, lint, permission and behavioral evidence for migrations `20260829490000` through `20260829590000` | Yes, before approving this release |
 | `reviews/database-recovery-rehearsal-2026-08-29.md` | Successful empty-target reconstruction evidence for all 60 committed migration versions | Yes, when assessing recovery readiness |
 | `reviews/seller-trust-to-distribution-readiness-2026-08-29.md` | Evidence joining owner confirmation to voluntary, attributable seller distribution | Yes, when activating current supply |
+| `reviews/netlify-single-release-gate-rehearsal-2026-08-29.md` | Local Git-range proof that the candidate builds once and later evidence-only work is skipped | Yes, before approving the grouped deployment |
 | `docs/database-recovery-runbook.md` | Supported empty-target schema reconstruction, validation and production boundaries | Yes, before disaster-recovery work or changing the recovery baseline |
 | `scripts/rehearse-database-recovery.mjs` | Disposable local recovery rehearsal from a checksummed schema baseline plus forward migrations | Yes, after database migration changes |
 | `docs/production-audit-runbook.md` | Post-deploy verification and rollback gate | Yes, after an approved deploy |
