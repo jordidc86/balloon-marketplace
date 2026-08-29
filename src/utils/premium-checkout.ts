@@ -1,5 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { stripe } from '@/utils/stripe'
+import { buildPremiumCheckoutParams } from '@/utils/premium-checkout-config.mjs'
+import type Stripe from 'stripe'
 
 type PremiumCheckoutSource = 'signup' | 'pricing' | 'dashboard'
 
@@ -20,32 +22,8 @@ export async function createPremiumMembershipCheckout({
   successPath: string
   cancelPath: string
 }) {
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [{
-      price_data: {
-        currency: 'eur',
-        product_data: {
-          name: 'AeroTrade Premium Club',
-          description: '48-hour Early Access & Instant Alerts',
-        },
-        unit_amount: 999,
-        recurring: { interval: 'year' },
-      },
-      quantity: 1,
-    }],
-    customer: stripeCustomerId || undefined,
-    customer_email: stripeCustomerId ? undefined : userEmail,
-    metadata: {
-      type: 'premium_subscription',
-      user_id: userId,
-      intent_version: '1',
-      checkout_source: source,
-    },
-    mode: 'subscription',
-    success_url: `${origin}${successPath}`,
-    cancel_url: `${origin}${cancelPath}`,
-  }, {
+  const params = buildPremiumCheckoutParams({ userId, userEmail, stripeCustomerId, origin, source, successPath, cancelPath }) as Stripe.Checkout.SessionCreateParams
+  const session = await stripe.checkout.sessions.create(params, {
     idempotencyKey: `premium-${source}-${userId}-${Math.floor(Date.now() / 600000)}`,
   })
 

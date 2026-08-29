@@ -3,10 +3,10 @@
   "projectId": "aerotrade",
   "readOnly": true,
   "containsPii": false,
-  "capturedAt": "2026-08-29T07:05:43.904Z",
+  "capturedAt": "2026-08-29T07:22:32.227Z",
   "period": {
     "rollingDays": 90,
-    "since": "2026-05-31T07:05:43.000Z"
+    "since": "2026-05-31T07:22:32.000Z"
   },
   "stripeMode": "live",
   "webhooks": {
@@ -14,6 +14,7 @@
     "enabledEndpoints": 1,
     "requiredEventCoverage": {
       "checkout.session.completed": true,
+      "checkout.session.expired": true,
       "charge.succeeded": true,
       "customer.subscription.updated": true,
       "customer.subscription.deleted": true,

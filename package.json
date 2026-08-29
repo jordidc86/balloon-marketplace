@@ -12,6 +12,7 @@
     "baseline:commercial": "node scripts/capture-commercial-baseline.mjs",
     "audit:marketplace": "node scripts/capture-marketplace-audit.mjs",
     "audit:stripe-commercial": "node scripts/capture-stripe-commercial-audit.mjs",
+    "test:stripe-premium-checkout": "node scripts/test-premium-checkout-stripe.mjs",
     "test:commercial-instrumentation": "node tests/commercial-instrumentation.test.mjs"
   },
   "dependencies": {

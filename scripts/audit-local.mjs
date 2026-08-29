@@ -44,7 +44,12 @@ const checks = [
   {
     name: 'Premium checkout creation fails closed unless recovery state persists',
     file: 'src/utils/premium-checkout.ts',
-    required: ["intent_version: '1'", "from('premium_checkout_intents')", 'Premium checkout was not durably recorded', 'checkout.sessions.expire', "status: 'SUPERSEDED'"],
+    required: ['buildPremiumCheckoutParams', "from('premium_checkout_intents')", 'Premium checkout was not durably recorded', 'checkout.sessions.expire', "status: 'SUPERSEDED'"],
+  },
+  {
+    name: 'Premium checkout has a real safe Stripe test-mode gate',
+    file: 'scripts/test-premium-checkout-stripe.mjs',
+    required: ['CONFIRM_STRIPE_TEST_MODE', "startsWith('sk_test_')", 'checkout.sessions.create', 'checkout.sessions.expire', 'economicActionsPerformed: 0'],
   },
   {
     name: 'Premium membership can resume an open session or create one tracked replacement',

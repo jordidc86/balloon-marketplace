@@ -1,61 +1,35 @@
 # AeroTrade Latest Summary
 
-Date: 2026-08-28
-Status: `Production source reconciled; commercial and payment-evidence release candidate verified locally`
+Date: 2026-08-29
+Status: `Production deployed, reconciled and measurable; real marketplace liquidity remains unproven`
 
-## Current State
+## Current evidence
 
-AeroTrade is a Next.js marketplace for used hot-air-balloon equipment with Supabase, Stripe, Resend, GitHub Actions newsletter scheduling, and Netlify scheduled social publishing.
+- Production: `https://aerotrade.app`, deployed from `main`.
+- Database migrations are registered and read back through `20260829200000`.
+- Validation: 45 automated tests, 48 operational contracts, ESLint and a full Next.js production build.
+- Current evidence-based score: **83.3%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
+- Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
-## Active Risks
+## Material capabilities now live
 
-| Risk | Status | Why It Matters |
-| --- | --- | --- |
-| Contact email placeholder | `Fixed` | Contact now uses the real AeroTrade support email. |
-| Newsletter scheduler clarity | `Fixed` | GitHub Actions is the documented bi-weekly newsletter scheduler. |
-| Social scheduler clarity | `Fixed` | Netlify runs `/api/cron/social` daily; `/api/cron/instagram` remains compatibility route. |
-| SEO canonical | `Fixed` | Public SEO routes use `https://aerotrade.app`, not Netlify aliases. |
-| Supply-side cold start | `Observed` | Marketplace value depends on enough quality listings. |
-| Stabilization release | `Deployed` | Critical fixes for listing images, contact visibility, Premium conversion and Stripe audit are live. |
-| Stripe webhook coverage | `Fixed` | The live endpoint uses the canonical domain and listens for checkout, subscription update/deletion and payment failure events. |
-| Legacy listing image state | `Fixed` | All active listings have images, contact data and exactly one primary image. |
-| Mobile listing layout | `Fixed` | Listing images are bounded on small screens and anonymous navigation no longer overflows horizontally. |
-| Email delivery false positives | `Present in reconciled base` | Missing Resend credentials fail closed; only provider acceptance IDs count as sent and partial delivery has a durable status. Production was not rechecked in this work. |
-| Meta failure diagnosis | `Present in reconciled base` | Credential preflight, expiry warnings and actionable token/permission/timeout classifications are implemented. Production was not rechecked in this work. |
-| Commercial funnel visibility | `Candidate verified locally` | Views, anonymous/public contact reveals and quote requests now have explicit measurement and fail-closed storage. |
-| Payment notice evidence | `Candidate verified locally` | Each successful charge is deduplicated by charge ID and requires Resend acceptance plus a private persisted receipt/readback before completion. |
+- Used-equipment listings, Premium windows, seller contact and private buyer enquiries.
+- Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
+- First-class new Pasha/Schroeder balloon route with indicative-budget requests and bounded source attribution.
+- Evidence-based admin commercial pipeline and outcome values separated from settled AeroTrade revenue.
+- Seller funnel measurement and owner-only recovery of interrupted Premium listing payment.
+- Private Premium-membership checkout ledger, safe session resumption/replacement and signed-webhook closure.
+- Durable email/provider evidence, controlled recovery semantics and privacy-minimized attribution.
 
-## Production Evidence
+## Principal remaining constraints
 
-- Netlify serves the release from `main`; deploys completed without build or secret-scan errors.
-- Supabase migration history is aligned through `20260711120000`; `stripe_webhook_events` is private.
-- A signed no-op Stripe audit event was processed once and recognized as a duplicate on replay.
-- Newsletter and social dry-runs returned HTTP 200 without sending email or publishing content.
-- GitHub Actions completed a manual newsletter dry-run using its production secret.
-- Public catalog navigation, seller contact, new-balloon quote, pricing, SEO and mobile listing layout were checked in production.
+1. Real marketplace liquidity: no tracked enquiry, wanted request or new-balloon quote has yet produced a validated live opportunity.
+2. Checkout economics: the new recovery path is live but has not yet improved the historical 20% completion rate; no actual Stripe test secret is configured for a full non-live payment exercise.
+3. Supply quality: six sellers have listings, no listing has completed the controlled verification gate, and one active listing has inaccessible image files.
+4. Acquisition: search and source ledgers start with little or no production volume; seller recruitment has not been executed.
+5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
 
-## Reconciliation Evidence
+## Next highest-value work
 
-- Candidate branch started from `origin/main` at `35fb5d0`; the pre-existing dirty workspace was not modified.
-- Existing commercial instrumentation and successful-payment notification commits were integrated into the clean branch.
-- Local checks pass: 22 automated tests, 22 operational contracts, ESLint, a full Next.js production build and an npm audit with zero known vulnerabilities.
-- No production read, migration, webhook change, email, payment, price change, publication or deploy was executed.
-
-## Current Business Improvement Focus
-
-1. Increase supply of verified listings.
-2. Make premium access concrete for buyers and sellers.
-3. Add trust signals around inspection/documentation.
-4. Verify newsletter and Instagram promotion loops.
-
-## Pending Approved Release
-
-- Apply `20260828120000_payment_notification_receipts.sql` before deploying the matching code.
-- Confirm the live Stripe webhook subscribes to `charge.succeeded` and required runtime variables exist, without exposing values.
-- Deploy the reviewed candidate only with separate approval.
-- Run the approved Stripe test-mode and read-only commercial verification in `docs/production-audit-runbook.md`.
-- Preserve the additive receipt table if code rollback is required; do not delete audit evidence.
-
-## Residual Observation
-
-No claim is made that the candidate is live. The next real Stripe payment must not be used as the first test; migration, webhook configuration, deploy and a test-mode verification must happen in that order with separate approval.
+Use real funnel evidence to recruit supply against repeated buyer demand and measure source-to-contact-to-outcome conversion. Do not inflate scores from implementation alone, infer revenue, alter prices, or launch unsolicited campaigns without the relevant evidence and authorization.
