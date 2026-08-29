@@ -44,8 +44,19 @@
       "changedDigestCooldownDays": 30,
       "providerAcceptanceReadbackRequired": true,
       "automaticSend": false,
-      "outreachSeparatelyAuthorized": false
+      "outreachSeparatelyAuthorized": false,
+      "privateSellerResponse": {
+        "migration": "20260829560000_seller_availability_email_capability.sql",
+        "capabilityLifetimeDays": 14,
+        "boundToSellerEmailDigestAndExpiry": true,
+        "getIsReadOnly": true,
+        "explicitDeclarationAndPostRequired": true,
+        "inventoryDriftFailsClosed": true,
+        "databaseFunctionServiceOnly": true,
+        "perListingReadbackRequired": true,
+        "deployed": false
+      }
     }
   },
-  "interpretation": "Five authenticated sellers can confirm all twelve currently active adverts through five total dashboard actions instead of twelve separate confirmations. An administrator can later request the same work through at most five grouped, provider-audited emails rather than twelve advert-level emails, but no confirmation is inferred and no seller has been contacted."
+  "interpretation": "Five sellers can confirm all twelve currently active adverts through five total actions instead of twelve separate confirmations. The dashboard remains authenticated; the grouped email candidate adds a private, short-lived and explicit response path for sellers who do not remember a password. No confirmation is inferred, no seller has been contacted and the capability is not deployed."
 }
