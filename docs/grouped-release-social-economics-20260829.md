@@ -4,7 +4,7 @@ Status: release candidate only. Production is unchanged.
 
 ## Purpose
 
-Ship eight material, additive capabilities in one Netlify production deploy:
+Ship nine material, additive capabilities in one Netlify production deploy:
 
 1. Per-content, network and placement social-publication receipts with provider-ID acceptance, bounded retry and attributable links.
 2. Complete, evidence-backed unit economics on the existing commercial outcome, with unknown costs kept null and every measurement snapshotted immutably.
@@ -14,6 +14,7 @@ Ship eight material, additive capabilities in one Netlify production deploy:
 6. One authenticated seller action that confirms every currently active owned listing while preserving independent, immutable availability evidence per advert.
 7. One manual, transactional availability digest per seller, grouping every currently due advert into a single provider-audited request with a stable cycle key and a 30-day anti-churn boundary.
 8. A private 14-day seller capability that turns that accepted digest into an explicit, scanner-safe review and confirmation step without requiring a remembered password, while binding the action to the exact current inventory-evidence cycle.
+9. Four high-intent European buyer entries in English, German, French and Spanish that display only current public inventory and route demand into the existing catalogue, wanted-request and new-balloon quotation funnels while preserving external acquisition attribution.
 
 The release also activates a deployment-cost guard: future production builds require an explicit change to `release/netlify-production.json`. Ordinary runtime commits may be staged on `main` but cannot independently consume a production-deploy charge.
 
@@ -22,8 +23,8 @@ The release does not change prices, publish a post, send a message by itself, cr
 ## Exact source
 
 - Production base: `9880e56df0b1f47089c0ea176d57a613c25847a5`.
-- Runtime release candidate: `e3577f3d8f39f52b879934d15538ef5a0ec9e24a`.
-- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940` and `e3577f3`.
+- Runtime release candidate: `8abde693de3303add0eb155dc3119dffadecab79`.
+- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3` and `8abde69`.
 - Required migrations, in order:
   1. `20260829490000_social_publication_receipts.sql`
   2. `20260829500000_commercial_unit_economics.sql`
@@ -41,14 +42,14 @@ Do not apply any production migration, merge/push to `main`, trigger a deploy or
 
 Exact approval wording:
 
-> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000, 20260829540000, 20260829550000 y 20260829560000, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros y el dry run de newsletter sin enviar emails. No autorizo enviar solicitudes de disponibilidad a vendedores durante esta liberación.
+> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000, 20260829540000, 20260829550000 y 20260829560000, publicar las cuatro entradas europeas de captación incluidas en el candidato 8abde693de3303add0eb155dc3119dffadecab79, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros y el dry run de newsletter sin enviar emails. No autorizo enviar solicitudes de disponibilidad a vendedores durante esta liberación.
 
 ## Pre-release gate
 
 1. Confirm the feature branch and `origin/main` still resolve to the exact commits above or recalculate this plan.
 2. Confirm the worktree is clean and no secret or generated directory is tracked.
 3. Run `npm test`, `npm run audit:local`, `npm run lint`, `npx tsc --noEmit`, `git diff --check` and `npm run build`.
-4. Confirm the expected result remains 156/156 tests and 158/158 operational contracts.
+4. Confirm the expected result remains 159/159 tests and 160/160 operational contracts.
 5. Capture read-only counts of existing commercial outcomes and current Supabase migration versions without including personal data.
 6. Confirm GitHub Actions workflow `Send Bi-Weekly Newsletter Cron` remains `disabled_manually`; it was paused before the 1 September schedule so the old runtime cannot send another registration-based marketing batch.
 
@@ -91,6 +92,7 @@ After database readback succeeds:
 7. Confirm the seller availability route returns a safe unavailable state without a valid signed capability, exposes no seller email, has private/no-store/no-referrer/noindex response headers and performs no write on GET.
 8. Confirm the opportunity-follow-up dry run reports only the aggregate `dueBuyerEarlyAccessCheckoutRecoveries`; do not set `commit=1` during release verification.
 9. Confirm the deployed build gate skips a subsequent non-release commit and that the skip is not a successful production deploy. Do not create a production commit solely for this test; verify it on the next genuine documentation-only change.
+10. Confirm all four European buyer entries return HTTP 200, expose reciprocal canonical/hreflang metadata, show only publicly released inventory and remain present in the sitemap and IndexNow public URL set.
 
 ## Safe post-deploy checks
 
@@ -125,4 +127,4 @@ The production auditor is release-version aware: the currently deployed schema r
 
 ## Score gate
 
-This release alone does not authorize a commercial-proof score increase. Social acquisition needs a genuine provider-accepted placement and attributable visit; unit economics needs a genuine commercial outcome with complete evidence; proposal conversion needs a genuine buyer response; checkout recovery needs a genuine accepted reminder followed by a verified annual payment; newsletter acquisition needs an explicit consent followed by an attributable visit or conversion; availability needs a genuine owner action, and seller-digest delivery needs explicit outreach approval plus provider evidence. Until then, all eight remain implemented release candidates rather than commercially proven capabilities.
+This release alone does not authorize a commercial-proof score increase. Social acquisition needs a genuine provider-accepted placement and attributable visit; unit economics needs a genuine commercial outcome with complete evidence; proposal conversion needs a genuine buyer response; checkout recovery needs a genuine accepted reminder followed by a verified annual payment; newsletter acquisition needs an explicit consent followed by an attributable visit or conversion; availability needs a genuine owner action, and seller-digest delivery needs explicit outreach approval plus provider evidence. Until then, all nine remain implemented release candidates rather than commercially proven capabilities. The multilingual pages are an acquisition hypothesis until search impressions, comparable visits or a genuine downstream action are observed.
