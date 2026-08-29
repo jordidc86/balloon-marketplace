@@ -7,6 +7,14 @@ import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type Li
 import SafeListingImage from '@/components/SafeListingImage'
 import CatalogSearchTracker from './CatalogSearchTracker'
 import { getCatalogCategory, getCatalogCategoryPath } from '@/utils/catalog-categories.mjs'
+import {
+  getCatalogManufacturer,
+  getCatalogManufacturerPath,
+  getCatalogManufacturersWithInventory,
+  listingMatchesCatalogManufacturer,
+  minimumManufacturerInventoryForIndexing,
+} from '@/utils/catalog-manufacturers.mjs'
+import { isListingPubliclyIndexable } from '@/utils/marketplace-seo.mjs'
 import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = {
@@ -39,22 +47,25 @@ export default async function CatalogPage({
 export async function CatalogExperience({
   searchParams,
   fixedCategory,
+  fixedManufacturer,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
   fixedCategory?: string | null
+  fixedManufacturer?: string | null
 }) {
   const supabase = await createClient()
   const supabaseAdmin = await createAdminClient()
   const params = await searchParams
 
   const category = getCatalogCategory(fixedCategory || (typeof params.category === 'string' ? params.category : null))
+  const manufacturer = getCatalogManufacturer(fixedManufacturer || '')
   const categoryFilter = category?.slug || null
   const searchQuery = typeof params.q === 'string' ? params.q.trim() : ''
   const countryFilter = typeof params.country === 'string' ? params.country.trim() : ''
   const sort = typeof params.sort === 'string' && ['newest', 'price_asc', 'price_desc'].includes(params.sort) ? params.sort : 'newest'
   const newBalloonParams = new URLSearchParams({ source: searchQuery || categoryFilter || countryFilter ? 'catalog-empty' : 'catalog' })
   if (categoryFilter) newBalloonParams.set('category', categoryFilter)
-  if (searchQuery) newBalloonParams.set('q', searchQuery)
+  if (searchQuery || manufacturer) newBalloonParams.set('q', searchQuery || `${manufacturer?.name} or comparable`)
   if (countryFilter) newBalloonParams.set('country', countryFilter)
   const newBalloonHref = `/new-balloon?${newBalloonParams.toString()}`
 
@@ -67,13 +78,20 @@ export async function CatalogExperience({
   }
 
   // Fetch active listings. Locked premium results are rendered with teaser-only fields.
-  let countryQuery = supabaseAdmin
+  const inventoryQuery = supabaseAdmin
     .from('listings')
-    .select('location_country')
+    .select('title,details,category,location_country,status,public_at')
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
-  if (categoryFilter) countryQuery = countryQuery.eq('category', categoryFilter)
-  const { data: countryRows } = await countryQuery
-  const countries = Array.from(new Set((countryRows || []).map((row) => row.location_country).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const { data: inventoryRows } = await inventoryQuery
+  const scopedInventory = (inventoryRows || []).filter((listing) => (
+    (!categoryFilter || listing.category === categoryFilter)
+      && (!manufacturer || listingMatchesCatalogManufacturer(listing, manufacturer))
+  ))
+  const countries = Array.from(new Set(scopedInventory.map((row) => row.location_country).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const publicManufacturerLinks = getCatalogManufacturersWithInventory(
+    (inventoryRows || []).filter((listing) => isListingPubliclyIndexable(listing)),
+    minimumManufacturerInventoryForIndexing,
+  )
 
   let query = supabaseAdmin
     .from('listings')
@@ -87,6 +105,7 @@ export async function CatalogExperience({
       currency,
       condition,
       location_country,
+      details,
       status,
       public_at,
       created_at,
@@ -117,18 +136,27 @@ export async function CatalogExperience({
     return <div className="p-12 text-center text-destructive">Failed to load listings.</div>
   }
 
+  const catalogListings = (rawListings || []).filter((listing) => (
+    !manufacturer || listingMatchesCatalogManufacturer(listing, manufacturer)
+  ))
+  const catalogPath = manufacturer
+    ? getCatalogManufacturerPath(manufacturer.slug)
+    : categoryFilter
+      ? getCatalogCategoryPath(categoryFilter)
+      : '/catalog'
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <CatalogSearchTracker search={{ query: searchQuery, category: categoryFilter, country: countryFilter, sort, resultCount: rawListings?.length || 0 }} />
+      <CatalogSearchTracker search={{ query: searchQuery || manufacturer?.name || '', category: categoryFilter, country: countryFilter, sort, resultCount: catalogListings.length }} />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{category?.heading || 'Marketplace Catalog'}</h1>
-          <p className="text-muted-foreground mt-1">{category?.description || 'Browse the latest hot air balloon equipment worldwide.'}</p>
+          <h1 className="text-3xl font-bold tracking-tight">{manufacturer?.heading || category?.heading || 'Marketplace Catalog'}</h1>
+          <p className="text-muted-foreground mt-1">{manufacturer?.description || category?.description || 'Browse the latest hot air balloon equipment worldwide.'}</p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold"><Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="text-primary hover:underline">Cannot find it used? Record what you need →</Link><Link href={newBalloonHref} className="text-primary hover:underline">Prefer factory-new? Buy through AeroTrade →</Link></div>
         </div>
 
         <div className="flex max-w-full flex-wrap items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
-          <Link href="/catalog" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!categoryFilter ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>All</Link>
+          <Link href="/catalog" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!categoryFilter && !manufacturer ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>All</Link>
           <Link href={getCatalogCategoryPath('complete')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'complete' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Balloons</Link>
           <Link href={getCatalogCategoryPath('envelopes')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'envelopes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Envelopes</Link>
           <Link href={getCatalogCategoryPath('baskets')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'baskets' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Baskets</Link>
@@ -139,7 +167,16 @@ export async function CatalogExperience({
         </div>
       </div>
 
-      <form method="get" action={categoryFilter ? getCatalogCategoryPath(categoryFilter) : '/catalog'} className="mb-8 grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1fr_220px_180px_auto]">
+      {publicManufacturerLinks.length ? (
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-muted-foreground">Browse real inventory by manufacturer:</span>
+          {publicManufacturerLinks.map((item) => (
+            <Link key={item.slug} href={getCatalogManufacturerPath(item.slug)} className={`rounded-full border px-3 py-1.5 font-semibold transition-colors ${manufacturer?.slug === item.slug ? 'border-primary bg-primary text-primary-foreground' : 'bg-background text-foreground hover:border-primary hover:text-primary'}`}>{item.name}</Link>
+          ))}
+        </div>
+      ) : null}
+
+      <form method="get" action={catalogPath} className="mb-8 grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1fr_220px_180px_auto]">
         <label className="relative">
           <span className="sr-only">Search equipment</span>
           <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -163,10 +200,10 @@ export async function CatalogExperience({
         <Link href={newBalloonHref} className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Get a new-balloon estimate</Link>
       </div>
 
-      <p className="mb-4 text-sm text-muted-foreground">{rawListings?.length || 0} matching listing(s)</p>
+      <p className="mb-4 text-sm text-muted-foreground">{catalogListings.length} matching listing(s)</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {(rawListings as ListingWithImages[] | null)?.map((listing) => {
+        {(catalogListings as ListingWithImages[]).map((listing) => {
           const { isPremiumExclusive, canViewFully } = getListingVisibility(listing, user?.id, isPremium)
           const primaryImage = canViewFully ? getPrimaryImageUrl(listing) : null
           const displayTitle = canViewFully ? listing.title : getPublicTeaserTitle(listing.category)
@@ -239,7 +276,7 @@ export async function CatalogExperience({
           )
         })}
 
-        {rawListings?.length === 0 && (
+        {catalogListings.length === 0 && (
           <div className="col-span-full py-20 text-center flex flex-col items-center">
             <Filter className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-medium text-foreground">No suitable used equipment found</h3>

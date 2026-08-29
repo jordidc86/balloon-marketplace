@@ -181,6 +181,16 @@ const checks = [
     required: ['getCatalogCategory', 'getPublicCategoryInventory', 'isListingPubliclyIndexable', 'alternates: { canonical:', 'publicInventory > 0', '<CatalogExperience'],
   },
   {
+    name: 'Manufacturer acquisition pages exist only for a closed inventory-backed set',
+    file: 'src/app/catalog/manufacturer/[manufacturer]/page.tsx',
+    required: ['getCatalogManufacturer', 'getPublicManufacturerInventory', 'minimumManufacturerInventoryForIndexing', 'isListingPubliclyIndexable', 'robots:', '<CatalogExperience'],
+  },
+  {
+    name: 'Manufacturer discovery is linked, measured and falls back to real commercial alternatives',
+    file: 'src/app/catalog/page.tsx',
+    required: ['publicManufacturerLinks', 'Browse real inventory by manufacturer:', 'fixedManufacturer', 'listingMatchesCatalogManufacturer', 'Get a new-balloon estimate'],
+  },
+  {
     name: 'Seller activation funnel is private and evidence-based',
     file: 'supabase/migrations/20260829180000_seller_activation_funnel.sql',
     required: ['seller_funnel_events', 'event_key text not null unique', 'CHECKOUT_RESUMED', 'seller_funnel_listing_stage_consistency', 'enable row level security', 'revoke all on public.seller_funnel_events from anon, authenticated', 'No password, payment data, free text, IP address or browser identifier'],

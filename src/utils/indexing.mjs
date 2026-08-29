@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { getCatalogCategory, getCatalogCategoryPath } from './catalog-categories.mjs'
+import { getCatalogManufacturerPath, getCatalogManufacturersWithInventory, minimumManufacturerInventoryForIndexing } from './catalog-manufacturers.mjs'
 import { isListingPubliclyIndexable } from './marketplace-seo.mjs'
 
 const publicStaticPaths = ['', '/catalog', '/new-balloon', '/wanted', '/sell', '/sell-hot-air-balloon', '/sell/assisted', '/pricing', '/about', '/contact']
@@ -15,7 +16,7 @@ const normalizeOrigin = (value) => {
 }
 
 /**
- * @param {{origin?: string, listings?: Array<{id?: string, category?: string, status?: string, public_at?: string | null}>, now?: Date}} input
+ * @param {{origin?: string, listings?: Array<{id?: string, title?: string, details?: object, category?: string, status?: string, public_at?: string | null}>, now?: Date}} input
  */
 export function buildPublicIndexingUrls({ origin, listings = [], now = new Date() } = {}) {
   const safeOrigin = normalizeOrigin(origin)
@@ -26,11 +27,13 @@ export function buildPublicIndexingUrls({ origin, listings = [], now = new Date(
     .map((listing) => getCatalogCategory(listing.category)?.slug)
     .filter(Boolean)))
     .map((category) => getCatalogCategoryPath(category))
+  const manufacturerPaths = getCatalogManufacturersWithInventory(publicListings, minimumManufacturerInventoryForIndexing)
+    .map((manufacturer) => getCatalogManufacturerPath(manufacturer.slug))
   const listingPaths = publicListings
     .filter((listing) => typeof listing.id === 'string' && listing.id)
     .map((listing) => `/catalog/${encodeURIComponent(listing.id)}`)
 
-  return Array.from(new Set([...publicStaticPaths, ...categoryPaths, ...listingPaths]
+  return Array.from(new Set([...publicStaticPaths, ...categoryPaths, ...manufacturerPaths, ...listingPaths]
     .map((path) => new URL(path, `${safeOrigin}/`).toString())))
     .sort()
 }

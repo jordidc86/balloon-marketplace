@@ -14,7 +14,7 @@ type CatalogSearch = {
 
 export default function CatalogSearchTracker({ search }: { search: CatalogSearch }) {
   useEffect(() => {
-    const storageKey = `aerotrade:catalog-search:${window.location.search || 'all'}`
+    const storageKey = `aerotrade:catalog-search:${window.location.pathname}${window.location.search}`
     try {
       if (window.sessionStorage.getItem(storageKey)) return
       window.sessionStorage.setItem(storageKey, 'pending')
