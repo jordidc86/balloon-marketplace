@@ -24,7 +24,7 @@ export default async function WantedPage({ searchParams }: { searchParams: Promi
             <div className="rounded-xl border bg-card p-4"><SearchCheck className="mb-3 h-5 w-5 text-primary" /><p className="font-bold">Demand meets supply</p><p className="mt-1 text-sm text-muted-foreground">Category, currency and budget are compared with active listings.</p></div>
             <div className="rounded-xl border bg-card p-4"><BellRing className="mb-3 h-5 w-5 text-primary" /><p className="font-bold">Explicit match alerts</p><p className="mt-1 text-sm text-muted-foreground">You choose whether AeroTrade may email when relevant equipment appears.</p></div>
           </div>
-          <p className="mt-6 text-sm text-muted-foreground">Looking for a factory-new aircraft? <Link href="/new-balloon" className="font-semibold text-primary underline">Request a new balloon quote instead.</Link></p>
+          <p className="mt-6 text-sm text-muted-foreground">Looking for a factory-new aircraft? <Link href="/new-balloon?source=wanted" className="font-semibold text-primary underline">Buy a new Pasha or Schroeder balloon through AeroTrade.</Link></p>
         </section>
         <WantedRequestForm initialCategory={initialCategory} />
       </div>

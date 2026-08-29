@@ -37,7 +37,7 @@ export default async function Navbar() {
             <Link href="/wanted" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Wanted</Link>
             <Link href="/sell" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sell Equipment</Link>
             <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Premium</Link>
-            <Link href="/new-balloon" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">New Balloon Quote</Link>
+            <Link href="/new-balloon?source=navigation" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">Buy New</Link>
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-4">
@@ -52,8 +52,8 @@ export default async function Navbar() {
                   <Plus className="h-4 w-4" />
                   List Item
                 </Link>
-                <Link href="/new-balloon" className="inline-flex items-center whitespace-nowrap bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
-                  New Quote
+                <Link href="/new-balloon?source=navigation" className="inline-flex items-center whitespace-nowrap bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+                  Buy New
                 </Link>
                 <div className="flex items-center gap-4 border-l pl-4 ml-2">
                   {isAdmin && <Link href="/admin" className="text-sm font-bold text-primary hover:text-primary/80 transition-colors">Admin</Link>}
@@ -71,8 +71,8 @@ export default async function Navbar() {
                 <Link href="/pricing" className="hidden sm:inline text-sm font-medium hover:text-primary transition-colors">
                   Premium
                 </Link>
-                <Link href="/new-balloon" className="inline-flex items-center whitespace-nowrap bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
-                  New Quote
+                <Link href="/new-balloon?source=navigation" className="inline-flex items-center whitespace-nowrap bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+                  Buy New
                 </Link>
                 <Link href="/login" className="text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 sm:px-4 py-2 rounded-lg transition-colors">
                   Log In

@@ -1,11 +1,14 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRight, Brush, Factory, Send } from 'lucide-react'
+import { ArrowRight, Brush, Calculator, Factory, Send } from 'lucide-react'
+import { supportEmail } from '@/utils/site'
+import { normalizeNewBalloonLeadSource } from '@/utils/new-balloon-lead.mjs'
 import { submitNewBalloonQuote } from './actions'
 
 export const metadata: Metadata = {
   title: 'New Balloon Quote | AeroTrade Marketplace',
-  description: 'Request a new hot air balloon quote and visual concept if you cannot find the right used balloon.',
+  description: 'Buy a new Pasha or Schroeder hot air balloon through AeroTrade and request an indicative budget and visual concept.',
+  alternates: { canonical: '/new-balloon' },
 }
 
 export default async function NewBalloonPage({
@@ -16,6 +19,7 @@ export default async function NewBalloonPage({
   const params = await searchParams
   const success = params.success === 'true'
   const error = typeof params.error === 'string' ? params.error : null
+  const sourceContext = normalizeNewBalloonLeadSource(typeof params.source === 'string' ? params.source : 'direct')
 
   return (
     <div className="bg-secondary/40">
@@ -26,10 +30,10 @@ export default async function NewBalloonPage({
               Marketplace <ArrowRight className="h-4 w-4" />
             </Link>
             <h1 className="max-w-2xl text-4xl font-extrabold tracking-tight sm:text-5xl">
-              Maybe a new balloon is closer than you think.
+              Buy a new balloon through AeroTrade.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-              If the right used balloon is not available, ask us for a fast price indication and a first visual concept for a new Pasha or Schroeder balloon.
+              AeroTrade does not only sell used equipment. If the current marketplace does not contain the right aircraft, we can source a factory-new Pasha or Schroeder balloon and prepare an indicative budget for your configuration.
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -43,14 +47,20 @@ export default async function NewBalloonPage({
                 <p className="text-sm font-bold">Quick visual idea</p>
                 <p className="mt-1 text-xs text-muted-foreground">Share colours, logo or a rough style.</p>
               </div>
+              <div className="border bg-card p-4 sm:col-span-2">
+                <Calculator className="mb-3 h-5 w-5 text-primary" />
+                <p className="text-sm font-bold">Indicative budget before commitment</p>
+                <p className="mt-1 text-xs text-muted-foreground">We first clarify size, intended use and equipment. The initial figure is guidance, not a binding factory quotation.</p>
+              </div>
             </div>
+            <p className="mt-6 text-sm text-muted-foreground">Prefer a direct conversation? <a className="font-semibold text-primary underline" href={`mailto:${supportEmail}?subject=New%20balloon%20enquiry`}>Contact AeroTrade</a>.</p>
           </div>
 
           <div className="border bg-card p-6 shadow-sm sm:p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold">Request quote and visual</h2>
+              <h2 className="text-2xl font-bold">Request an indicative budget</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                We will use this to prepare a first price direction and visual route.
+                Tell us enough to recommend Pasha or Schroeder, outline a suitable configuration and prepare a first price direction.
               </p>
             </div>
 
@@ -67,6 +77,7 @@ export default async function NewBalloonPage({
             )}
 
             <form action={submitNewBalloonQuote} className="space-y-5">
+              <input type="hidden" name="source_context" value={sourceContext} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-1.5 text-sm font-medium">
                   Name *
@@ -153,7 +164,7 @@ export default async function NewBalloonPage({
 
               <button className="inline-flex w-full items-center justify-center gap-2 bg-primary px-5 py-3 font-bold text-primary-foreground hover:bg-primary/90">
                 <Send className="h-4 w-4" />
-                Request Quote & Visual Concept
+                Request Indicative Budget & Visual Concept
               </button>
             </form>
           </div>

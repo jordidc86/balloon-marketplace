@@ -8,9 +8,9 @@ Authoritative evidence used:
 
 - Read-only production snapshot: `reviews/marketplace-audit-2026-08-29.json`.
 - Read-only live Stripe reconciliation: `reviews/stripe-commercial-audit-2026-08-29.json`.
-- Production database migrations through `20260829180000` with RLS and post-write verification.
+- Production database migrations through `20260829190000` with RLS and post-write verification.
 - Public production smoke checks against `https://aerotrade.app`.
-- 42 automated tests, 43 operational contracts, lint, production build and dependency audit.
+- 43 automated tests, 44 operational contracts, lint, production build and dependency audit.
 - Netlify production deployment and Supabase migration history.
 
 ## Scores
@@ -23,14 +23,14 @@ Authoritative evidence used:
 | 4 | Catalogue, search and buyer experience | 70% | 87% | Search, country filter, sorting, result counts, canonical pages, mobile-safe listing images and explicit paths from missing inventory to a private wanted request or a new Pasha/Schroeder quote. | Inventory breadth and country taxonomy are weak; country values contain variants that reduce filtering quality. |
 | 5 | Buyer-to-seller conversion and opportunity tracking | 25% | 87% | Durable enquiries and unmet-demand requests, deduplication, rate limiting, delivery receipts, status pipelines, basic supply matching and evidence-based outcome closure. | 60 views produced 0 tracked contacts in the measured period; neither production funnel has yet produced a live lead. |
 | 6 | Premium, subscriptions, payments and revenue traceability | 72% | 84% | The live webhook endpoint is enabled for all five required events; Stripe confirms 5 checkouts in 90 days, 1 completed/paid and 4 expired. Owner-only listing checkout recovery and durable receipts now cover future attempts. | The one historical live charge predates the receipt ledger, so it has 0 internal live receipt and cannot be safely attributed to a product; checkout completion is only 20%. |
-| 7 | New-balloon requests and intermediation | 45% | 83% | Requests fail closed unless stored, admin notification acceptance is persisted, status is managed centrally, and used-equipment dead ends now offer an approximate new Pasha/Schroeder quote. | No real quote request has yet exercised the production path. |
+| 7 | New-balloon requests and intermediation | 45% | 85% | Buying factory-new is a first-class path in navigation, catalogue, zero-result, listing and wanted journeys. Requests fail closed unless stored, retain a bounded source, persist notification acceptance and enter the central opportunity pipeline. | No real quote request or manufacturer proposal has yet exercised the production path, so response time and close rate remain unproven. |
 | 8 | SEO, content, international acquisition and demand measurement | 60% | 82% | Canonicals, metadata, sitemap, robots, searchable catalogue, bounded UTM/referrer attribution and private daily-deduplicated catalog/zero-result measurement without retaining raw visitor IDs. | The new search ledger starts at zero; there is still no current evidence of search impressions, qualified international acquisition or category-specific content performance. |
 | 9 | Commercial automation, communications and recovery | 60% | 75% | Newsletter and Premium-alert ledgers, partial-failure semantics, selective recovery, durable operational receipts and opt-in match intent. No match campaign has been activated. | Historical newsletter runs include 2 partial results and Premium alerts include 1 failure; wanted-request follow-up remains deliberately manual until real demand validates it. |
 | 10 | Analytics, Control Tower and operational insight | 45% | 93% | One commercial dashboard joins views, catalog searches, seller activation, zero-result supply gaps, contacts, opportunities, outcomes and notification failures. Reproducible PII-free database and live Stripe audits expose cross-system gaps. | Cohort and source-to-outcome reporting needs real search, enquiry and outcome volume before it can be validated. |
 | 11 | Security, privacy, anti-fraud and data integrity | 75% | 92% | Private RLS tables, anonymous access denied, no raw visitor IDs, daily event deduplication, bounded inputs, honeypot, pseudonymous rate limiting, explicit consent and verification limits. | No independent penetration test; seller and buyer identity assurance is still operational rather than automated. |
-| 12 | Production, deployment, persistence, tests and recovery | 88% | 94% | Main branch consolidation discipline, migrations registered and read back, public route health, protected-route enforcement, 42 tests and 43 contracts. | Synthetic monitoring is not yet exercising a full safe commercial transaction; Next.js reports an Edge runtime deprecation warning. |
+| 12 | Production, deployment, persistence, tests and recovery | 88% | 94% | Main branch consolidation discipline, migrations registered and read back, public route health, protected-route enforcement, 43 tests and 44 contracts. | Synthetic monitoring is not yet exercising a full safe commercial transaction; Next.js reports an Edge runtime deprecation warning. |
 
-**Weighted equally: 57.1% initial → 82.8% current.**
+**Weighted equally: 57.1% initial → 83.0% current.**
 
 ## Interpretation
 

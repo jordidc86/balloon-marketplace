@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/utils/supabase/server'
 import { sendEmail } from '@/utils/resend'
+import { normalizeNewBalloonLeadSource } from '@/utils/new-balloon-lead.mjs'
 import { redirect } from 'next/navigation'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
@@ -33,6 +34,7 @@ export async function submitNewBalloonQuote(formData: FormData) {
     timeline: getFormString(formData, 'timeline'),
     colors_or_branding: getFormString(formData, 'colors_or_branding'),
     notes: getFormString(formData, 'notes'),
+    source_context: normalizeNewBalloonLeadSource(getFormString(formData, 'source_context')),
     status: 'NEW',
   }
 

@@ -25,7 +25,7 @@ export default function WantedRequestForm({ initialCategory = '' }: { initialCat
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-950">
         <div className="flex gap-3"><CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0" /><div><h2 className="font-bold">Demand recorded</h2><p className="mt-1 text-sm leading-6">{result.message}</p></div></div>
-        <div className="mt-5 flex flex-wrap gap-3"><Link href="/catalog" className="rounded-lg bg-emerald-900 px-4 py-2 text-sm font-semibold text-white">Browse current catalog</Link><Link href="/new-balloon" className="rounded-lg border border-emerald-800 px-4 py-2 text-sm font-semibold">Price a new balloon</Link><button type="button" onClick={() => setResult(null)} className="px-4 py-2 text-sm font-semibold underline">Record another need</button></div>
+        <div className="mt-5 flex flex-wrap gap-3"><Link href="/catalog" className="rounded-lg bg-emerald-900 px-4 py-2 text-sm font-semibold text-white">Browse current catalog</Link><Link href="/new-balloon?source=wanted" className="rounded-lg border border-emerald-800 px-4 py-2 text-sm font-semibold">Buy a new balloon</Link><button type="button" onClick={() => setResult(null)} className="px-4 py-2 text-sm font-semibold underline">Record another need</button></div>
       </div>
     )
   }

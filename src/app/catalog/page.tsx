@@ -91,7 +91,7 @@ export default async function CatalogPage({
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Marketplace Catalog</h1>
           <p className="text-muted-foreground mt-1">Browse the latest hot air balloon equipment worldwide.</p>
-          <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="mt-2 inline-flex text-sm font-semibold text-primary hover:underline">Cannot find it? Record what you need →</Link>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold"><Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="text-primary hover:underline">Cannot find it used? Record what you need →</Link><Link href="/new-balloon?source=catalog" className="text-primary hover:underline">Prefer factory-new? Buy through AeroTrade →</Link></div>
         </div>
 
         <div className="flex max-w-full flex-wrap items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
@@ -128,7 +128,7 @@ export default async function CatalogPage({
       <div className="mb-8 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:grid-cols-[1fr_auto_auto] sm:items-center">
         <div><p className="font-bold">The right used equipment is not here?</p><p className="mt-1 text-sm text-muted-foreground">Record your requirement for a future match, or ask AeroTrade for an approximate quote for a new Pasha or Schroeder balloon.</p></div>
         <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg border border-primary/30 bg-background px-4 py-2 text-center text-sm font-semibold text-primary">Find it for me</Link>
-        <Link href="/new-balloon" className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Price a new balloon</Link>
+        <Link href="/new-balloon?source=catalog" className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Buy a new balloon</Link>
       </div>
 
       <p className="mb-4 text-sm text-muted-foreground">{rawListings?.length || 0} matching listing(s)</p>
@@ -215,8 +215,8 @@ export default async function CatalogPage({
             <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
               <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg bg-foreground px-5 py-2 text-sm font-bold text-background">Record what you need</Link>
               <Link href="/sell" className="text-primary hover:underline font-medium">Have something to sell?</Link>
-              <Link href="/new-balloon" className="bg-primary px-5 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">
-                Price a new Pasha or Schroeder balloon
+              <Link href="/new-balloon?source=catalog-empty" className="bg-primary px-5 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">
+                Buy a new Pasha or Schroeder balloon
               </Link>
             </div>
           </div>

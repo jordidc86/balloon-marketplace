@@ -22,6 +22,7 @@ type Quote = {
   name: string
   email: string
   equipment_type: string
+  source_context: string
   status: string
   created_at: string
 }
@@ -125,7 +126,7 @@ export default async function CommercialPage() {
   const nowMs = Date.now()
   const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,listings(title)').order('created_at', { ascending: false }).limit(100),
-    supabase.from('quote_requests').select('id,name,email,equipment_type,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('quote_requests').select('id,name,email,equipment_type,source_context,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
     supabase.from('catalog_search_events').select('id,query_text,category,country,result_count,zero_results,utm_source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
@@ -305,7 +306,7 @@ export default async function CommercialPage() {
           <div className="divide-y">
             {typedQuotes.map((quote) => (
               <div key={quote.id} className="grid gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
-                <div><p className="font-semibold">{quote.name} · {quote.equipment_type}</p><a href={`mailto:${quote.email}`} className="text-sm text-primary hover:underline">{quote.email}</a><p className="mt-1 text-xs text-muted-foreground">{formatDate(quote.created_at)}</p></div>
+                <div><p className="font-semibold">{quote.name} · {quote.equipment_type}</p><a href={`mailto:${quote.email}`} className="text-sm text-primary hover:underline">{quote.email}</a><p className="mt-1 text-xs text-muted-foreground">Source: {quote.source_context} · {formatDate(quote.created_at)}</p></div>
                 <span className="text-sm font-bold">{quote.status}</span>
                 <form action={updateQuoteRequestStatus.bind(null, quote.id)} className="flex gap-2">
                   <select name="status" defaultValue={quote.status} className="rounded-lg border bg-background px-3 py-2 text-sm">

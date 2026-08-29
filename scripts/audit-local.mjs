@@ -143,6 +143,11 @@ const checks = [
     required: ["select('id')", 'Quote request readback did not return an id', 'aerotrade-quote-${requestId}'],
   },
   {
+    name: 'New-balloon buying is visible and source-attributed without raw URLs',
+    file: 'supabase/migrations/20260829190000_new_balloon_lead_source.sql',
+    required: ['source_context text not null default', 'quote_requests_source_context_check', 'contains no URL, identifier or personal data'],
+  },
+  {
     name: 'Listing detail image stays bounded on mobile',
     file: 'src/app/catalog/[id]/page.tsx',
     required: ['Number(b.is_primary) - Number(a.is_primary)', 'aspect-[4/3]', 'sm:h-[min(72vh,620px)]', 'object-contain'],
