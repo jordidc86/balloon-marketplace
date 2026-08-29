@@ -412,6 +412,22 @@ const checks = [
     required: ['listing_verifications', 'supporting_documents_checked', 'This is not an airworthiness inspection.', 'enable row level security'],
   },
   {
+    name: 'Listing availability evidence is owner-authenticated, dated and immutable to clients',
+    file: 'supabase/migrations/20260829450000_listing_availability_confirmations.sql',
+    required: ['confirm_listing_availability', 'v_listing.seller_id <> v_user_id', "v_listing.status not in ('ACTIVE_PUBLIC', 'ACTIVE_PREMIUM')", 'unique (listing_id, confirmed_on)', 'revoke insert, update, delete', 'grant execute'],
+  },
+  {
+    name: 'Availability confirmation requires database readback and cannot change listing state',
+    file: 'src/app/dashboard/actions.ts',
+    required: ["rpc('confirm_listing_availability'", "from('listing_availability_confirmations')", 'Availability confirmation was not verified by readback'],
+    forbidden: ["status: 'ACTIVE_PUBLIC'", "status: 'ACTIVE_PREMIUM'"],
+  },
+  {
+    name: 'Public availability trust appears only inside the bounded freshness window',
+    file: 'src/app/catalog/[id]/page.tsx',
+    required: ['getListingAvailabilityState', 'availabilityConfirmation.publiclyFresh', 'Seller confirmed availability on'],
+  },
+  {
     name: 'Listing verification decisions store only closed evidence categories and atomic audit events',
     file: 'supabase/migrations/20260829280000_listing_verification_workflow.sql',
     required: ['listing_verification_events', 'request_listing_verification', 'decide_listing_verification', 'for update', "grant execute on function public.request_listing_verification", 'stores no document copy'],

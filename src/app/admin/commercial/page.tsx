@@ -3,6 +3,7 @@ import { BellRing, CircleDollarSign, CreditCard, MessageSquare, Plane, Store, Tr
 import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/utils/new-balloon-manufacturers.mjs'
+import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { recordCommercialOutcome, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -181,6 +182,11 @@ type ListingWatchDispatch = {
   updated_at: string
 }
 
+type ListingAvailabilityConfirmation = {
+  listing_id: string
+  confirmed_at: string
+}
+
 type CommercialOutcome = {
   id: string
   entity_type: 'marketplace_inquiry' | 'quote_request'
@@ -262,6 +268,15 @@ export default async function CommercialPage() {
   const typedListingEvents = (events || []) as ListingEvent[]
   const typedListingWatchers = (listingWatchers || []) as ListingWatcher[]
   const typedListingWatchDispatches = (listingWatchDispatches || []) as ListingWatchDispatch[]
+  const { data: listingAvailabilityConfirmations, error: listingAvailabilityError } = await supabase
+    .from('listing_availability_confirmations')
+    .select('listing_id,confirmed_at')
+    .order('confirmed_at', { ascending: false })
+    .limit(2000)
+  const latestAvailabilityByListing = ((listingAvailabilityConfirmations as ListingAvailabilityConfirmation[] | null) || []).reduce<Map<string, string>>((latest, confirmation) => {
+    if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation.confirmed_at)
+    return latest
+  }, new Map())
   const negotiationEventsByInquiry = typedNegotiationEvents.reduce<Map<string, NegotiationEvent[]>>((byInquiry, event) => {
     const inquiryEvents = byInquiry.get(event.inquiry_id) || []
     inquiryEvents.push(event)
@@ -321,6 +336,9 @@ export default async function CommercialPage() {
   const pendingListingWatchers = typedListingWatchers.filter((watcher) => watcher.status === 'PENDING_CONFIRMATION').length
   const acceptedListingWatchUpdates = typedListingWatchDispatches.filter((dispatch) => dispatch.status === 'ACCEPTED').length
   const failedListingWatchUpdates = typedListingWatchDispatches.filter((dispatch) => dispatch.status === 'FAILED').length
+  const activeListingsWithFreshAvailability = typedMatchableListings.filter((listing) => getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), new Date(nowMs)).status === 'fresh').length
+  const activeListingsWithStaleAvailability = typedMatchableListings.filter((listing) => getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), new Date(nowMs)).status === 'stale').length
+  const activeListingsNeverConfirmed = typedMatchableListings.length - activeListingsWithFreshAvailability - activeListingsWithStaleAvailability
   const zeroResultSearches = typedSearchEvents.filter((event) => event.zero_results)
   const zeroDemandCounts = zeroResultSearches.reduce<Map<string, number>>((counts, event) => {
     const label = event.query_text || event.category || event.country || 'Unspecified catalog search'
@@ -400,6 +418,18 @@ export default async function CommercialPage() {
         <Metric title="Watch updates accepted" value={acceptedListingWatchUpdates} icon={<BellRing className="h-5 w-5" />} detail="Material listing changes accepted by the email provider" />
         <Metric title="Watch updates failed" value={failedListingWatchUpdates} icon={<TriangleAlert className="h-5 w-5" />} detail="Retryable without repeating accepted alerts" warning={failedListingWatchUpdates > 0} />
       </div>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">Listing availability evidence</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Only explicit seller confirmations count. Listing edits, publication dates and administrator activity never imply availability.</p>
+        {listingAvailabilityError ? <p className="mt-4 text-sm text-destructive">Availability evidence is unavailable: {listingAvailabilityError.message}</p> : (
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            <Metric title="Fresh confirmations" value={activeListingsWithFreshAvailability} icon={<Store className="h-5 w-5" />} detail="Seller-confirmed within 90 days" />
+            <Metric title="Never confirmed" value={activeListingsNeverConfirmed} icon={<TriangleAlert className="h-5 w-5" />} detail="No availability evidence yet" warning={activeListingsNeverConfirmed > 0} />
+            <Metric title="Confirmation expired" value={activeListingsWithStaleAvailability} icon={<TriangleAlert className="h-5 w-5" />} detail="Last confirmation is older than 90 days" warning={activeListingsWithStaleAvailability > 0} />
+          </div>
+        )}
+      </section>
 
       <section className="rounded-2xl border bg-card p-6">
         <h2 className="text-xl font-semibold">Buyer journey evidence (30d)</h2>

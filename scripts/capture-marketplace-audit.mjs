@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { buildNewBalloonManufacturerFunnel } from '../src/utils/new-balloon-manufacturers.mjs'
+import { getListingAvailabilityState } from '../src/utils/listing-availability.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only after explicit approval for a read-only production audit.')
@@ -47,6 +48,7 @@ const querySpecs = {
   sellerFunnelEvents: ['seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'],
   listingWatchers: ['listing_watchers', 'id,listing_id,status,journey_key,created_at,confirmed_at,last_notified_at'],
   listingWatchDispatches: ['listing_watch_dispatches', 'id,watcher_id,listing_id,status,created_at,accepted_at'],
+  listingAvailabilityConfirmations: ['listing_availability_confirmations', 'id,listing_id,seller_id,listing_status,source,confirmed_on,confirmed_at'],
 }
 
 const auditData = Object.fromEntries(await Promise.all(Object.entries(querySpecs).map(async ([name, [table, columns]]) => [name, await rows(table, columns)])))
@@ -71,6 +73,7 @@ const {
   sellerFunnelEvents,
   listingWatchers,
   listingWatchDispatches,
+  listingAvailabilityConfirmations,
 } = auditData
 
 const countBy = (items, key) => items.reduce((counts, item) => {
@@ -90,6 +93,16 @@ for (const image of images) {
 }
 
 const activeListingIds = new Set(activeListings.map((listing) => listing.id))
+const latestAvailabilityByListing = [...listingAvailabilityConfirmations]
+  .sort((left, right) => String(right.confirmed_at).localeCompare(String(left.confirmed_at)))
+  .reduce((latest, confirmation) => {
+    if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation.confirmed_at)
+    return latest
+  }, new Map())
+const availabilityStateByListing = new Map(activeListings.map((listing) => [
+  listing.id,
+  getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), now),
+]))
 const activeImageRows = images.filter((image) => activeListingIds.has(image.listing_id))
 const imageAvailability = await Promise.all(activeImageRows.map(async (image) => {
   try {
@@ -174,6 +187,13 @@ const result = {
     staleActiveListings: activeListings.filter((listing) => listing.updated_at < staleListingCutoff).length,
     pendingPaymentListings: listings.filter((listing) => listing.status === 'PENDING_PAYMENT').length,
     usersWithoutListings: users.filter((user) => !sellerListingCounts[user.id]).length,
+    availabilityConfirmations: {
+      fresh: activeListings.filter((listing) => availabilityStateByListing.get(listing.id)?.status === 'fresh').length,
+      stale: activeListings.filter((listing) => availabilityStateByListing.get(listing.id)?.status === 'stale').length,
+      never: activeListings.filter((listing) => availabilityStateByListing.get(listing.id)?.status === 'never').length,
+      invalid: activeListings.filter((listing) => availabilityStateByListing.get(listing.id)?.status === 'invalid').length,
+      eventsTotal: listingAvailabilityConfirmations.length,
+    },
   },
   quality: {
     activeWithoutImages: activeListings.filter((listing) => !imageStats.get(listing.id)?.count).length,

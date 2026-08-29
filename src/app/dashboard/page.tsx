@@ -2,12 +2,13 @@ import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert, ShieldCheck, BellRing } from 'lucide-react'
-import { openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
+import { confirmListingAvailability, openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 import SellerInquiryResponseForm from './SellerInquiryResponseForm'
 import ListingShare from '@/components/ListingShare'
 import { siteUrl } from '@/utils/site'
+import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 
 type DashboardListingImage = {
   url: string
@@ -53,6 +54,11 @@ type ListingVerificationState = {
   requested_at: string | null
   verified_at: string | null
   decision_reason: string | null
+}
+
+type ListingAvailabilityConfirmation = {
+  listing_id: string
+  confirmed_at: string
 }
 
 const formatClosedCode = (value: string) => value.toLowerCase().replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase())
@@ -123,6 +129,17 @@ export default async function DashboardPage({
       .in('listing_id', listingIds)
     : { data: [] }
   const verificationByListing = new Map(((verificationStates as ListingVerificationState[] | null) || []).map((state) => [state.listing_id, state]))
+  const { data: availabilityConfirmations } = listingIds.length > 0
+    ? await admin
+      .from('listing_availability_confirmations')
+      .select('listing_id,confirmed_at')
+      .in('listing_id', listingIds)
+      .order('confirmed_at', { ascending: false })
+    : { data: [] }
+  const latestAvailabilityByListing = ((availabilityConfirmations as ListingAvailabilityConfirmation[] | null) || []).reduce<Map<string, string>>((latest, confirmation) => {
+    if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation.confirmed_at)
+    return latest
+  }, new Map())
   const { data: activeListingWatchers } = listingIds.length > 0
     ? await admin
       .from('listing_watchers')
@@ -233,6 +250,8 @@ export default async function DashboardPage({
                   {listings.map((item) => {
                     const quality = qualityByListing.get(item.id)
                     const verification = verificationByListing.get(item.id)
+                    const latestAvailability = latestAvailabilityByListing.get(item.id) || null
+                    const availability = getListingAvailabilityState(latestAvailability)
                     const isQualityRecovery = item.status === 'DRAFT'
                       && quality
                       && ['QUARANTINED', 'RESOLVED'].includes(quality.status)
@@ -269,6 +288,9 @@ export default async function DashboardPage({
                           {verification?.status === 'IN_REVIEW' ? <p className="mt-1 text-xs font-semibold text-amber-700">Verification requested — queued for review</p> : null}
                           {verification?.status === 'REJECTED' ? <p className="mt-1 text-xs font-semibold text-red-700">Review incomplete — {verification.decision_reason ? formatClosedCode(verification.decision_reason) : 'evidence needs attention'}</p> : null}
                           {watcherCountByListing.get(item.id) ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-700"><BellRing className="h-3.5 w-3.5" />{watcherCountByListing.get(item.id)} confirmed buyer watcher(s)</p> : null}
+                          {availability.status === 'fresh' && latestAvailability ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle className="h-3.5 w-3.5" />Availability confirmed {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'Europe/Madrid' }).format(new Date(latestAvailability))}</p> : null}
+                          {availability.status === 'stale' ? <p className="mt-1 text-xs font-semibold text-amber-700">Availability confirmation is older than 90 days</p> : null}
+                          {availability.status === 'never' ? <p className="mt-1 text-xs font-semibold text-amber-700">Availability has not yet been reconfirmed</p> : null}
                         </div>
                         <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:items-end">
                           {item.status === 'PENDING_PAYMENT' ? (
@@ -285,6 +307,11 @@ export default async function DashboardPage({
                           ) : null}
                           {!supportingEvidenceAvailable && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) ? <Link href={`/catalog/${item.id}/edit`} className="max-w-40 text-right text-xs font-semibold text-amber-700 hover:underline">Mark supporting evidence available to request review</Link> : null}
                           {['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) ? <ListingShare baseUrl={siteUrl} listingId={item.id} title={item.title} source="seller_share" compact /> : null}
+                          {['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) && availability.ageDays !== 0 ? (
+                            <form action={confirmListingAvailability.bind(null, item.id)}>
+                              <button className="rounded-lg border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Confirm still available</button>
+                            </form>
+                          ) : null}
                         </div>
                       </div>
                     )

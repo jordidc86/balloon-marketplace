@@ -22,6 +22,7 @@ import {
   isListingPubliclyIndexable,
   serializeJsonLd,
 } from '@/utils/marketplace-seo.mjs'
+import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -125,6 +126,14 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     : { data: null }
   const verification = (listing as typeof listing & { listing_verifications?: Array<{ status: string; public_summary: string; verified_at: string | null }> }).listing_verifications?.[0]
   const isDocumentChecked = verification?.status === 'VERIFIED'
+  const { data: latestAvailabilityConfirmation } = await supabaseAdmin
+    .from('listing_availability_confirmations')
+    .select('confirmed_at')
+    .eq('listing_id', listing.id)
+    .order('confirmed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const availabilityConfirmation = getListingAvailabilityState(latestAvailabilityConfirmation?.confirmed_at)
 
   // Determine visibility rights
   const { isPremiumExclusive, isOwner, canViewFully } = getListingVisibility(
@@ -311,6 +320,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 <MapPin className="w-4 h-4 mr-1" /> {typedListing.location_country}
               </p>
             )}
+            {canViewFully && availabilityConfirmation.publiclyFresh && latestAvailabilityConfirmation?.confirmed_at ? (
+              <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Seller confirmed availability on {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'Europe/Madrid' }).format(new Date(latestAvailabilityConfirmation.confirmed_at))}
+              </p>
+            ) : null}
             {canViewFully && !isOwner && !isAdmin ? (
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 <BuyerIntentLink listingId={typedListing.id} href="#buyer-enquiry" primary>Ask the seller or make an offer</BuyerIntentLink>

@@ -142,6 +142,36 @@ export async function resumePremiumMembershipCheckout() {
   redirect(checkout.url)
 }
 
+export async function confirmListingAvailability(listingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data, error } = await supabase.rpc('confirm_listing_availability', {
+    p_listing_id: listingId,
+  })
+  const confirmation = Array.isArray(data) ? data[0] : data
+  if (error || !confirmation?.confirmation_id || !confirmation?.confirmed_at) {
+    throw new Error(error?.message || 'Availability confirmation could not be stored')
+  }
+
+  const admin = await createAdminClient()
+  const { data: readback, error: readbackError } = await admin
+    .from('listing_availability_confirmations')
+    .select('id,listing_id,seller_id,confirmed_at')
+    .eq('id', confirmation.confirmation_id)
+    .eq('listing_id', listingId)
+    .eq('seller_id', user.id)
+    .single()
+  if (readbackError || !readback?.id || readback.confirmed_at !== confirmation.confirmed_at) {
+    throw new Error('Availability confirmation was not verified by readback')
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath(`/catalog/${listingId}`)
+  revalidatePath('/catalog')
+}
+
 export async function updateSellerInquiryStatus(inquiryId: string, formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
