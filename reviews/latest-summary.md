@@ -1,15 +1,15 @@
 # AeroTrade Latest Summary
 
 Date: 2026-08-29
-Status: `Production deployed, reconciled and measurable; used-or-new demand now remains contextual and attributable, real liquidity remains unproven`
+Status: `Production deployed, reconciled and measurable; buyer demand and unready seller supply now remain recoverable, real liquidity remains unproven`
 
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829300000`.
-- Validation: 81 automated tests, 70 operational contracts, ESLint and a full Next.js production build.
-- Current evidence-based score: **89.4%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92a83b1311e100075d80e0` is live from commit `0b4097c`.
+- Database migrations are registered and read back through `20260829310000`.
+- Validation: 84 automated tests, 73 operational contracts, ESLint and a full Next.js production build.
+- Current evidence-based score: **90.0%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92ab978e4a2000087b18b1` is live from commit `2921ba8`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -31,6 +31,7 @@ Status: `Production deployed, reconciled and measurable; used-or-new demand now 
 - Seller-requested listing verification: only eligible public listings can enter the private queue; decisions require bounded identity/evidence categories and an explicit scope acknowledgement, state plus audit event commit atomically, notification evidence is durable, and no document copy or identifier is retained.
 - Evidence-based admin commercial pipeline and outcome values separated from settled AeroTrade revenue.
 - Seller funnel measurement and owner-only recovery of interrupted Premium listing payment.
+- A public but private-by-default assisted-sale intake now converts owners who lack photos, documents or pricing into a consented commercial case. It stores before notification, suppresses duplicates and abuse, receives one 24-hour admin follow-up, and cannot be marked LISTED without a matching normal marketplace listing.
 - Private Premium-membership checkout ledger, safe session resumption/replacement and signed-webhook closure.
 - Durable email/provider evidence, controlled recovery semantics and privacy-minimized attribution.
 
@@ -38,7 +39,7 @@ Status: `Production deployed, reconciled and measurable; used-or-new demand now 
 
 1. Real marketplace liquidity: no tracked enquiry, wanted request or new-balloon quote has yet produced a validated live opportunity; the new matching and factory-new paths are healthy but have no real consented request to exercise them.
 2. Checkout economics: the first real recovery is live and verified but has not yet improved the historical 20% completion rate; its eventual payment or free publication remains to be observed.
-3. Supply quality: five sellers currently have active listings, no listing has yet requested or completed the controlled verification gate, and two historical flight records still lack a serial number that cannot be inferred.
+3. Supply quality: five sellers currently have active listings, no assisted-sale request or listing-verification request has yet exercised either controlled workflow, and two historical flight records still lack a serial number that cannot be inferred.
 4. Acquisition: public inventory is discoverable, daily IndexNow delivery is accepted and future journeys are attributable, but the 60 legacy views cannot be reconstructed. The accessible Google account has no `aerotrade.app` Search Console property, and a public search sample surfaced only the homepage plus one listing, so Google coverage/performance and seller recruitment remain absent.
 5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
 
