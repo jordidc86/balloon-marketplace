@@ -692,6 +692,21 @@ const checks = [
     required: ['getOpportunityFollowupCutoff', 'openInquiryStatuses', 'sendCommercialReceiptEmail', 'inquiry-seller-followup-', 'quote-admin-followup-', 'premium-listing-checkout-recovery-', 'new-balloon-buyer-ack-', 'dueNewBalloonBuyerAcknowledgementRetries', 'single operational reminder'],
   },
   {
+    name: 'Unanswered seller enquiries escalate internally only after an accepted reminder ages 48 hours',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ['getSellerEnquiryEscalationCutoff', "notification_type', 'inquiry_seller_followup'", "notificationType: 'inquiry_seller_escalation'", 'dueSellerEnquiryEscalations', 'inquiry-seller-escalation-${inquiry.id}', 'This internal escalation sends nothing to the buyer', 'retryDeferred'],
+  },
+  {
+    name: 'Seller-response escalation extends the existing closed private delivery ledger',
+    file: 'supabase/migrations/20260829580000_inquiry_seller_escalation.sql',
+    required: ['commercial_notification_receipts', 'inquiry_seller_escalation', 'one internal admin signal', 'never contacts the buyer'],
+  },
+  {
+    name: 'Control Tower counts unresolved seller responses as attention without exposing them publicly',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['stalledSellerInquiryIds', 'sellerReminderByInquiry', 'sellerEscalationByInquiry', 'Seller response overdue after an accepted reminder', 'seller response overdue'],
+  },
+  {
     name: 'Abandoned Premium listing checkout receives one non-destructive recovery path',
     file: 'supabase/migrations/20260829250000_premium_listing_checkout_recovery.sql',
     required: ['premium_listing_checkout_recovery', 'CHECKOUT_RECOVERY_SENT', 'stores no message body, email address', 'seller_funnel_listing_stage_consistency'],

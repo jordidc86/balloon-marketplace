@@ -9,6 +9,7 @@ import { getListingAvailabilityState } from '../src/utils/listing-availability.m
 import { buildComparableBuyerFunnel } from '../src/utils/buyer-funnel.mjs'
 import { isOptionalSupabaseSchemaError } from '../src/utils/audit-schema-compatibility.mjs'
 import { isActiveNewsletterConsent } from '../src/utils/newsletter-consent.mjs'
+import { isSellerEnquiryEscalationDue } from '../src/utils/opportunity-followup.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only after explicit approval for a read-only production audit.')
@@ -51,7 +52,7 @@ const querySpecs = {
   inquiries: ['marketplace_inquiries', 'id,listing_id,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,closed_at'],
   negotiationEvents: ['marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,responding_to_event_id,created_at'],
   verifications: ['listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'],
-  commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,status,delivery_attempts,next_attempt_at,created_at,attempted_at,accepted_at'],
+  commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,created_at,attempted_at,accepted_at'],
   commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'],
   newBalloonProposals: ['new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'],
   wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'],
@@ -215,6 +216,14 @@ const buyerEarlyAccessCheckoutRecoveries = commercialNotifications.filter((notif
 const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const listingAvailabilityRequests = commercialNotifications.filter((notification) => notification.notification_type === 'listing_availability_request')
 const sellerAvailabilityDigests = commercialNotifications.filter((notification) => notification.notification_type === 'seller_availability_digest')
+const sellerFollowupByInquiry = new Map(commercialNotifications
+  .filter((notification) => notification.notification_type === 'inquiry_seller_followup')
+  .map((notification) => [notification.entity_id, notification]))
+const sellerEnquiryEscalations = commercialNotifications.filter((notification) => notification.notification_type === 'inquiry_seller_escalation')
+const unresolvedSellerEnquiryEscalations = inquiries.filter((inquiry) => {
+  const reminder = sellerFollowupByInquiry.get(inquiry.id)
+  return isSellerEnquiryEscalationDue({ inquiryStatus: inquiry.status, reminderStatus: reminder?.status, reminderAcceptedAt: reminder?.accepted_at }, now)
+})
 const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   quotes,
   proposals: newBalloonProposals,
@@ -351,6 +360,8 @@ const result = {
     marketplaceBuyerResponses: negotiationEvents.filter((event) => event.actor_role === 'BUYER' && event.event_type !== 'BUYER_OFFERED').length,
     marketplaceSellerResponses: negotiationEvents.filter((event) => event.actor_role !== 'BUYER').length,
     marketplaceSellerResponseNotificationsFailed: negotiationEvents.filter((event) => event.actor_role !== 'BUYER' && event.buyer_notification_status === 'failed').length,
+    unresolvedSellerEnquiryEscalations: unresolvedSellerEnquiryEscalations.length,
+    sellerEnquiryEscalationStatuses: countBy(sellerEnquiryEscalations, 'status'),
     marketplaceBuyerResponseSellerNotificationsFailed: negotiationEvents.filter((event) => event.actor_role === 'BUYER' && event.event_type !== 'BUYER_OFFERED' && event.seller_notification_status === 'failed').length,
     wantedRequests: wantedRequests.length,
     wantedRequests30d: wantedRequests.filter((request) => request.created_at >= since30d).length,

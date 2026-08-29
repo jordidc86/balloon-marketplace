@@ -2,6 +2,7 @@ export const openInquiryStatuses = ['NEW', 'SELLER_NOTIFIED']
 export const openQuoteStatuses = ['NEW']
 export const opportunityFollowupDelayMs = 24 * 60 * 60 * 1000
 export const premiumListingRecoveryDelayMs = 24 * 60 * 60 * 1000
+export const sellerEnquiryEscalationDelayMs = 48 * 60 * 60 * 1000
 
 export function isOpportunityFollowupDue(lastActivityAt, now = new Date(), delayMs = opportunityFollowupDelayMs) {
   const activity = new Date(lastActivityAt).getTime()
@@ -11,6 +12,20 @@ export function isOpportunityFollowupDue(lastActivityAt, now = new Date(), delay
 
 export function getOpportunityFollowupCutoff(now = new Date(), delayMs = opportunityFollowupDelayMs) {
   return new Date(now.getTime() - delayMs).toISOString()
+}
+
+export function getSellerEnquiryEscalationCutoff(now = new Date(), delayMs = sellerEnquiryEscalationDelayMs) {
+  return new Date(now.getTime() - delayMs).toISOString()
+}
+
+export function isSellerEnquiryEscalationDue(
+  { inquiryStatus, reminderStatus, reminderAcceptedAt },
+  now = new Date(),
+  delayMs = sellerEnquiryEscalationDelayMs,
+) {
+  return openInquiryStatuses.includes(inquiryStatus)
+    && reminderStatus === 'accepted'
+    && isOpportunityFollowupDue(reminderAcceptedAt, now, delayMs)
 }
 
 export function isPremiumListingRecoveryCandidate(

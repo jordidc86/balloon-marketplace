@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { escapeHtml } from '@/utils/html'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
-import { getOpportunityFollowupCutoff, openInquiryStatuses, openQuoteStatuses } from '@/utils/opportunity-followup.mjs'
+import { getOpportunityFollowupCutoff, getSellerEnquiryEscalationCutoff, openInquiryStatuses, openQuoteStatuses } from '@/utils/opportunity-followup.mjs'
 import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 import { siteUrl } from '@/utils/site'
 import { buildNewBalloonBuyerAcknowledgement } from '@/utils/new-balloon-buyer-acknowledgement.mjs'
@@ -63,6 +63,11 @@ type BuyerEarlyAccessCheckoutRecovery = {
   created_at: string
 }
 
+type AcceptedSellerFollowup = {
+  entity_id: string
+  accepted_at: string
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -80,9 +85,10 @@ export async function GET(request: Request) {
 
   const commit = new URL(request.url).searchParams.get('commit') === '1'
   const cutoff = getOpportunityFollowupCutoff()
+  const sellerEscalationCutoff = getSellerEnquiryEscalationCutoff()
   const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult] = await Promise.all([
+  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -129,8 +135,16 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: true })
       .limit(100),
     supabase.rpc('due_buyer_early_access_checkout_recoveries', { p_cutoff: cutoff }),
+    supabase
+      .from('commercial_notification_receipts')
+      .select('entity_id,accepted_at')
+      .eq('notification_type', 'inquiry_seller_followup')
+      .eq('status', 'accepted')
+      .lte('accepted_at', sellerEscalationCutoff)
+      .order('accepted_at', { ascending: true })
+      .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error) {
+  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
@@ -141,6 +155,9 @@ export async function GET(request: Request) {
   const sellerAssistance = (sellerAssistanceResult.data || []) as SellerAssistance[]
   const buyerAcknowledgementRetries = (buyerAcknowledgementRetryResult.data || []) as BuyerAcknowledgementRetry[]
   const buyerEarlyAccessRecoveries = (buyerEarlyAccessRecoveryResult.data || []) as BuyerEarlyAccessCheckoutRecovery[]
+  const acceptedSellerFollowups = (acceptedSellerFollowupResult.data || []) as AcceptedSellerFollowup[]
+  const sellerEscalationInquiryIds = new Set(acceptedSellerFollowups.map((receipt) => receipt.entity_id))
+  const sellerEnquiryEscalations = inquiries.filter((inquiry) => sellerEscalationInquiryIds.has(inquiry.id))
   const newBalloonBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'new_balloon_buyer_ack')
   const inquiryBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'inquiry_buyer_ack')
   const buyerAcknowledgementQuoteIds = [...new Set(newBalloonBuyerAcknowledgementRetries.map((retry) => retry.entity_id))]
@@ -170,6 +187,7 @@ export async function GET(request: Request) {
   )
   const result = {
     dueSellerEnquiries: inquiries.length,
+    dueSellerEnquiryEscalations: sellerEnquiryEscalations.length,
     dueNewBalloonQuotes: quotes.length,
     dueNewBalloonProposalResponses: buyerResponseQuotes.length,
     duePremiumListingCheckouts: premiumListings.length,
@@ -320,6 +338,35 @@ export async function GET(request: Request) {
   }
 
   const adminEmail = process.env.ADMIN_EMAIL?.trim()
+  for (const inquiry of sellerEnquiryEscalations) {
+    if (!adminEmail) {
+      result.configurationBlocked += 1
+      continue
+    }
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'inquiry_seller_escalation',
+        entityType: 'inquiry',
+        entityId: inquiry.id,
+        recipientRole: 'admin',
+        to: adminEmail,
+        subject: 'AeroTrade: seller response overdue after reminder',
+        html: `<h2>A marketplace enquiry needs manual recovery</h2>
+        <p>The seller has not advanced an open buyer enquiry at least 48 hours after AeroTrade received provider acceptance for the single seller reminder.</p>
+        <p><a href="${escapeHtml(`${siteUrl}/admin/commercial#inquiry-${inquiry.id}`)}">Open this enquiry in the commercial pipeline</a> and decide whether to contact the seller manually.</p>
+        <p>This internal escalation sends nothing to the buyer, makes no promise and performs no reservation, payment or contract action.</p>`,
+        idempotencyKey: `inquiry-seller-escalation-${inquiry.id}`,
+      })
+      if (delivery.duplicate) result.alreadyAccepted += 1
+      else if (delivery.success) result.accepted += 1
+      else if (delivery.skipped) result.retryDeferred += 1
+      else result.failed += 1
+    } catch (error) {
+      console.error('Seller enquiry escalation failed:', error)
+      result.failed += 1
+    }
+  }
+
   for (const quote of quotes) {
     if (!adminEmail) {
       result.configurationBlocked += 1

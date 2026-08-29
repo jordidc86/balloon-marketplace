@@ -5,6 +5,7 @@ import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/utils/new-balloon-manufacturers.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '@/utils/buyer-funnel.mjs'
+import { isSellerEnquiryEscalationDue } from '@/utils/opportunity-followup.mjs'
 import { recordCommercialOutcome, recordCommercialUnitEconomics, requestSellerAvailabilityDigest, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -166,6 +167,7 @@ type CommercialNotification = {
   status: string
   delivery_attempts: number
   next_attempt_at: string | null
+  accepted_at: string | null
   created_at: string
 }
 
@@ -289,7 +291,7 @@ export default async function CommercialPage() {
     supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,existing_listing_url,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,utm_source,created_at').gte('created_at', thirtyDaysAgo),
-    supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,accepted_at,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_evidence_reference,economics_notes,economics_recorded_at,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
     supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
     supabase.from('listing_watchers').select('id,listing_id,status,journey_key,created_at,confirmed_at').order('created_at', { ascending: false }).limit(500),
@@ -344,6 +346,18 @@ export default async function CommercialPage() {
   const premiumRecoveryByListing = new Map(typedNotifications
     .filter((notification) => notification.notification_type === 'premium_listing_checkout_recovery')
     .map((notification) => [notification.entity_id, notification.status]))
+  const sellerReminderByInquiry = new Map(typedNotifications
+    .filter((notification) => notification.notification_type === 'inquiry_seller_followup')
+    .map((notification) => [notification.entity_id, notification]))
+  const sellerEscalationByInquiry = new Map(typedNotifications
+    .filter((notification) => notification.notification_type === 'inquiry_seller_escalation')
+    .map((notification) => [notification.entity_id, notification]))
+  const stalledSellerInquiryIds = new Set(typedInquiries
+    .filter((inquiry) => {
+      const reminder = sellerReminderByInquiry.get(inquiry.id)
+      return isSellerEnquiryEscalationDue({ inquiryStatus: inquiry.status, reminderStatus: reminder?.status, reminderAcceptedAt: reminder?.accepted_at }, new Date(nowMs))
+    })
+    .map((inquiry) => inquiry.id))
   const availabilityDigestBySeller = new Map<string, CommercialNotification>()
   for (const notification of typedNotifications.filter((item) => item.notification_type === 'seller_availability_digest')) {
     if (!availabilityDigestBySeller.has(notification.entity_id)) availabilityDigestBySeller.set(notification.entity_id, notification)
@@ -534,7 +548,7 @@ export default async function CommercialPage() {
         <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${activeListingWatchers} active watchers · ${closedListingWatchers} closed with listing · ${sharedLinkViews} from shared links`} />
         <Metric title="Open opportunities" value={openInquiries + openWanted + openSellerAssistance + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon · ${typedSellerAssistance.length} assisted sellers`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
-        <Metric title="Needs attention" value={failedNotifications + pendingReportedSaleReview.length + socialPublicationAttention} icon={<TriangleAlert className="h-5 w-5" />} detail={`${failedNotifications} email delivery · ${pendingReportedSaleReview.length} reported sale review · ${socialPublicationAttention} social publication`} warning={failedNotifications + pendingReportedSaleReview.length + socialPublicationAttention > 0} />
+        <Metric title="Needs attention" value={failedNotifications + pendingReportedSaleReview.length + socialPublicationAttention + stalledSellerInquiryIds.size} icon={<TriangleAlert className="h-5 w-5" />} detail={`${stalledSellerInquiryIds.size} seller response overdue · ${failedNotifications} email delivery · ${pendingReportedSaleReview.length} reported sale review · ${socialPublicationAttention} social publication`} warning={failedNotifications + pendingReportedSaleReview.length + socialPublicationAttention + stalledSellerInquiryIds.size > 0} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -844,6 +858,7 @@ export default async function CommercialPage() {
                 <div className="text-sm">
                   <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{inquiry.status}</span>
                   {inquiry.seller_notification_status === 'failed' ? <p className="mt-2 text-destructive">Seller email not accepted; lead remains visible.</p> : null}
+                  {stalledSellerInquiryIds.has(inquiry.id) ? <p className="mt-2 font-semibold text-amber-700">Seller response overdue after an accepted reminder{sellerEscalationByInquiry.get(inquiry.id)?.status === 'accepted' ? ' · admin escalation accepted' : ' · awaiting internal escalation'}.</p> : null}
                   {latestNegotiationEvent && latestNegotiationEvent.actor_role !== 'BUYER' ? <p className={`mt-2 text-xs ${latestNegotiationEvent.buyer_notification_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Buyer response email: {latestNegotiationEvent.buyer_notification_status}</p> : null}
                   {latestNegotiationEvent && latestNegotiationEvent.actor_role === 'BUYER' && latestNegotiationEvent.event_type !== 'BUYER_OFFERED' ? <p className={`mt-2 text-xs ${latestNegotiationEvent.seller_notification_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Seller response email: {latestNegotiationEvent.seller_notification_status}</p> : null}
                 </div>
