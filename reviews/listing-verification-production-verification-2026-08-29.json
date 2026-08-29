@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_listing_verification_production_verification",
+  "completedAt": "2026-08-29T11:09:47+02:00",
+  "productionUrl": "https://aerotrade.app",
+  "commit": "0777cf29b6f6771576b5564b6e35c3bc166c921a",
+  "netlifyDeployId": "6a92a1780b60df9f871b85d4",
+  "database": {
+    "migration": "20260829280000",
+    "migrationRecorded": true,
+    "workflowColumns": 7,
+    "workflowConstraints": 4,
+    "eventLedgerRlsEnabled": true,
+    "publicEventMutationGrants": 0,
+    "workflowFunctions": 2,
+    "serviceRoleCanExecuteBothFunctions": true,
+    "anonymousCanExecuteWorkflowFunctions": false,
+    "authenticatedUsersCanExecuteWorkflowFunctions": false
+  },
+  "productionReadback": {
+    "activeListings": 12,
+    "verificationRows": 0,
+    "verificationEventRows": 0,
+    "verificationNotificationRows": 0,
+    "syntheticRecordsCreated": 0
+  },
+  "routeChecks": {
+    "privacyStatus": 200,
+    "privacyDisclosesNoDocumentCopyRetention": true,
+    "anonymousDashboardRedirectedToLogin": true,
+    "anonymousAdminListingsRedirectedToLogin": true,
+    "catalogStatus": 200
+  },
+  "validation": {
+    "automatedTestsPassed": 73,
+    "operationalContractsPassed": 66,
+    "lintPassed": true,
+    "productionBuildPassed": true
+  },
+  "limitations": [
+    "No real seller has requested verification yet, so no production decision was manufactured for testing.",
+    "The badge covers only the reviewed identity basis and supporting-evidence categories; it is not proof of ownership, legal title, airworthiness or physical condition.",
+    "Original evidence remains outside the platform until a separate approved retention process exists."
+  ]
+}

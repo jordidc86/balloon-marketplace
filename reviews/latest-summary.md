@@ -1,15 +1,15 @@
 # AeroTrade Latest Summary
 
 Date: 2026-08-29
-Status: `Production deployed, reconciled and measurable; used-or-new buyer journey is operational, real liquidity remains unproven`
+Status: `Production deployed, reconciled and measurable; used-or-new journey and seller-requested trust workflow are operational, real liquidity remains unproven`
 
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829270000`.
-- Validation: 70 automated tests, 63 operational contracts, ESLint and a full Next.js production build.
-- Current evidence-based score: **88.0%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a929e37af6a03b10298da8a` is live from commit `c80de97`.
+- Database migrations are registered and read back through `20260829280000`.
+- Validation: 73 automated tests, 66 operational contracts, ESLint and a full Next.js production build.
+- Current evidence-based score: **88.7%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92a1780b60df9f871b85d4` is live from commit `0777cf2`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -25,6 +25,7 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
 - Two-check listing-image quarantine: one broken listing was paused, the seller notification was accepted and the post-action audit reports 0 inaccessible active image files.
 - One-time Premium listing checkout recovery: the real pending listing had one expired Stripe session and no paid session; one reminder was accepted, linked to the funnel and duplicate execution was suppressed.
+- Seller-requested listing verification: only eligible public listings can enter the private queue; decisions require bounded identity/evidence categories and an explicit scope acknowledgement, state plus audit event commit atomically, notification evidence is durable, and no document copy or identifier is retained.
 - Evidence-based admin commercial pipeline and outcome values separated from settled AeroTrade revenue.
 - Seller funnel measurement and owner-only recovery of interrupted Premium listing payment.
 - Private Premium-membership checkout ledger, safe session resumption/replacement and signed-webhook closure.
@@ -34,7 +35,7 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 
 1. Real marketplace liquidity: no tracked enquiry, wanted request or new-balloon quote has yet produced a validated live opportunity; the new matching loop is healthy but has no real consented request to exercise it.
 2. Checkout economics: the first real recovery is live and verified but has not yet improved the historical 20% completion rate; its eventual payment or free publication remains to be observed.
-3. Supply quality: five sellers currently have active listings, no listing has completed the controlled verification gate, and two historical flight records still lack a serial number that cannot be inferred.
+3. Supply quality: five sellers currently have active listings, no listing has yet requested or completed the controlled verification gate, and two historical flight records still lack a serial number that cannot be inferred.
 4. Acquisition: public inventory is technically discoverable and measurable, but search and source ledgers still have little or no production volume; Search Console performance evidence and seller recruitment remain absent.
 5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
 
