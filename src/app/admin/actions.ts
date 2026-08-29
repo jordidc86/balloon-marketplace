@@ -21,6 +21,7 @@ import { newBalloonProposalResponseExpiry, signNewBalloonProposalCapability } fr
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { listingAvailabilityRequestIdempotencyKey } from '@/utils/listing-availability-request.mjs'
 import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityDigestIdempotencyKey } from '@/utils/seller-availability-digest.mjs'
+import { sellerAvailabilityCapabilityLifetimeMs, signSellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
 
 async function checkAdmin() {
   const sessionSupabase = await createClient()
@@ -547,6 +548,17 @@ export async function requestSellerAvailabilityDigest(sellerId: string) {
   const listingItems = dueListings
     .map((listing) => `<li>${escapeHtml(listing.title)}</li>`)
     .join('')
+  const expiresAt = new Date(Date.now() + sellerAvailabilityCapabilityLifetimeMs)
+  const capabilityToken = signSellerAvailabilityCapability({
+    sellerId: seller.id,
+    sellerEmail: seller.email,
+    digestKey: idempotencyKey,
+    expiresAt,
+    secret: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  })
+  if (!capabilityToken) throw new Error('Seller availability capability could not be generated')
+  const capabilityParams = new URLSearchParams({ seller: seller.id, digest: idempotencyKey, token: capabilityToken })
+  const capabilityUrl = `${siteUrl}/seller/availability?${capabilityParams.toString()}`
   const delivery = await sendCommercialReceiptEmail(supabase, {
     notificationType: 'seller_availability_digest',
     entityType: 'user',
@@ -554,7 +566,7 @@ export async function requestSellerAvailabilityDigest(sellerId: string) {
     recipientRole: 'seller',
     to: seller.email,
     subject: `Please confirm your ${dueListings.length} active AeroTrade listing${dueListings.length === 1 ? '' : 's'}`,
-    html: `<p>You have ${dueListings.length} active AeroTrade advert${dueListings.length === 1 ? '' : 's'} without a recent owner availability confirmation:</p><ul>${listingItems}</ul><p>Please sign in and use <strong>Confirm all active listings available</strong> once in your dashboard:</p><p><a href="${escapeHtml(`${siteUrl}/dashboard`)}">Open your AeroTrade dashboard</a></p><p>This request does not change publication, price, ownership or payment. AeroTrade records one dated confirmation for each advert only after your authenticated action.</p>`,
+    html: `<p>You have ${dueListings.length} active AeroTrade advert${dueListings.length === 1 ? '' : 's'} without a recent owner availability confirmation:</p><ul>${listingItems}</ul><p><a href="${escapeHtml(capabilityUrl)}"><strong>Review and confirm these listings</strong></a></p><p>The private link is valid for 14 days and opens a review page. Nothing is confirmed merely by opening it: you must press the explicit confirmation button.</p><p>You can also sign in and use <strong>Confirm all active listings available</strong> in <a href="${escapeHtml(`${siteUrl}/dashboard`)}">your AeroTrade dashboard</a>.</p><p>This request does not change publication, price, ownership or payment. AeroTrade records one dated confirmation for each advert only after your explicit action.</p>`,
     idempotencyKey,
   })
   if (!delivery.success || !delivery.providerMessageId) {
