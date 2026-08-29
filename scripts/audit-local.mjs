@@ -215,6 +215,12 @@ const checks = [
     required: ['markListingSold', "sessionSupabase.rpc('close_listing_by_actor'", "p_sale_channel: 'NOT_DISCLOSED'", 'Administrative listing closure was not verified by readback'],
   },
   {
+    name: 'Control Tower turns seller sale reports into review, never automatic revenue',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['pendingReportedSaleReview', 'closureSuggestionByInquiry', 'Review seller-reported AeroTrade sale', 'These fields are only a review aid: verify them before saving.', 'AeroTrade revenue remains 0 until you enter supported evidence.'],
+    forbidden: ['aerotrade_revenue_minor: event.gross_amount_minor'],
+  },
+  {
     name: 'New-balloon requests can become traceable operator-priced proposals',
     file: 'supabase/migrations/20260829340000_new_balloon_proposals.sql',
     required: ['new_balloon_quote_proposals', 'proposal_fingerprint text not null unique', 'accept_new_balloon_proposal_delivery', "status='QUOTE_SENT'", 'new_balloon_proposal_buyer', 'enable row level security', 'revoke all on public.new_balloon_quote_proposals from anon, authenticated'],

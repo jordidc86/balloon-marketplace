@@ -201,6 +201,12 @@ type ListingLifecycleEvent = {
   listings: { title: string } | null
 }
 
+type OutcomeSuggestion = {
+  gross_amount_minor: number | null
+  currency: string | null
+  reported_at: string
+}
+
 type CommercialOutcome = {
   id: string
   entity_type: 'marketplace_inquiry' | 'quote_request'
@@ -326,6 +332,13 @@ export default async function CommercialPage() {
     && event.marketplace_inquiry_id
     && !outcomesByEntity.has(`marketplace_inquiry:${event.marketplace_inquiry_id}`)
   ))
+  const closureSuggestionByInquiry = new Map<string, OutcomeSuggestion>(typedLifecycleEvents
+    .filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE' && event.marketplace_inquiry_id)
+    .map((event) => [event.marketplace_inquiry_id as string, {
+      gross_amount_minor: event.gross_amount_minor,
+      currency: event.currency,
+      reported_at: event.created_at,
+    }]))
   const sellerReportedAeroTradeSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE')
   const sellerReportedOtherSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'OTHER_CHANNEL')
   const sellerReportedUndisclosedSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED')
@@ -443,7 +456,7 @@ export default async function CommercialPage() {
         <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${activeListingWatchers} confirmed watchers · ${sharedLinkViews} from shared links`} />
         <Metric title="Open opportunities" value={openInquiries + openWanted + openSellerAssistance + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon · ${typedSellerAssistance.length} assisted sellers`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
-        <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Commercial emails not accepted" warning={failedNotifications > 0} />
+        <Metric title="Needs attention" value={failedNotifications + pendingReportedSaleReview.length} icon={<TriangleAlert className="h-5 w-5" />} detail={`${failedNotifications} email delivery · ${pendingReportedSaleReview.length} reported sale review`} warning={failedNotifications + pendingReportedSaleReview.length > 0} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -702,7 +715,7 @@ export default async function CommercialPage() {
                   <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
                 </form>}
                 <div className="lg:col-span-3">
-                  <OutcomeEditor entityType="marketplace_inquiry" entityId={inquiry.id} outcome={outcomesByEntity.get(`marketplace_inquiry:${inquiry.id}`)} />
+                  <OutcomeEditor entityType="marketplace_inquiry" entityId={inquiry.id} outcome={outcomesByEntity.get(`marketplace_inquiry:${inquiry.id}`)} suggestion={closureSuggestionByInquiry.get(inquiry.id)} />
                 </div>
               </div>
             })}
@@ -754,25 +767,29 @@ function formatCurrencyTotals(totals: Record<string, number>) {
   return entries.map(([currency, minor]) => (minor / 100).toLocaleString('en-IE', { style: 'currency', currency })).join(' · ')
 }
 
-function OutcomeEditor({ entityType, entityId, outcome }: {
+function OutcomeEditor({ entityType, entityId, outcome, suggestion }: {
   entityType: 'marketplace_inquiry' | 'quote_request'
   entityId: string
   outcome?: CommercialOutcome
+  suggestion?: OutcomeSuggestion
 }) {
   const amount = (minor?: number) => ((minor || 0) / 100).toFixed(2)
+  const suggestedAmount = suggestion?.gross_amount_minor === null || suggestion?.gross_amount_minor === undefined
+    ? ''
+    : amount(suggestion.gross_amount_minor)
   return (
     <details className="rounded-xl border bg-muted/20">
       <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
-        {outcome ? `Outcome: ${outcome.evidence_level} · ${amount(outcome.gross_amount_minor)} ${outcome.currency}` : 'Record commercial outcome'}
+        {outcome ? `Outcome: ${outcome.evidence_level} · ${amount(outcome.gross_amount_minor)} ${outcome.currency}` : suggestion ? 'Review seller-reported AeroTrade sale' : 'Record commercial outcome'}
       </summary>
       <form action={recordCommercialOutcome.bind(null, entityType, entityId)} className="grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-8">
         <select name="outcome_type" defaultValue={outcome?.outcome_type || 'sale'} className="rounded-lg border bg-background px-3 py-2 text-sm">
           <option value="sale">Sale</option><option value="intermediation">Intermediation</option><option value="other">Other</option>
         </select>
-        <select name="currency" defaultValue={outcome?.currency || 'EUR'} className="rounded-lg border bg-background px-3 py-2 text-sm">
+        <select name="currency" defaultValue={outcome?.currency || suggestion?.currency || 'EUR'} className="rounded-lg border bg-background px-3 py-2 text-sm">
           <option value="EUR">EUR</option><option value="GBP">GBP</option><option value="USD">USD</option>
         </select>
-        <input name="gross_amount" required inputMode="decimal" defaultValue={outcome ? amount(outcome.gross_amount_minor) : ''} placeholder="Gross transaction amount" aria-label="Gross transaction amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+        <input name="gross_amount" required inputMode="decimal" defaultValue={outcome ? amount(outcome.gross_amount_minor) : suggestedAmount} placeholder="Gross transaction amount" aria-label="Gross transaction amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
         <input name="aerotrade_revenue" required inputMode="decimal" defaultValue={amount(outcome?.aerotrade_revenue_minor)} placeholder="AeroTrade revenue" aria-label="AeroTrade revenue" className="rounded-lg border bg-background px-3 py-2 text-sm" />
         <select name="evidence_level" defaultValue={outcome?.evidence_level || 'reported'} className="rounded-lg border bg-background px-3 py-2 text-sm">
           <option value="reported">Reported</option><option value="documented">Documented</option><option value="settled">Settled</option>
@@ -782,6 +799,7 @@ function OutcomeEditor({ entityType, entityId, outcome }: {
         </select>
         <input name="evidence_reference" defaultValue={outcome?.evidence_reference || ''} placeholder="Evidence reference" aria-label="Evidence reference" className="rounded-lg border bg-background px-3 py-2 text-sm" />
         <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save outcome</button>
+        {suggestion && !outcome ? <p className="text-xs font-semibold text-amber-800 sm:col-span-2 lg:col-span-8">The seller reported this sale on {formatDate(suggestion.reported_at)}{suggestedAmount ? ` with a gross amount of ${suggestedAmount} ${suggestion.currency}` : ''}. These fields are only a review aid: verify them before saving. AeroTrade revenue remains 0 until you enter supported evidence.</p> : null}
         <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-8">Documented results require a document reference. Settled AeroTrade revenue requires a bank-transfer or Stripe reference. The outcome, audit snapshot and WON status commit together.</p>
         <textarea name="outcome_notes" maxLength={2000} defaultValue={outcome?.notes || ''} placeholder="Evidence note (no passwords, card data or full bank details)" className="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2 lg:col-span-8" />
       </form>
