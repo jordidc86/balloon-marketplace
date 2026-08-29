@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "aerotrade_netlify_build_gate_readiness",
-  "capturedAt": "2026-08-29T12:52:00.000Z",
+  "capturedAt": "2026-08-29T13:45:10.000Z",
   "containsPii": false,
   "policy": {
     "skipOnlyKnownNonRuntimeChanges": true,
@@ -27,8 +27,13 @@
     "avoidableShare": 0.45
   },
   "production": {
-    "active": false,
-    "reasonCode": "account_credit_usage_exceeded",
+    "active": true,
+    "baselineDeployId": "6a92e195b646a0000876b225",
+    "evidenceOnlyCommit": "792ae5beeef32b7a6848baed605cd3ad4e87b724",
+    "evidenceOnlyDeployId": "6a92e249c2b5da0008cf5bb6",
+    "evidenceOnlyBuildCanceled": true,
+    "evidenceOnlyReasonCode": "no_content_change",
+    "runtimeProductionRemainedReady": true,
     "scoreChanged": false
   }
 }

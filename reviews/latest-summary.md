@@ -11,7 +11,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Current evidence-based score: **92.8%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
 - Production deploy `6a92e0792536cb512ad0bb20` published the complete application release from source commit `07f29ad`; the following Git deploy `6a92e195b646a0000876b225` established the same source state as the tracked production baseline.
 - Buyer-to-seller negotiation replies and the private buyer response route are live. The additive migration is read back, the public route is noindexed, the service-only transition is denied to anonymous callers with `42501`, and verification created no synthetic response or customer email.
-- A conservative Netlify build gate is live: it skips only evidence, documentation, test, script and separately managed migration-only commits, and fails safe for application, function, configuration, unknown-file or diff errors. A replay of the latest 20 commits would have avoided 9 unnecessary builds (45%) while retaining all 11 runtime builds.
+- A conservative Netlify build gate is live: it skips only evidence, documentation, test, script and separately managed migration-only commits, and fails safe for application, function, configuration, unknown-file or diff errors. A replay of the latest 20 commits would have avoided 9 unnecessary builds (45%) while retaining all 11 runtime builds. Production then canceled evidence-only deploy `6a92e249c2b5da0008cf5bb6` for no content change while the runtime release remained ready, confirming the gate rather than merely simulating it.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -59,7 +59,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 3. Supply quality: five sellers currently have active listings, eleven accounts have no active listing, no assisted-sale request, seller-share visit or listing-verification request has yet exercised those controlled workflows, and two historical flight records still lack a serial number that cannot be inferred.
 4. Acquisition: public inventory is discoverable, daily IndexNow delivery is accepted and future journeys are attributable, but the 60 legacy views cannot be reconstructed. The accessible Google account has no `aerotrade.app` Search Console property, and a public search sample surfaced only the homepage plus one listing, so Google coverage/performance and seller recruitment remain absent.
 5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
-6. Build-credit efficiency is now deployed, but its production skip behavior still needs one post-baseline evidence-only Git commit before the historical 45% saving can be treated as observed rather than simulated.
+6. Deployment capacity is restored and the build-credit gate has now been observed in production. The remaining infrastructure caveat is the Next.js Edge runtime deprecation warning, not a current availability failure.
 
 ## Next highest-value work
 
