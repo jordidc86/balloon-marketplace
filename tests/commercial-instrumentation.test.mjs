@@ -8,7 +8,8 @@ const page = fs.readFileSync(new URL('../src/app/catalog/[id]/page.tsx', import.
 const baseline = fs.readFileSync(new URL('../scripts/capture-commercial-baseline.mjs', import.meta.url), 'utf8')
 
 assert.match(actions, /export async function logListingView/)
-assert.match(actions, /event_type:\s*'VIEW'/)
+assert.match(actions, /recordListingEvent\(listingId, 'VIEW', rawContext\)/)
+assert.match(actions, /event_type:\s*eventType/)
 assert.match(actions, /user_id:\s*user\?\.id \|\| null/)
 assert.match(actions, /event_type:\s*'CONTACT_REVEAL'/)
 assert.match(actions, /\.in\('status', \['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'\]\)/)

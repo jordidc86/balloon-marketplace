@@ -28,7 +28,7 @@ export default function ListingWatchForm({ listingId, defaultEmail = '' }: { lis
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 rounded-xl border bg-muted/20 p-4">
+    <form id="listing-watch" onSubmit={handleSubmit} className="scroll-mt-24 space-y-3 rounded-xl border bg-muted/20 p-4">
       <div className="flex items-start gap-3">
         <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div><p className="font-semibold">Not ready to enquire? Watch this listing.</p><p className="mt-1 text-xs text-muted-foreground">After email confirmation, AeroTrade will notify you only if its price, availability, condition or location changes.</p></div>

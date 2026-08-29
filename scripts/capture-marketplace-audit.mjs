@@ -127,6 +127,9 @@ const sellerConcentration = Object.values(sellerListingCounts).sort((a, b) => b 
 const recentEvents = events.filter((event) => event.created_at >= since30d)
 const recentViews = recentEvents.filter((event) => event.event_type === 'VIEW')
 const recentContacts = recentEvents.filter((event) => event.event_type === 'CONTACT_REVEAL')
+const recentEnquiryCtaClicks = recentEvents.filter((event) => event.event_type === 'ENQUIRY_CTA_CLICKED')
+const recentEnquiryFormViews = recentEvents.filter((event) => event.event_type === 'ENQUIRY_FORM_VIEWED')
+const recentEnquiryFormStarts = recentEvents.filter((event) => event.event_type === 'ENQUIRY_FORM_STARTED')
 const uniqueViewedListings = new Set(recentViews.map((event) => event.listing_id)).size
 const uniqueContactedListings = new Set(recentContacts.map((event) => event.listing_id)).size
 const registeredContacts = recentContacts.filter((event) => event.user_id).length
@@ -191,6 +194,12 @@ const result = {
     registeredContactReveals30d: registeredContacts,
     anonymousContactReveals30d: anonymousContacts,
     viewToContactRate: recentViews.length ? Number((recentContacts.length / recentViews.length).toFixed(4)) : 0,
+    enquiryCtaClicks30d: recentEnquiryCtaClicks.length,
+    enquiryFormViews30d: recentEnquiryFormViews.length,
+    enquiryFormStarts30d: recentEnquiryFormStarts.length,
+    viewToEnquiryCtaRate: recentViews.length ? Number((recentEnquiryCtaClicks.length / recentViews.length).toFixed(4)) : 0,
+    formViewToStartRate: recentEnquiryFormViews.length ? Number((recentEnquiryFormStarts.length / recentEnquiryFormViews.length).toFixed(4)) : 0,
+    formStartToStoredInquiryRate: recentEnquiryFormStarts.length ? Number((recentInquiries.length / recentEnquiryFormStarts.length).toFixed(4)) : 0,
     catalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d).length,
     zeroResultCatalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.zero_results).length,
     catalogSearchesByCategory30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'category'),

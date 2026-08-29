@@ -99,6 +99,22 @@ const checks = [
     required: ['parseInquiry(formData)', "from('marketplace_inquiries')", 'seller_notification_provider_id', 'Provider acceptance was not confirmed.', 'Marketplace enquiry readback failed'],
   },
   {
+    name: 'Buyer intent stages expose real listing drop-off without accepting arbitrary event text',
+    file: 'src/utils/listing-commercial-intent.mjs',
+    required: ['ENQUIRY_CTA_CLICKED', 'ENQUIRY_FORM_VIEWED', 'ENQUIRY_FORM_STARTED', 'listingCommercialIntentStages.includes(normalized)'],
+    forbidden: ['buyer_email', 'visitorId'],
+  },
+  {
+    name: 'Listing intent measurement excludes operators and owners and cannot block conversion',
+    file: 'src/app/catalog/[id]/actions.ts',
+    required: ['logListingCommercialIntent', 'normalizeListingCommercialIntentStage', "profile?.role === 'admin' || listing.seller_id === user?.id", 'Marketplace operators and listing owners cannot create buyer enquiries.'],
+  },
+  {
+    name: 'High-intent listing traffic has a measurable path to the tracked enquiry form',
+    file: 'src/app/catalog/[id]/BuyerInquiryForm.tsx',
+    required: ['IntersectionObserver', "recordIntent('ENQUIRY_FORM_VIEWED')", "recordIntent('ENQUIRY_FORM_STARTED')", 'Commercial measurement must never block an enquiry.'],
+  },
+  {
     name: 'Marketplace negotiation is private, non-binding and atomically seller-authorized',
     file: 'supabase/migrations/20260829320000_inquiry_negotiation_events.sql',
     required: ['marketplace_inquiry_offer_events', 'record_initial_marketplace_offer', 'record_seller_inquiry_response', 'for update of inquiry', "grant execute on function public.record_seller_inquiry_response", 'buyer_notification_status', 'never reserves equipment, executes payment or forms a sale contract'],

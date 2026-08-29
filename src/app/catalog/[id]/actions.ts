@@ -15,6 +15,7 @@ import { assertStoredListingRequiredFields, parseListingSubmission } from '@/uti
 import { createPremiumListingCheckout } from '@/utils/listing-checkout'
 import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
+import { normalizeListingCommercialIntentStage } from '@/utils/listing-commercial-intent.mjs'
 
 type ListingDetailsForm = Record<string, string | number | boolean | null | undefined>
 
@@ -29,7 +30,7 @@ const createAdminClient = () => {
   return createSupabaseClient(supabaseUrl, serviceRoleKey)
 }
 
-export async function logListingView(listingId: string, rawContext?: BrowserCommercialContext) {
+async function recordListingEvent(listingId: string, eventType: string, rawContext?: BrowserCommercialContext) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const supabaseAdmin = createAdminClient()
@@ -48,11 +49,11 @@ export async function logListingView(listingId: string, rawContext?: BrowserComm
   const context = normalizeCommercialContext(rawContext)
   const principal = user?.id || context.visitorId
   if (!principal) return false
-  const eventKey = commercialEventKey({ listingId: listing.id, eventType: 'VIEW', principal })
+  const eventKey = commercialEventKey({ listingId: listing.id, eventType, principal })
   const { error } = await supabaseAdmin.from('listing_events').upsert({
     listing_id: listing.id,
     user_id: user?.id || null,
-    event_type: 'VIEW',
+    event_type: eventType,
     event_key: eventKey,
     referrer_host: context.referrer_host,
     utm_source: context.utm_source,
@@ -61,10 +62,20 @@ export async function logListingView(listingId: string, rawContext?: BrowserComm
     journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
   }, { onConflict: 'event_key', ignoreDuplicates: true })
   if (error) {
-    console.error('Failed to log listing view:', error)
+    console.error('Failed to log listing commercial event:', error)
     return false
   }
   return true
+}
+
+export async function logListingView(listingId: string, rawContext?: BrowserCommercialContext) {
+  return recordListingEvent(listingId, 'VIEW', rawContext)
+}
+
+export async function logListingCommercialIntent(listingId: string, rawStage: string, rawContext?: BrowserCommercialContext) {
+  const stage = normalizeListingCommercialIntentStage(rawStage)
+  if (!stage) return false
+  return recordListingEvent(listingId, stage, rawContext)
 }
 
 export async function revealSellerContact(listingId: string, rawContext?: BrowserCommercialContext) {
@@ -147,7 +158,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = user
-    ? await supabase.from('users').select('is_premium').eq('id', user.id).maybeSingle()
+    ? await supabase.from('users').select('is_premium,role').eq('id', user.id).maybeSingle()
     : { data: null }
   const supabaseAdmin = createAdminClient()
   const attribution = normalizeCommercialContext(rawContext)
@@ -160,6 +171,10 @@ export async function submitListingInquiry(listingId: string, formData: FormData
 
   if (listingError || !listing) {
     return { success: false, message: 'This listing is no longer available.' }
+  }
+
+  if (profile?.role === 'admin' || listing.seller_id === user?.id) {
+    return { success: false, message: 'Marketplace operators and listing owners cannot create buyer enquiries.' }
   }
 
   const canContact = canRevealSellerContact(

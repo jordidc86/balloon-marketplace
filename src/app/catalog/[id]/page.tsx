@@ -13,6 +13,7 @@ import BuyerInquiryForm from './BuyerInquiryForm'
 import SafeListingImage from '@/components/SafeListingImage'
 import ListingShare from '@/components/ListingShare'
 import ListingWatchForm from './ListingWatchForm'
+import BuyerIntentLink from './BuyerIntentLink'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 import {
   buildListingBreadcrumbJsonLd,
@@ -310,6 +311,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 <MapPin className="w-4 h-4 mr-1" /> {typedListing.location_country}
               </p>
             )}
+            {canViewFully && !isOwner && !isAdmin ? (
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <BuyerIntentLink listingId={typedListing.id} href="#buyer-enquiry" primary>Ask the seller or make an offer</BuyerIntentLink>
+                <a href="#listing-watch" className="rounded-xl border px-4 py-3 text-center text-sm font-semibold text-primary hover:bg-primary/5">Watch price and availability</a>
+              </div>
+            ) : null}
           </div>
 
           <div className="bg-card border rounded-2xl p-6 mb-8 flex-1">
@@ -412,6 +419,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                    Edit Listing Details & Photos
                  </Link>
                </div>
+            ) : isAdmin ? (
+              <div className="rounded-xl border bg-muted/30 p-4 text-center text-sm text-muted-foreground">Operator view: buyer enquiry and watch controls are hidden so internal activity cannot create marketplace demand.</div>
             ) : (
               <div className="space-y-4">
                 <BuyerInquiryForm listingId={typedListing.id} listingCurrency={typedListing.currency} />

@@ -1,14 +1,47 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Send, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
-import { submitListingInquiry } from './actions'
+import { logListingCommercialIntent, submitListingInquiry } from './actions'
 import { getBrowserCommercialContext } from '@/utils/browser-attribution'
 
 export default function BuyerInquiryForm({ listingId, listingCurrency }: { listingId: string; listingCurrency: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const startedRef = useRef(false)
+
+  const recordIntent = useCallback((stage: 'ENQUIRY_CTA_CLICKED' | 'ENQUIRY_FORM_VIEWED' | 'ENQUIRY_FORM_STARTED') => {
+    try {
+      const key = `aerotrade:intent:${listingId}:${stage}`
+      if (window.sessionStorage.getItem(key)) return
+      window.sessionStorage.setItem(key, 'pending')
+      void logListingCommercialIntent(listingId, stage, getBrowserCommercialContext())
+        .then((recorded) => recorded ? window.sessionStorage.setItem(key, 'recorded') : window.sessionStorage.removeItem(key))
+        .catch(() => window.sessionStorage.removeItem(key))
+    } catch {
+      // Commercial measurement must never block an enquiry.
+    }
+  }, [listingId])
+
+  useEffect(() => {
+    const form = formRef.current
+    if (!form || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.5)) return
+      recordIntent('ENQUIRY_FORM_VIEWED')
+      observer.disconnect()
+    }, { threshold: 0.5 })
+    observer.observe(form)
+    return () => observer.disconnect()
+  }, [recordIntent])
+
+  const recordStarted = () => {
+    if (startedRef.current) return
+    startedRef.current = true
+    recordIntent('ENQUIRY_FORM_STARTED')
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -39,7 +72,7 @@ export default function BuyerInquiryForm({ listingId, listingCurrency }: { listi
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border bg-card p-5">
+    <form ref={formRef} id="buyer-enquiry" onFocusCapture={recordStarted} onChangeCapture={recordStarted} onSubmit={handleSubmit} className="scroll-mt-24 space-y-4 rounded-xl border bg-card p-5">
       <div>
         <h3 className="font-bold text-lg">Ask the seller</h3>
         <p className="text-sm text-muted-foreground mt-1">Your enquiry is recorded by AeroTrade so it cannot be lost.</p>

@@ -281,6 +281,9 @@ export default async function CommercialPage() {
   const latestProposalByQuote = new Map<string, NewBalloonProposal>()
   for (const proposal of typedProposals) if (!latestProposalByQuote.has(proposal.quote_request_id)) latestProposalByQuote.set(proposal.quote_request_id, proposal)
   const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
+  const enquiryCtaClicks = typedListingEvents.filter((event) => event.event_type === 'ENQUIRY_CTA_CLICKED').length
+  const enquiryFormViews = typedListingEvents.filter((event) => event.event_type === 'ENQUIRY_FORM_VIEWED').length
+  const enquiryFormStarts = typedListingEvents.filter((event) => event.event_type === 'ENQUIRY_FORM_STARTED').length
   const reveals = typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL').length
   const sharedLinkViews = typedListingEvents.filter((event) => event.event_type === 'VIEW' && ['seller_share', 'listing_share'].includes(event.utm_source || '')).length
   const recentInquiries = typedInquiries.filter((inquiry) => inquiry.created_at >= thirtyDaysAgo)
@@ -375,7 +378,8 @@ export default async function CommercialPage() {
         <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Commercial emails not accepted" warning={failedNotifications > 0} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric title="Enquiry form starts" value={enquiryFormStarts} icon={<MessageSquare className="h-5 w-5" />} detail={`${enquiryCtaClicks} CTA clicks · ${enquiryFormViews} form views · ${recentInquiries.length} stored enquiries`} />
         <Metric title="Confirmed listing watches" value={activeListingWatchers} icon={<BellRing className="h-5 w-5" />} detail={`${pendingListingWatchers} awaiting double opt-in`} />
         <Metric title="Watch updates accepted" value={acceptedListingWatchUpdates} icon={<BellRing className="h-5 w-5" />} detail="Material listing changes accepted by the email provider" />
         <Metric title="Watch updates failed" value={failedListingWatchUpdates} icon={<TriangleAlert className="h-5 w-5" />} detail="Retryable without repeating accepted alerts" warning={failedListingWatchUpdates > 0} />
