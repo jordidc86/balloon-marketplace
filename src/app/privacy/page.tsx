@@ -13,7 +13,7 @@ export default function PrivacyPage() {
         <p><strong>Last Updated:</strong> 29 August 2026</p>
         
         <h2>1. Information We Collect</h2>
-        <p>When you register for an AeroTrade account, we collect your name, email address, and optionally your phone number. When you submit an enquiry or record wanted equipment, we store the contact details, requirements, consent choices, relevant listing or equipment category, delivery evidence and commercial status. When you subscribe to Premium or pay for Premium listing promotion, your payment information is processed by Stripe; we do not store your card details on our servers.</p>
+        <p>When you register for an AeroTrade account, we collect your name, email address, and optionally your phone number. When you submit an enquiry or record wanted equipment, we store the contact details, requirements, consent choices, relevant listing or equipment category, delivery evidence and commercial status. When you subscribe to Premium or pay for Premium listing promotion, your payment information is processed by Stripe; we do not store your card details on our servers. We retain a private checkout-status record so an interrupted Premium checkout can be resumed without creating another account; it contains no card data or checkout URL.</p>
         
         <h2>2. How We Use Your Information</h2>
         <ul>

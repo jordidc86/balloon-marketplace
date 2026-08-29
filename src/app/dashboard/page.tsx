@@ -1,8 +1,8 @@
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert } from 'lucide-react'
-import { openBillingPortal, resumePremiumListingCheckout, updateSellerInquiryStatus } from './actions'
+import { openBillingPortal, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
 
 type DashboardListingImage = {
@@ -58,6 +58,15 @@ export default async function DashboardPage({
     .order('created_at', { ascending: false })
 
   const isPremium = profile?.is_premium || false
+  const admin = await createAdminClient()
+  const { data: latestPremiumIntent } = !isPremium ? await admin
+    .from('premium_checkout_intents')
+    .select('status,source,created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle() : { data: null }
+  const hasRecoverablePremiumIntent = latestPremiumIntent?.status === 'STARTED'
 
   return (
     <div className="min-h-screen bg-secondary/30 py-12">
@@ -67,6 +76,15 @@ export default async function DashboardPage({
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
             <div><p className="font-semibold">Premium payment was not completed.</p><p className="text-sm">Your listing is safely stored but not public. Resume payment below whenever you are ready.</p></div>
           </div>
+        ) : null}
+        {params.premium_payment === 'canceled' ? (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+            <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
+            <div><p className="font-semibold">Premium membership payment was not completed.</p><p className="text-sm">Your account is active and the checkout can be resumed safely from Account Status.</p></div>
+          </div>
+        ) : null}
+        {params.premium_payment === 'processing' || params.upgraded === 'true' ? (
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Stripe accepted the checkout. Premium access will appear here after the signed webhook is verified.</div>
         ) : null}
         
         {/* Header / Welcome */}
@@ -96,10 +114,17 @@ export default async function DashboardPage({
                 </div>
               </div>
               {!isPremium && (
-                <Link href="/pricing" className="block mt-4 text-center bg-primary text-primary-foreground text-sm font-medium py-2 rounded-lg hover:bg-primary/90 transition-colors">
-                  Upgrade to Premium
-                </Link>
+                hasRecoverablePremiumIntent ? (
+                  <form action={resumePremiumMembershipCheckout}>
+                    <button className="mt-4 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Continue Premium checkout</button>
+                  </form>
+                ) : (
+                  <Link href="/pricing" className="block mt-4 text-center bg-primary text-primary-foreground text-sm font-medium py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                    Upgrade to Premium
+                  </Link>
+                )
               )}
+              {!isPremium && hasRecoverablePremiumIntent ? <p className="mt-2 text-center text-xs text-muted-foreground">Your earlier Premium choice was retained; no new account is needed.</p> : null}
               {isPremium && profile?.premium_source === 'stripe' && profile?.stripe_customer_id && (
                 <form action={openBillingPortal}>
                   <button className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-background text-foreground text-sm font-medium py-2 rounded-lg border hover:bg-muted transition-colors">

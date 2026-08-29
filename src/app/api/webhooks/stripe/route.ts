@@ -408,9 +408,40 @@ export async function POST(req: Request) {
           throw new Error(`Premium fulfillment readback failed for checkout ${session.id}`)
         }
 
+        if (session.metadata?.intent_version === '1') {
+          const completedAt = new Date().toISOString()
+          const { data: completedIntent, error: intentError } = await supabaseAdmin
+            .from('premium_checkout_intents')
+            .update({ status: 'COMPLETED', completed_at: completedAt, updated_at: completedAt })
+            .eq('stripe_session_id', session.id)
+            .eq('user_id', userId)
+            .select('id,status')
+            .single()
+          if (intentError || completedIntent?.status !== 'COMPLETED') {
+            throw new Error(`Premium checkout intent readback failed for ${session.id}`)
+          }
+        }
+
         console.log(`[Stripe Webhook] Successfully updated and verified Premium status for ${userId}`);
       }
       break;
+    }
+
+    case 'checkout.session.expired': {
+      const session = event.data.object as Stripe.Checkout.Session
+      if (session.metadata?.type === 'premium_subscription' && session.metadata?.intent_version === '1') {
+        const { data: expiredIntent, error: expiredError } = await supabaseAdmin
+          .from('premium_checkout_intents')
+          .update({ status: 'EXPIRED', updated_at: new Date().toISOString() })
+          .eq('stripe_session_id', session.id)
+          .eq('status', 'STARTED')
+          .select('id,status')
+          .single()
+        if (expiredError || expiredIntent?.status !== 'EXPIRED') {
+          throw new Error(`Premium checkout expiry readback failed for ${session.id}`)
+        }
+      }
+      break
     }
 
     case 'charge.succeeded': {

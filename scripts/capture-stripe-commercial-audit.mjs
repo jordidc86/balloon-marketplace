@@ -37,6 +37,7 @@ const relevantEndpoints = endpointPage.data.filter((endpoint) => /aerotrade|netl
 const successfulCharges = chargePage.data.filter((charge) => charge.paid && charge.status === 'succeeded')
 const requiredEvents = [
   'checkout.session.completed',
+  'checkout.session.expired',
   'charge.succeeded',
   'customer.subscription.updated',
   'customer.subscription.deleted',

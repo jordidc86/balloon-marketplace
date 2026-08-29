@@ -34,7 +34,22 @@ const checks = [
   {
     name: 'Premium checkout validates current entitlement and uses trusted returns',
     file: 'src/app/pricing/actions.ts',
-    required: ["select('is_premium, stripe_customer_id')", 'getApplicationOrigin', "type: 'premium_subscription'"],
+    required: ["select('is_premium, stripe_customer_id')", 'getApplicationOrigin', 'createPremiumMembershipCheckout'],
+  },
+  {
+    name: 'Premium checkout abandonment is private, recoverable and webhook-closed',
+    file: 'supabase/migrations/20260829200000_premium_checkout_intents.sql',
+    required: ['premium_checkout_intents', "status in ('STARTED', 'COMPLETED', 'EXPIRED', 'SUPERSEDED')", 'enable row level security', 'revoke all', 'stores no card data, checkout URL or free text'],
+  },
+  {
+    name: 'Premium checkout creation fails closed unless recovery state persists',
+    file: 'src/utils/premium-checkout.ts',
+    required: ["intent_version: '1'", "from('premium_checkout_intents')", 'Premium checkout was not durably recorded', 'checkout.sessions.expire', "status: 'SUPERSEDED'"],
+  },
+  {
+    name: 'Premium membership can resume an open session or create one tracked replacement',
+    file: 'src/app/dashboard/actions.ts',
+    required: ['resumePremiumMembershipCheckout', "session.status === 'open'", "session.status === 'expired'", 'createPremiumMembershipCheckout'],
   },
   {
     name: 'Premium listing fee is independent from buyer membership',

@@ -7,6 +7,7 @@ import { escapeHtml } from '@/utils/html'
 import { sendEmail } from '@/utils/resend'
 import { getApplicationOrigin, getSafeRedirectPath } from '@/utils/navigation.mjs'
 import { siteUrl } from '@/utils/site'
+import { createPremiumMembershipCheckout } from '@/utils/premium-checkout'
 
 function isRedirectError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'digest' in error && typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')
@@ -119,41 +120,17 @@ export async function signupWithDetails(formData: FormData) {
     const userId = authData?.user?.id;
 
     if (isPremiumRequested && userId) {
-      const { stripe } = await import('@/utils/stripe')
       const headersList = await import('next/headers').then(m => m.headers())
       const origin = getApplicationOrigin(headersList.get('origin'), siteUrl)
-
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        customer_email: email,
-        line_items: [
-          {
-            price_data: {
-              currency: 'eur',
-              product_data: {
-                name: 'AeroTrade Premium Club',
-                description: '48-hour Early Access & Instant Alerts',
-              },
-              unit_amount: 999, // 9.99 EUR in cents
-              recurring: { interval: 'year' }
-            },
-            quantity: 1,
-          },
-        ],
-        metadata: {
-          type: 'premium_subscription',
-          user_id: userId
-        },
-        mode: 'subscription',
-        success_url: `${origin}/login?message=Payment successful! Please check your email to verify your account and access your Premium Dashboard.`,
-        cancel_url: `${origin}/login?message=Account created! Please check your email to verify. You can upgrade to Premium in the dashboard anytime.`
-      }, {
-        idempotencyKey: `premium-signup-${userId}-${Math.floor(Date.now() / 600000)}`,
+      const checkout = await createPremiumMembershipCheckout({
+        userId,
+        userEmail: email,
+        origin,
+        source: 'signup',
+        successPath: '/login?message=Payment%20successful.%20Please%20verify%20your%20email%20and%20log%20in.',
+        cancelPath: '/login?message=Account%20created.%20After%20verifying%20your%20email%2C%20you%20can%20resume%20Premium%20from%20your%20dashboard.',
       })
-
-      if (session.url) {
-        redirect(session.url)
-      }
+      redirect(checkout.url)
     }
 
     if (!authData?.session) {
