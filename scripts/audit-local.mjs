@@ -216,7 +216,17 @@ const checks = [
   {
     name: 'New-balloon quotes fail closed unless the lead is durably stored',
     file: 'src/app/new-balloon/actions.ts',
-    required: ["select('id')", 'Quote request readback did not return an id', 'aerotrade-quote-${requestId}'],
+    required: ['parseNewBalloonQuoteRequest', 'newBalloonQuoteSubmissionKey', "kind: 'duplicate'", "kind: 'rate_limited'", 'privacy_consent_at', "select('id')", 'Quote request readback did not return an id', 'aerotrade-quote-${requestId}'],
+  },
+  {
+    name: 'New-balloon demand context is bounded, consented and abuse-controlled',
+    file: 'src/utils/new-balloon-request.mjs',
+    required: ['allowedEquipmentTypes', 'unsafeDemandPattern', 'privacy_consent', 'normalizeNewBalloonDemandContext', 'newBalloonQuoteSubmissionKey', "createHmac('sha256'"],
+  },
+  {
+    name: 'New-balloon request integrity is private and stores no raw network identifiers',
+    file: 'supabase/migrations/20260829260000_new_balloon_quote_integrity.sql',
+    required: ['privacy_consent_at', 'submission_key text', 'quote_requests_submission_rate_idx', 'revoke all on public.quote_requests from anon, authenticated', 'never stores an IP address'],
   },
   {
     name: 'New-balloon buying is visible and source-attributed without raw URLs',

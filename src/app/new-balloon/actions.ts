@@ -2,15 +2,11 @@
 
 import { createAdminClient } from '@/utils/supabase/server'
 import { sendEmail } from '@/utils/resend'
-import { normalizeNewBalloonLeadSource } from '@/utils/new-balloon-lead.mjs'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
+import { newBalloonQuoteSubmissionKey, parseNewBalloonQuoteRequest } from '@/utils/new-balloon-request.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
-
-const getFormString = (formData: FormData, key: string) => {
-  const value = formData.get(key)
-  return typeof value === 'string' ? value.trim() : ''
-}
 
 const escapeHtml = (value: string) =>
   value
@@ -21,47 +17,84 @@ const escapeHtml = (value: string) =>
     .replaceAll("'", '&#39;')
 
 export async function submitNewBalloonQuote(formData: FormData) {
-  const request = {
-    name: getFormString(formData, 'name'),
-    email: getFormString(formData, 'email'),
-    phone: getFormString(formData, 'phone'),
-    country: getFormString(formData, 'country'),
-    manufacturer_preference: getFormString(formData, 'manufacturer_preference'),
-    equipment_type: getFormString(formData, 'equipment_type'),
-    volume_or_capacity: getFormString(formData, 'volume_or_capacity'),
-    intended_use: getFormString(formData, 'intended_use'),
-    budget_range: getFormString(formData, 'budget_range'),
-    timeline: getFormString(formData, 'timeline'),
-    colors_or_branding: getFormString(formData, 'colors_or_branding'),
-    notes: getFormString(formData, 'notes'),
-    source_context: normalizeNewBalloonLeadSource(getFormString(formData, 'source_context')),
-    status: 'NEW',
-  }
-
-  if (!request.name || !request.email || !request.equipment_type) {
-    redirect('/new-balloon?error=' + encodeURIComponent('Please complete name, email and equipment type.'))
-  }
-
-  let requestId: string
+  let request
   try {
-    const supabase = await createAdminClient()
-    const { data, error } = await supabase
-      .from('quote_requests')
-      .insert(request)
-      .select('id')
-      .single()
-
-    if (error || !data?.id) {
-      throw new Error(error?.message || 'Quote request readback did not return an id')
-    }
-    requestId = String(data.id)
+    request = parseNewBalloonQuoteRequest(formData)
   } catch (error) {
-    console.error('Quote request storage is not available:', error)
+    const message = error instanceof Error ? error.message : 'Unable to submit this request.'
+    redirect('/new-balloon?error=' + encodeURIComponent(message))
+  }
+
+  const requestHeaders = await headers()
+  const clientAddress = requestHeaders.get('x-nf-client-connection-ip')
+    || requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || ''
+  const submissionKey = newBalloonQuoteSubmissionKey(
+    clientAddress,
+    requestHeaders.get('user-agent'),
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  )
+  if (!submissionKey) {
+    redirect('/new-balloon?error=' + encodeURIComponent('We could not safely record your request. Please try again.'))
+  }
+
+  const storageResult = await (async () => {
+    try {
+      const supabase = await createAdminClient()
+      const duplicateCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const { data: duplicate, error: duplicateError } = await supabase
+        .from('quote_requests')
+        .select('id')
+        .eq('email', request.email)
+        .eq('equipment_type', request.equipment_type)
+        .gte('created_at', duplicateCutoff)
+        .not('status', 'in', '(WON,LOST)')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (duplicateError) throw duplicateError
+      if (duplicate?.id) return { kind: 'duplicate' as const }
+
+      const rateCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+      const { count, error: rateError } = await supabase
+        .from('quote_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('submission_key', submissionKey)
+        .gte('created_at', rateCutoff)
+      if (rateError) throw rateError
+      if ((count || 0) >= 5) return { kind: 'rate_limited' as const }
+
+      const { data, error } = await supabase
+        .from('quote_requests')
+        .insert({
+          ...request,
+          privacy_consent_at: new Date().toISOString(),
+          submission_key: submissionKey,
+          status: 'NEW',
+        })
+        .select('id')
+        .single()
+
+      if (error || !data?.id) {
+        throw new Error(error?.message || 'Quote request readback did not return an id')
+      }
+      return { kind: 'stored' as const, requestId: String(data.id), supabase }
+    } catch (error) {
+      console.error('Quote request storage is not available:', error)
+      return { kind: 'failed' as const }
+    }
+  })()
+
+  if (storageResult.kind === 'duplicate') redirect('/new-balloon?success=true&duplicate=true')
+  if (storageResult.kind === 'rate_limited') {
+    redirect('/new-balloon?error=' + encodeURIComponent('Too many requests were received. Please try again later.'))
+  }
+  if (storageResult.kind === 'failed') {
     redirect('/new-balloon?error=' + encodeURIComponent('We could not save your request. Please try again.'))
   }
+  const { requestId, supabase } = storageResult
 
   const rows = Object.entries(request)
-    .filter(([key]) => key !== 'status')
     .map(([key, value]) => `
       <tr>
         <td style="padding: 8px 12px; color: #64748b; text-transform: capitalize;">${escapeHtml(key.replaceAll('_', ' '))}</td>
@@ -70,7 +103,6 @@ export async function submitNewBalloonQuote(formData: FormData) {
     `)
     .join('')
 
-  const supabase = await createAdminClient()
   const notificationKey = `aerotrade-quote-${requestId}`
   const { data: receipt, error: receiptError } = await supabase
     .from('commercial_notification_receipts')

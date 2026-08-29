@@ -4,6 +4,7 @@ import { ArrowRight, Brush, Calculator, Factory, Send } from 'lucide-react'
 import { siteUrl, supportEmail } from '@/utils/site'
 import { normalizeNewBalloonLeadSource } from '@/utils/new-balloon-lead.mjs'
 import { buildNewBalloonServiceJsonLd, serializeJsonLd } from '@/utils/marketplace-seo.mjs'
+import { equipmentTypeForCategory, normalizeNewBalloonDemandContext } from '@/utils/new-balloon-request.mjs'
 import { submitNewBalloonQuote } from './actions'
 
 export const metadata: Metadata = {
@@ -33,6 +34,12 @@ export default async function NewBalloonPage({
   const success = params.success === 'true'
   const error = typeof params.error === 'string' ? params.error : null
   const sourceContext = normalizeNewBalloonLeadSource(typeof params.source === 'string' ? params.source : 'direct')
+  const demandContext = normalizeNewBalloonDemandContext({
+    category: typeof params.category === 'string' ? params.category : null,
+    query: typeof params.q === 'string' ? params.q : null,
+    country: typeof params.country === 'string' ? params.country : null,
+  })
+  const defaultEquipmentType = equipmentTypeForCategory(demandContext.requested_category)
 
   return (
     <div className="bg-secondary/40">
@@ -95,6 +102,17 @@ export default async function NewBalloonPage({
 
             <form action={submitNewBalloonQuote} className="space-y-5">
               <input type="hidden" name="source_context" value={sourceContext} />
+              <input type="hidden" name="requested_category" value={demandContext.requested_category || ''} />
+              <label className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+                Company website
+                <input name="company_website" tabIndex={-1} autoComplete="off" />
+              </label>
+              {(demandContext.requested_equipment || demandContext.requested_category) ? (
+                <div className="border border-primary/20 bg-primary/5 p-4 text-sm">
+                  <p className="font-semibold">We carried your marketplace search into this request.</p>
+                  <p className="mt-1 text-muted-foreground">Confirm or adjust the equipment and configuration below; AeroTrade will use it to prepare the first price direction.</p>
+                </div>
+              ) : null}
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-1.5 text-sm font-medium">
                   Name *
@@ -125,14 +143,24 @@ export default async function NewBalloonPage({
                 </label>
                 <label className="space-y-1.5 text-sm font-medium">
                   Equipment type *
-                  <select name="equipment_type" required defaultValue="" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
+                  <select name="equipment_type" required defaultValue={defaultEquipmentType} className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary">
                     <option value="" disabled>Select one...</option>
                     <option value="complete-balloon">Complete balloon</option>
                     <option value="envelope-only">Envelope only</option>
                     <option value="basket">Basket</option>
                     <option value="burner">Burner</option>
                     <option value="bottom-end">Bottom end</option>
+                    <option value="cylinder">Cylinder</option>
+                    <option value="other-equipment">Other equipment</option>
                   </select>
+                </label>
+                <label className="space-y-1.5 text-sm font-medium sm:col-span-2">
+                  What are you looking for?
+                  <input name="requested_equipment" defaultValue={demandContext.requested_equipment} placeholder="e.g. Schroeder G42 or a 4-passenger complete balloon" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+                </label>
+                <label className="space-y-1.5 text-sm font-medium sm:col-span-2">
+                  Preferred delivery / operating country
+                  <input name="requested_country" defaultValue={demandContext.requested_country} placeholder="e.g. Portugal" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
                 </label>
                 <label className="space-y-1.5 text-sm font-medium">
                   Volume / capacity
@@ -177,6 +205,11 @@ export default async function NewBalloonPage({
               <label className="block space-y-1.5 text-sm font-medium">
                 Notes
                 <textarea name="notes" rows={4} placeholder="Anything else we should know?" className="w-full border bg-input/50 px-3 py-2 outline-none focus:ring-2 focus:ring-primary" />
+              </label>
+
+              <label className="flex items-start gap-3 text-sm text-muted-foreground">
+                <input name="privacy_consent" type="checkbox" required className="mt-1" />
+                <span>I ask AeroTrade to use these details to respond to this quotation request. See the <Link href="/privacy" className="font-semibold text-primary underline">privacy policy</Link>.</span>
               </label>
 
               <button className="inline-flex w-full items-center justify-center gap-2 bg-primary px-5 py-3 font-bold text-primary-foreground hover:bg-primary/90">
