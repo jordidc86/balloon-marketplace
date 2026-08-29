@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import { buildNewBalloonManufacturerFunnel } from '../src/utils/new-balloon-manufacturers.mjs'
 import { getListingAvailabilityState } from '../src/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '../src/utils/buyer-funnel.mjs'
+import { isOptionalSupabaseSchemaError } from '../src/utils/audit-schema-compatibility.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only after explicit approval for a read-only production audit.')
@@ -27,6 +28,13 @@ async function rows(table, columns, configure = (query) => query) {
   return data || []
 }
 
+async function optionalRows(table, columns) {
+  const { data, error } = await supabase.from(table).select(columns)
+  if (!error) return { rows: data || [], available: true, reason: null }
+  if (isOptionalSupabaseSchemaError(error)) return { rows: [], available: false, reason: 'not_deployed' }
+  throw new Error(`${table}: ${error.message}`)
+}
+
 // Named query specifications prevent a positional result from ever being attributed to the wrong dataset.
 const querySpecs = {
   users: ['users', 'id,is_premium,premium_source,created_at'],
@@ -43,10 +51,8 @@ const querySpecs = {
   negotiationEvents: ['marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,responding_to_event_id,created_at'],
   verifications: ['listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'],
   commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,status,delivery_attempts,next_attempt_at,created_at,attempted_at,accepted_at'],
-  commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_recorded_at,closed_at,settled_at'],
-  commercialUnitEconomicsEvents: ['commercial_unit_economics_events', 'id,outcome_id,event_type,currency,aerotrade_revenue_minor,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,evidence_level,evidence_source,created_at'],
+  commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'],
   newBalloonProposals: ['new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'],
-  newBalloonProposalResponses: ['new_balloon_proposal_response_events', 'id,proposal_id,quote_request_id,response_type,admin_notification_status,created_at'],
   wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'],
   catalogSearchEvents: ['catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'],
   sellerFunnelEvents: ['seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'],
@@ -54,10 +60,16 @@ const querySpecs = {
   listingWatchDispatches: ['listing_watch_dispatches', 'id,watcher_id,listing_id,status,created_at,accepted_at'],
   listingAvailabilityConfirmations: ['listing_availability_confirmations', 'id,listing_id,seller_id,listing_status,source,confirmed_on,confirmed_at'],
   listingLifecycleEvents: ['listing_lifecycle_events', 'id,listing_id,actor_role,event_type,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,previous_status,new_status,created_at'],
-  socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at'],
 }
 
 const auditData = Object.fromEntries(await Promise.all(Object.entries(querySpecs).map(async ([name, [table, columns]]) => [name, await rows(table, columns)])))
+const optionalQuerySpecs = {
+  commercialOutcomeEconomics: ['commercial_outcomes', 'id,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_recorded_at'],
+  commercialUnitEconomicsEvents: ['commercial_unit_economics_events', 'id,outcome_id,event_type,currency,aerotrade_revenue_minor,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,evidence_level,evidence_source,created_at'],
+  newBalloonProposalResponses: ['new_balloon_proposal_response_events', 'id,proposal_id,quote_request_id,response_type,admin_notification_status,created_at'],
+  socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at'],
+}
+const optionalAuditResults = Object.fromEntries(await Promise.all(Object.entries(optionalQuerySpecs).map(async ([name, [table, columns]]) => [name, await optionalRows(table, columns)])))
 const {
   users,
   listings,
@@ -73,10 +85,8 @@ const {
   negotiationEvents,
   verifications,
   commercialNotifications,
-  commercialOutcomes,
-  commercialUnitEconomicsEvents,
+  commercialOutcomes: baseCommercialOutcomes,
   newBalloonProposals,
-  newBalloonProposalResponses,
   wantedRequests,
   catalogSearchEvents,
   sellerFunnelEvents,
@@ -84,8 +94,22 @@ const {
   listingWatchDispatches,
   listingAvailabilityConfirmations,
   listingLifecycleEvents,
-  socialPublicationReceipts,
 } = auditData
+const commercialOutcomeEconomicsById = new Map(optionalAuditResults.commercialOutcomeEconomics.rows.map((row) => [row.id, row]))
+const commercialOutcomes = baseCommercialOutcomes.map((outcome) => ({
+  ...outcome,
+  direct_cost_minor: null,
+  payment_fee_minor: null,
+  tax_amount_minor: null,
+  contribution_margin_minor: null,
+  economics_evidence_level: null,
+  economics_evidence_source: null,
+  economics_recorded_at: null,
+  ...(commercialOutcomeEconomicsById.get(outcome.id) || {}),
+}))
+const commercialUnitEconomicsEvents = optionalAuditResults.commercialUnitEconomicsEvents.rows
+const newBalloonProposalResponses = optionalAuditResults.newBalloonProposalResponses.rows
+const socialPublicationReceipts = optionalAuditResults.socialPublicationReceipts.rows
 
 const countBy = (items, key) => items.reduce((counts, item) => {
   const value = String(item[key] ?? 'unknown')
@@ -381,6 +405,10 @@ const result = {
   integrity: {
     containsPii: false,
     queryProfile: crypto.createHash('sha256').update('aerotrade-marketplace-audit-v2-read-only').digest('hex'),
+    releaseCandidateDatasets: Object.fromEntries(Object.entries(optionalAuditResults).map(([name, value]) => [name, {
+      available: value.available,
+      reason: value.reason,
+    }])),
   },
 }
 

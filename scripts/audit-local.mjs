@@ -397,8 +397,14 @@ const checks = [
   {
     name: 'Production marketplace evidence uses named queries rather than positional attribution',
     file: 'scripts/capture-marketplace-audit.mjs',
-    required: ['const querySpecs = {', 'Object.entries(querySpecs)', 'Object.fromEntries', 'newBalloonProposals:', 'listingWatchers:', 'aerotrade-marketplace-audit-v2-read-only'],
+    required: ['const querySpecs = {', 'Object.entries(querySpecs)', 'Object.fromEntries', 'newBalloonProposals:', 'listingWatchers:', 'optionalQuerySpecs', 'optionalRows', 'isOptionalSupabaseSchemaError', 'releaseCandidateDatasets', 'aerotrade-marketplace-audit-v2-read-only'],
     forbidden: ['const [\n  users,'],
+  },
+  {
+    name: 'Production audit tolerates only explicitly missing candidate schema',
+    file: 'src/utils/audit-schema-compatibility.mjs',
+    required: ["'PGRST204'", "'PGRST205'", "'42P01'", "'42703'", "message.includes('could not find')", "message.includes('schema cache')"],
+    forbidden: ['42501', 'PGRST301', 'return true //'],
   },
   {
     name: 'Catalog search gaps are private, deduplicated and PII-minimized',
