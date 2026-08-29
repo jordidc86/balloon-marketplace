@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { escapeHtml } from '@/utils/html'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
-import { createListingWatchSnapshot, isListingWatchDispatchRetryable, signListingWatchAction } from '@/utils/listing-watch.mjs'
+import { createListingWatchSnapshot, isListingWatchDispatchRetryable, isListingWatchTerminalListingStatus, signListingWatchAction } from '@/utils/listing-watch.mjs'
 import { siteUrl } from '@/utils/site'
 
 export const dynamic = 'force-dynamic'
@@ -96,8 +96,12 @@ export async function GET(request: Request) {
 
     if (dispatch?.status === 'ACCEPTED' && dispatch.provider_message_id) {
       if (commit) {
-        const { data: reconciled } = await supabase.from('listing_watchers').update({ last_notified_snapshot_hash: snapshot.hash, last_notified_at: new Date().toISOString() }).eq('id', watcher.id).eq('status', 'ACTIVE').select('last_notified_snapshot_hash').maybeSingle()
-        if (reconciled?.last_notified_snapshot_hash !== snapshot.hash) result.failed += 1
+        const reconciledAt = new Date().toISOString()
+        const reconciliation = isListingWatchTerminalListingStatus(listing.status)
+          ? { last_notified_snapshot_hash: snapshot.hash, last_notified_at: reconciledAt, status: 'LISTING_CLOSED', closed_at: reconciledAt }
+          : { last_notified_snapshot_hash: snapshot.hash, last_notified_at: reconciledAt }
+        const { data: reconciled } = await supabase.from('listing_watchers').update(reconciliation).eq('id', watcher.id).eq('status', 'ACTIVE').select('last_notified_snapshot_hash,status,closed_at').maybeSingle()
+        if (reconciled?.last_notified_snapshot_hash !== snapshot.hash || (isListingWatchTerminalListingStatus(listing.status) && (reconciled.status !== 'LISTING_CLOSED' || !reconciled.closed_at))) result.failed += 1
         else result.alreadyAccepted += 1
       } else result.alreadyAccepted += 1
       continue
@@ -167,8 +171,11 @@ export async function GET(request: Request) {
         result.failed += 1
         continue
       }
-      const { data: watcherReadback, error: watcherUpdateError } = await supabase.from('listing_watchers').update({ last_notified_snapshot_hash: snapshot.hash, last_notified_at: completedAt }).eq('id', watcher.id).eq('status', 'ACTIVE').select('last_notified_snapshot_hash').single()
-      if (watcherUpdateError || watcherReadback?.last_notified_snapshot_hash !== snapshot.hash) throw new Error('Watcher result did not persist')
+      const watcherUpdate = isListingWatchTerminalListingStatus(listing.status)
+        ? { last_notified_snapshot_hash: snapshot.hash, last_notified_at: completedAt, status: 'LISTING_CLOSED', closed_at: completedAt }
+        : { last_notified_snapshot_hash: snapshot.hash, last_notified_at: completedAt }
+      const { data: watcherReadback, error: watcherUpdateError } = await supabase.from('listing_watchers').update(watcherUpdate).eq('id', watcher.id).eq('status', 'ACTIVE').select('last_notified_snapshot_hash,status,closed_at').single()
+      if (watcherUpdateError || watcherReadback?.last_notified_snapshot_hash !== snapshot.hash || (isListingWatchTerminalListingStatus(listing.status) && (watcherReadback.status !== 'LISTING_CLOSED' || !watcherReadback.closed_at))) throw new Error('Watcher result did not persist')
       if (delivery.duplicate) result.alreadyAccepted += 1
       else result.accepted += 1
     } catch (error) {

@@ -291,6 +291,21 @@ const checks = [
     required: ['listing_watchers', "status in ('PENDING_CONFIRMATION', 'ACTIVE', 'UNSUBSCRIBED', 'BLOCKED')", 'privacy_consent_at', 'listing_watchers_confirmation_state', 'listing_watch_dispatches_watcher_listing_fk', 'listing_watch_dispatches_delivery_state', 'enable row level security', 'revoke all on public.listing_watchers from anon, authenticated', 'not an enquiry, reservation, payment or marketing subscription'],
   },
   {
+    name: 'Terminal listing closure retires watchers only after the final accepted update',
+    file: 'src/app/api/cron/listing-watch/route.ts',
+    required: ['isListingWatchTerminalListingStatus', "status: 'LISTING_CLOSED'", 'closed_at: completedAt', "eq('status', 'ACTIVE')", 'delivery.success'],
+  },
+  {
+    name: 'Late watch confirmation cannot reactivate sold or withdrawn inventory',
+    file: 'src/app/watch/actions.ts',
+    required: ['confirm_listing_watch_by_service', "outcome === 'LISTING_CLOSED'", 'This listing is no longer available, so updates cannot be activated.'],
+  },
+  {
+    name: 'Watch confirmation and terminal listing state are serialized atomically',
+    file: 'supabase/migrations/20260829480000_listing_watch_terminal_closure.sql',
+    required: ['for update of watcher, listing', "v_listing_status in ('SOLD', 'ARCHIVED')", "status = 'LISTING_CLOSED'", 'grant execute on function public.confirm_listing_watch_by_service(uuid) to service_role'],
+  },
+  {
     name: 'Listing-watch intake stores consent before confirmation and excludes artificial demand',
     file: 'src/app/catalog/[id]/watch-actions.ts',
     required: ['parseListingWatchRequest', 'createListingWatchSubmissionKey', 'Owners and marketplace operators do not create buyer watch signals', 'Buyer Early Access is required while this promoted listing is private', "status: 'PENDING_CONFIRMATION'", "from('listing_watchers')", 'listing_watch_confirmation', 'Alerts remain inactive until you do'],
@@ -301,9 +316,9 @@ const checks = [
     required: [".eq('status', 'ACTIVE')", 'createListingWatchSnapshot', 'stillEarlyAccess', 'isListingWatchDispatchRetryable', 'listing_watch_update', 'listing-watch-update-${watcher.id}-${snapshot.hash}', 'Stop updates for this listing', "stillActive?.status !== 'ACTIVE'", 'last_notified_snapshot_hash'],
   },
   {
-    name: 'Listing-watch decisions require an explicit POST and reconcile concurrent state changes',
+    name: 'Listing-watch decisions require an explicit POST, atomic confirmation and safe unsubscribe reconciliation',
     file: 'src/app/watch/actions.ts',
-    required: ['verifyListingWatchAction', "watcher.status !== 'PENDING_CONFIRMATION'", "status: 'ACTIVE'", "status: 'UNSUBSCRIBED'", 'reconciled?.status'],
+    required: ['verifyListingWatchAction', 'confirm_listing_watch_by_service', "outcome === 'ACTIVATED'", ".in('status', ['PENDING_CONFIRMATION', 'ACTIVE'])", "reconciled?.status === 'UNSUBSCRIBED'"],
   },
   {
     name: 'Production marketplace evidence uses named queries rather than positional attribution',

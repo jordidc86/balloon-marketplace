@@ -169,7 +169,7 @@ type CommercialNotification = {
 type ListingWatcher = {
   id: string
   listing_id: string
-  status: 'PENDING_CONFIRMATION' | 'ACTIVE' | 'UNSUBSCRIBED' | 'BLOCKED'
+  status: 'PENDING_CONFIRMATION' | 'ACTIVE' | 'UNSUBSCRIBED' | 'BLOCKED' | 'LISTING_CLOSED'
   journey_key: string | null
   created_at: string
   confirmed_at: string | null
@@ -381,6 +381,7 @@ export default async function CommercialPage() {
   const openSellerAssistance = typedSellerAssistance.filter((request) => !['LISTED', 'CLOSED', 'SPAM'].includes(request.status)).length
   const activeListingWatchers = typedListingWatchers.filter((watcher) => watcher.status === 'ACTIVE').length
   const pendingListingWatchers = typedListingWatchers.filter((watcher) => watcher.status === 'PENDING_CONFIRMATION').length
+  const closedListingWatchers = typedListingWatchers.filter((watcher) => watcher.status === 'LISTING_CLOSED').length
   const acceptedListingWatchUpdates = typedListingWatchDispatches.filter((dispatch) => dispatch.status === 'ACCEPTED').length
   const failedListingWatchUpdates = typedListingWatchDispatches.filter((dispatch) => dispatch.status === 'FAILED').length
   const activeListingsWithFreshAvailability = typedMatchableListings.filter((listing) => getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), new Date(nowMs)).status === 'fresh').length
@@ -453,7 +454,7 @@ export default async function CommercialPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${activeListingWatchers} confirmed watchers · ${sharedLinkViews} from shared links`} />
+        <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${activeListingWatchers} active watchers · ${closedListingWatchers} closed with listing · ${sharedLinkViews} from shared links`} />
         <Metric title="Open opportunities" value={openInquiries + openWanted + openSellerAssistance + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon · ${typedSellerAssistance.length} assisted sellers`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
         <Metric title="Needs attention" value={failedNotifications + pendingReportedSaleReview.length} icon={<TriangleAlert className="h-5 w-5" />} detail={`${failedNotifications} email delivery · ${pendingReportedSaleReview.length} reported sale review`} warning={failedNotifications + pendingReportedSaleReview.length > 0} />

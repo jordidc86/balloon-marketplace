@@ -3,6 +3,7 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const actionPurposes = new Set(['confirm', 'unsubscribe'])
+const terminalListingStatuses = new Set(['SOLD', 'ARCHIVED'])
 export const listingWatchDispatchRetryDelayMs = 30 * 60 * 1000
 
 const field = (formData, key) => typeof formData.get(key) === 'string' ? formData.get(key).trim() : ''
@@ -38,6 +39,10 @@ export function createListingWatchSnapshot(listing) {
     hash: createHash('sha256').update(JSON.stringify(state)).digest('hex'),
     ...state,
   }
+}
+
+export function isListingWatchTerminalListingStatus(status) {
+  return terminalListingStatuses.has(String(status || '').trim().toUpperCase())
 }
 
 export function signListingWatchAction(watcherId, purpose, secret) {

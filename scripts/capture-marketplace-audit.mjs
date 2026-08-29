@@ -46,7 +46,7 @@ const querySpecs = {
   wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'],
   catalogSearchEvents: ['catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'],
   sellerFunnelEvents: ['seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'],
-  listingWatchers: ['listing_watchers', 'id,listing_id,status,journey_key,created_at,confirmed_at,last_notified_at'],
+  listingWatchers: ['listing_watchers', 'id,listing_id,status,journey_key,created_at,confirmed_at,last_notified_at,closed_at'],
   listingWatchDispatches: ['listing_watch_dispatches', 'id,watcher_id,listing_id,status,created_at,accepted_at'],
   listingAvailabilityConfirmations: ['listing_availability_confirmations', 'id,listing_id,seller_id,listing_status,source,confirmed_on,confirmed_at'],
   listingLifecycleEvents: ['listing_lifecycle_events', 'id,listing_id,actor_role,event_type,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,previous_status,new_status,created_at'],
@@ -252,6 +252,7 @@ const result = {
     listingWatchers30d: recentListingWatchers.length,
     listingWatchersByStatus: countBy(listingWatchers, 'status'),
     activeListingWatchers: listingWatchers.filter((watcher) => watcher.status === 'ACTIVE').length,
+    listingClosedWatchers: listingWatchers.filter((watcher) => watcher.status === 'LISTING_CLOSED').length,
     watchedListings: new Set(listingWatchers.filter((watcher) => watcher.status === 'ACTIVE').map((watcher) => watcher.listing_id)).size,
   },
   sellerActivation: {

@@ -4,6 +4,7 @@ import {
   createListingWatchSnapshot,
   createListingWatchSubmissionKey,
   isListingWatchDispatchRetryable,
+  isListingWatchTerminalListingStatus,
   parseListingWatchRequest,
   signListingWatchAction,
   verifyListingWatchAction,
@@ -52,4 +53,11 @@ test('watch submission limits are pseudonymous and dispatch retries are bounded'
   assert.equal(isListingWatchDispatchRetryable({ status: 'ACCEPTED', updated_at: '2020-01-01' }), false)
   assert.equal(isListingWatchDispatchRetryable({ status: 'PENDING', updated_at: '2026-08-29T00:00:00Z' }, new Date('2026-08-29T00:31:00Z')), true)
   assert.equal(isListingWatchDispatchRetryable({ status: 'PENDING', updated_at: '2026-08-29T00:10:00Z' }, new Date('2026-08-29T00:31:00Z')), false)
+})
+
+test('only a terminal listing closure retires its confirmed watchers', () => {
+  assert.equal(isListingWatchTerminalListingStatus('SOLD'), true)
+  assert.equal(isListingWatchTerminalListingStatus('archived'), true)
+  assert.equal(isListingWatchTerminalListingStatus('DRAFT'), false)
+  assert.equal(isListingWatchTerminalListingStatus('ACTIVE_PUBLIC'), false)
 })
