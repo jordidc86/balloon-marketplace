@@ -4,7 +4,7 @@
   "projectId": "aerotrade",
   "capturedAt": "2026-08-29T16:37:50.000Z",
   "productionChanged": false,
-  "releaseCandidateCommit": "827cf84d870d6967580b5cec93bb3fba5eee74fc",
+  "releaseCandidateCommit": "ac3af213e3ea3b794456794dda18e0d69475f021",
   "migration": "20260829510000_new_balloon_proposal_responses",
   "capability": {
     "proposalBound": true,
@@ -17,6 +17,8 @@
     "oneImmutableResponsePerProposal": true,
     "databaseReadbackRequired": true,
     "adminNotificationReceiptRequired": true,
+    "openQuoteStateAfterResponse": "BUYER_RESPONDED",
+    "singleOperationalReminderAfterHours": 24,
     "createsOrder": false,
     "createsReservation": false,
     "createsPayment": false,
@@ -24,7 +26,7 @@
   },
   "validation": {
     "automatedTestsPassed": 145,
-    "operationalContractsPassed": 141,
+    "operationalContractsPassed": 142,
     "lintPassed": true,
     "typecheckPassed": true,
     "productionBuildPassed": true,

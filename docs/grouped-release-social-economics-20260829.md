@@ -15,8 +15,8 @@ The release does not change prices, publish a post, send a message by itself, cr
 ## Exact source
 
 - Production base: `9880e56df0b1f47089c0ea176d57a613c25847a5`.
-- Runtime release candidate: `827cf84d870d6967580b5cec93bb3fba5eee74fc`.
-- Runtime commits: `2ba08b5`, `a569817` and `827cf84`.
+- Runtime release candidate: `ac3af213e3ea3b794456794dda18e0d69475f021`.
+- Runtime commits: `2ba08b5`, `a569817`, `827cf84` and `ac3af21`.
 - Required migrations, in order:
   1. `20260829490000_social_publication_receipts.sql`
   2. `20260829500000_commercial_unit_economics.sql`
@@ -35,7 +35,7 @@ Exact approval wording:
 1. Confirm the feature branch and `origin/main` still resolve to the exact commits above or recalculate this plan.
 2. Confirm the worktree is clean and no secret or generated directory is tracked.
 3. Run `npm test`, `npm run audit:local`, `npm run lint`, `npx tsc --noEmit`, `git diff --check` and `npm run build`.
-4. Confirm the expected result remains 145/145 tests and 141/141 operational contracts.
+4. Confirm the expected result remains 145/145 tests and 142/142 operational contracts.
 5. Capture read-only counts of existing commercial outcomes and current Supabase migration versions without including personal data.
 
 ## Database order and readback
@@ -48,6 +48,7 @@ Apply all three additive migrations before deploying the runtime. Immediately ve
 - `record_commercial_unit_economics` exists with authenticated execute permission and no public/anonymous execute permission.
 - `new_balloon_proposal_response_events` exists, has RLS enabled, is empty before real buyer use and exposes no anonymous/authenticated privilege.
 - `record_new_balloon_proposal_response` is executable only by `service_role`; it cannot close a quote or create an outcome, order, reservation or payment.
+- A stored response changes only the open quote state to `BUYER_RESPONDED`; one 24-hour operational reminder is deduplicated by its durable receipt and any later commercial closure remains administrator-only.
 - Existing commercial-outcome row counts are unchanged and pre-existing rows have null economics fields.
 - No social receipt, economics event, proposal response, post, message, charge or other economic action was created by migration verification.
 
