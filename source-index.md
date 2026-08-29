@@ -11,6 +11,7 @@ Last updated: 2026-08-29.
 | `README.md` | Operational project notes and safe local checks | Yes |
 | `package.json` | Scripts and dependencies | Yes |
 | `reviews/latest-summary.md` | Current improvement-loop summary | Yes |
+| `reviews/monetization-boundary-audit-2026-08-29.md` | Evidence and exact business choice separating current paid products, fixed services and commission models | Yes, before adding any transaction-fee payment path |
 | `docs/production-audit-runbook.md` | Post-deploy verification and rollback gate | Yes, after an approved deploy |
 | `docs/grouped-release-social-economics-20260829.md` | Exact migration, one-deploy, verification and non-destructive rollback plan for the current release candidate | Yes, before approving this release |
 | `scripts/audit-local.mjs` | Static operational contract checks | Yes, before every release |
