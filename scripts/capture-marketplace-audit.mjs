@@ -42,7 +42,8 @@ const querySpecs = {
   negotiationEvents: ['marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,responding_to_event_id,created_at'],
   verifications: ['listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'],
   commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,status,delivery_attempts,next_attempt_at,created_at,attempted_at,accepted_at'],
-  commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'],
+  commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_recorded_at,closed_at,settled_at'],
+  commercialUnitEconomicsEvents: ['commercial_unit_economics_events', 'id,outcome_id,event_type,currency,aerotrade_revenue_minor,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,evidence_level,evidence_source,created_at'],
   newBalloonProposals: ['new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'],
   wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'],
   catalogSearchEvents: ['catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'],
@@ -70,6 +71,7 @@ const {
   verifications,
   commercialNotifications,
   commercialOutcomes,
+  commercialUnitEconomicsEvents,
   newBalloonProposals,
   wantedRequests,
   catalogSearchEvents,
@@ -302,7 +304,23 @@ const result = {
         totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.aerotrade_revenue_minor || 0)
         return totals
       }, {}),
-    caveat: 'WON is an explicit recorded outcome; transaction value and settlement are not inferred.',
+    outcomesWithCompleteEconomics: commercialOutcomes.filter((outcome) => outcome.contribution_margin_minor !== null).length,
+    outcomesMissingEconomics: commercialOutcomes.filter((outcome) => outcome.contribution_margin_minor === null).length,
+    unitEconomicsEvents: commercialUnitEconomicsEvents.length,
+    unitEconomicsEventsByEvidence: countBy(commercialUnitEconomicsEvents, 'evidence_level'),
+    evidenceBackedContributionMinorByCurrency: commercialOutcomes
+      .filter((outcome) => outcome.contribution_margin_minor !== null)
+      .reduce((totals, outcome) => {
+        totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.contribution_margin_minor)
+        return totals
+      }, {}),
+    settledContributionMinorByCurrency: commercialOutcomes
+      .filter((outcome) => outcome.contribution_margin_minor !== null && outcome.economics_evidence_level === 'settled')
+      .reduce((totals, outcome) => {
+        totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.contribution_margin_minor)
+        return totals
+      }, {}),
+    caveat: 'WON is an explicit recorded outcome; transaction value, costs, contribution and settlement are never inferred. Missing economics remain null, and negative contribution is valid.',
   },
   communications: {
     newsletterRuns: newsletterRuns.length,

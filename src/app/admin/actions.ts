@@ -8,6 +8,7 @@ import { sendPremiumListingAlert } from '@/utils/premium-alerts'
 import { revalidatePath } from 'next/cache'
 import { isClosedInquiryStatus, normalizeInquiryStatus } from '@/utils/inquiry-safety.mjs'
 import { parseCommercialOutcome } from '@/utils/commercial-outcome.mjs'
+import { commercialContributionMinor, parseCommercialEconomics } from '@/utils/commercial-economics.mjs'
 import { normalizeWantedRequestStatus } from '@/utils/wanted-request.mjs'
 import { createPremiumMembershipCheckout } from '@/utils/premium-checkout'
 import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
@@ -339,6 +340,69 @@ export async function recordCommercialOutcome(
 
   revalidatePath('/admin/commercial')
   revalidatePath('/dashboard')
+}
+
+export async function recordCommercialUnitEconomics(outcomeId: string, formData: FormData) {
+  const { supabase, sessionSupabase } = await checkAdmin()
+  const economics = parseCommercialEconomics(formData)
+  const { data: outcomeBasis, error: basisError } = await supabase
+    .from('commercial_outcomes')
+    .select('id,currency,aerotrade_revenue_minor')
+    .eq('id', outcomeId)
+    .single()
+  if (basisError || outcomeBasis?.id !== outcomeId) throw new Error('Commercial outcome not found')
+
+  const expectedContribution = commercialContributionMinor(outcomeBasis.aerotrade_revenue_minor, economics)
+  const { data: eventId, error: economicsError } = await sessionSupabase.rpc('record_commercial_unit_economics', {
+    p_outcome_id: outcomeId,
+    p_direct_cost_minor: economics.direct_cost_minor,
+    p_payment_fee_minor: economics.payment_fee_minor,
+    p_tax_amount_minor: economics.tax_amount_minor,
+    p_evidence_level: economics.economics_evidence_level,
+    p_evidence_source: economics.economics_evidence_source,
+    p_evidence_reference: economics.economics_evidence_reference,
+    p_notes: economics.economics_notes,
+  })
+  if (economicsError || !eventId) throw new Error(economicsError?.message || 'Could not atomically record unit economics')
+
+  const [{ data: stored, error: readbackError }, { data: event, error: eventError }] = await Promise.all([
+    supabase.from('commercial_outcomes')
+      .select('id,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_evidence_reference,economics_notes,economics_recorded_at')
+      .eq('id', outcomeId)
+      .single(),
+    supabase.from('commercial_unit_economics_events')
+      .select('id,outcome_id,currency,aerotrade_revenue_minor,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,evidence_level,evidence_source,evidence_reference,notes')
+      .eq('id', eventId)
+      .single(),
+  ])
+
+  if (readbackError || stored?.id !== outcomeId
+    || Number(stored.direct_cost_minor) !== economics.direct_cost_minor
+    || Number(stored.payment_fee_minor) !== economics.payment_fee_minor
+    || Number(stored.tax_amount_minor) !== economics.tax_amount_minor
+    || Number(stored.contribution_margin_minor) !== expectedContribution
+    || stored.economics_evidence_level !== economics.economics_evidence_level
+    || stored.economics_evidence_source !== economics.economics_evidence_source
+    || stored.economics_evidence_reference !== economics.economics_evidence_reference
+    || stored.economics_notes !== economics.economics_notes
+    || !stored.economics_recorded_at) {
+    throw new Error('Could not persist and verify unit economics')
+  }
+  if (eventError || event?.id !== eventId || event.outcome_id !== outcomeId
+    || event.currency !== outcomeBasis.currency
+    || Number(event.aerotrade_revenue_minor) !== Number(outcomeBasis.aerotrade_revenue_minor)
+    || Number(event.direct_cost_minor) !== economics.direct_cost_minor
+    || Number(event.payment_fee_minor) !== economics.payment_fee_minor
+    || Number(event.tax_amount_minor) !== economics.tax_amount_minor
+    || Number(event.contribution_margin_minor) !== expectedContribution
+    || event.evidence_level !== economics.economics_evidence_level
+    || event.evidence_source !== economics.economics_evidence_source
+    || event.evidence_reference !== economics.economics_evidence_reference
+    || event.notes !== economics.economics_notes) {
+    throw new Error('The unit-economics audit event was not confirmed by readback')
+  }
+
+  revalidatePath('/admin/commercial')
 }
 
 export async function sendNewBalloonProposal(requestId: string, formData: FormData) {

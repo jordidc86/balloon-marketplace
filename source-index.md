@@ -22,7 +22,7 @@ Last updated: 2026-08-29.
 | Admin | `src/app/admin/`, `src/components/admin/` | Operational risk; check role/access assumptions. |
 | Cron endpoints | `src/app/api/cron/newsletter/route.ts`, `src/app/api/cron/social/route.ts`, `src/app/api/cron/instagram/route.ts`, `src/app/api/cron/listing-watch/route.ts`, `.github/workflows/newsletter.yml`, `netlify/functions/social-scheduled.mjs` | Live dispatch risk; default to dry-run/proposal. Listing-watch closure preserves the final provider-accepted update before terminal cleanup. Social publication now has a release-candidate per-network/placement receipt ledger; do not treat it as live before migration `20260829490000` and runtime deployment are verified. |
 | Payments | `src/app/api/webhooks/stripe/`, `src/utils/stripe.ts`, pricing actions | Do not change without exact approval. |
-| Commercial measurement | `src/app/catalog/[id]/ListingViewTracker.tsx`, `src/utils/buyer-funnel.mjs`, `src/utils/social-publication.mjs`, catalog actions, new-balloon actions, `scripts/capture-commercial-baseline.mjs`, `scripts/capture-marketplace-audit.mjs` | Comparable post-instrumentation buyer conversion, attributed social acquisition, contact reveals, quote persistence and gross payment-notification coverage. |
+| Commercial measurement | `src/app/catalog/[id]/ListingViewTracker.tsx`, `src/utils/buyer-funnel.mjs`, `src/utils/social-publication.mjs`, `src/utils/commercial-economics.mjs`, catalog actions, new-balloon actions, `scripts/capture-commercial-baseline.mjs`, `scripts/capture-marketplace-audit.mjs` | Comparable post-instrumentation buyer conversion, attributed social acquisition, contact reveals, quote persistence, payment evidence and release-candidate unit economics that keep unknown costs null. |
 | Email | `src/utils/resend.ts`, premium alerts, newsletter cron | Customer-facing; dispatch requires approval. |
 | Database | `supabase/schema.sql`, Supabase utilities | Treat production data as external system. |
 | Deployment | `netlify.toml`, `.github/workflows/` | `.netlify/` is local generated output, not source. Read-only unless deployment/config action is approved. |
@@ -41,6 +41,7 @@ Last updated: 2026-08-29.
 | Commercial funnel instrumentation | `Release candidate`: anonymous/public contact reveals, fail-closed quote storage and 30-day baseline are locally verified. |
 | Payment notification evidence | `Release candidate`: charge-bound idempotency plus private receipt/readback await approved migration, webhook event enablement and deploy. |
 | Dependency security | `Release candidate`: Next.js 16.3.3, matching ESLint config and Resend 6.25.0 are pinned; npm audit reports zero known vulnerabilities locally. |
+| Commercial unit economics | `Release candidate`: complete direct cost, payment fee and tax evidence extends the existing outcome, preserves negative contribution and creates an immutable snapshot; migration `20260829500000` and production readback are still required. |
 
 ## Local Artifacts
 

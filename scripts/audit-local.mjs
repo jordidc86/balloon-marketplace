@@ -203,6 +203,27 @@ const checks = [
     required: ['commercial_outcome_events', 'record_commercial_outcome', 'for update', 'enforce_commercial_outcome_status', 'WON status requires an atomic commercial outcome', 'Outcome evidence cannot be downgraded', "p_evidence_source not in ('bank_transfer', 'stripe_payment')", 'grant execute on function public.record_commercial_outcome', 'enable row level security', 'revoke all on public.commercial_outcome_events from anon, authenticated'],
   },
   {
+    name: 'Unit-economics input is complete, evidence-consistent and never infers missing costs',
+    file: 'src/utils/commercial-economics.mjs',
+    required: ['parseCommercialEconomics', 'commercialContributionMinor', 'return null', "evidenceLevel === 'reported'", "evidenceLevel === 'documented'", "evidenceLevel === 'settled'", "'stripe_balance_transaction', 'bank_statement'"],
+  },
+  {
+    name: 'Unit economics extend outcomes atomically with immutable evidence and negative-margin support',
+    file: 'supabase/migrations/20260829500000_commercial_unit_economics.sql',
+    required: ['contribution_margin_minor bigint generated always as', 'commercial_unit_economics_events', 'record_commercial_unit_economics', 'for update', 'Unit economics evidence cannot be downgraded', 'prevent_untracked_economics_basis_change', 'direct_cost_minor is null', 'grant execute on function public.record_commercial_unit_economics', 'enable row level security', 'revoke all on public.commercial_unit_economics_events from anon, authenticated'],
+    forbidden: ['contribution_margin_minor bigint not null check (contribution_margin_minor >= 0)'],
+  },
+  {
+    name: 'Control Tower records and verifies complete unit economics without treating unknown costs as zero',
+    file: 'src/app/admin/actions.ts',
+    required: ['recordCommercialUnitEconomics', 'parseCommercialEconomics', "rpc('record_commercial_unit_economics'", "from('commercial_unit_economics_events')", 'Could not persist and verify unit economics', 'The unit-economics audit event was not confirmed by readback'],
+  },
+  {
+    name: 'Commercial reporting separates missing, evidenced and settled contribution',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['outcomesMissingEconomics', 'evidencedContributionByCurrency', 'settledContributionByCurrency', 'Missing costs remain unmeasured and are never converted to zero.', 'Contribution may legitimately be negative.', 'CommercialEconomicsEditor'],
+  },
+  {
     name: 'Listing closure is atomic, owner-authorized and cannot invent revenue',
     file: 'supabase/migrations/20260829470000_listing_lifecycle_closure.sql',
     required: ['listing_lifecycle_events', 'listing_id uuid not null references public.listings(id) on delete restrict unique', 'close_listing_by_actor', 'for update', "v_listing.seller_id <> v_actor and not v_is_admin", "event_type in ('SOLD', 'WITHDRAWN')", "sale_channel in ('AEROTRADE', 'OTHER_CHANNEL', 'NOT_DISCLOSED')", 'A seller report never creates revenue or changes an enquiry outcome.'],

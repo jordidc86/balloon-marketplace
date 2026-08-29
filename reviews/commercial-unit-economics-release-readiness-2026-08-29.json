@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_commercial_unit_economics_release_readiness",
+  "capturedAt": "2026-08-29T16:18:32.000Z",
+  "productionChanged": false,
+  "databaseWritesPerformed": 0,
+  "economicActionsPerformed": 0,
+  "scoreChangeAuthorized": false,
+  "scope": {
+    "extendsExistingCommercialOutcome": true,
+    "parallelLedgerCreated": false,
+    "requiredCostComponents": [
+      "direct_cost_minor",
+      "payment_fee_minor",
+      "tax_amount_minor"
+    ],
+    "missingCostsRemainNull": true,
+    "negativeContributionAllowed": true,
+    "evidenceLevels": [
+      "reported",
+      "documented",
+      "settled"
+    ],
+    "immutableEventTable": "commercial_unit_economics_events",
+    "postWriteReadbackRequired": true,
+    "financialBasisLockedAfterMeasurement": true
+  },
+  "validation": {
+    "tests": 141,
+    "testsPassed": 141,
+    "operationalContracts": 137,
+    "operationalContractsPassed": 137,
+    "lint": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "diffCheck": "passed"
+  },
+  "releaseGate": {
+    "readyForGroupedRelease": true,
+    "applyMigrationBeforeRuntime": true,
+    "migration": "20260829500000_commercial_unit_economics.sql",
+    "productionReadbackRequired": true,
+    "firstRealOutcomeRequiredBeforeScoreChange": true
+  }
+}

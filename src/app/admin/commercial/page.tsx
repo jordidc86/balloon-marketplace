@@ -5,7 +5,7 @@ import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/utils/new-balloon-manufacturers.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '@/utils/buyer-funnel.mjs'
-import { recordCommercialOutcome, requestListingAvailabilityConfirmation, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
+import { recordCommercialOutcome, recordCommercialUnitEconomics, requestListingAvailabilityConfirmation, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -220,6 +220,15 @@ type CommercialOutcome = {
   evidence_source: string
   evidence_reference: string | null
   notes: string | null
+  direct_cost_minor: number | null
+  payment_fee_minor: number | null
+  tax_amount_minor: number | null
+  contribution_margin_minor: number | null
+  economics_evidence_level: 'reported' | 'documented' | 'settled' | null
+  economics_evidence_source: string | null
+  economics_evidence_reference: string | null
+  economics_notes: string | null
+  economics_recorded_at: string | null
   closed_at: string
   settled_at: string | null
 }
@@ -278,7 +287,7 @@ export default async function CommercialPage() {
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,utm_source,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,created_at').order('created_at', { ascending: false }).limit(100),
-    supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
+    supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_evidence_reference,economics_notes,economics_recorded_at,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
     supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
     supabase.from('listing_watchers').select('id,listing_id,status,journey_key,created_at,confirmed_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('listing_watch_dispatches').select('id,watcher_id,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
@@ -460,6 +469,18 @@ export default async function CommercialPage() {
     totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.gross_amount_minor || 0)
     return totals
   }, {})
+  const outcomesWithEconomics = typedOutcomes.filter((outcome) => outcome.contribution_margin_minor !== null)
+  const outcomesMissingEconomics = typedOutcomes.length - outcomesWithEconomics.length
+  const evidencedContributionByCurrency = outcomesWithEconomics.reduce<Record<string, number>>((totals, outcome) => {
+    totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.contribution_margin_minor)
+    return totals
+  }, {})
+  const settledContributionByCurrency = outcomesWithEconomics
+    .filter((outcome) => outcome.economics_evidence_level === 'settled')
+    .reduce<Record<string, number>>((totals, outcome) => {
+      totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.contribution_margin_minor)
+      return totals
+    }, {})
   const acceptedSocialPublications = typedSocialPublicationReceipts.filter((receipt) => receipt.status === 'accepted')
   const pendingSocialPublications = typedSocialPublicationReceipts.filter((receipt) => receipt.status === 'pending')
   const failedSocialPublications = typedSocialPublicationReceipts.filter((receipt) => receipt.status === 'failed')
@@ -571,7 +592,13 @@ export default async function CommercialPage() {
         <h2 className="text-xl font-semibold">Revenue evidence</h2>
         <p className="mt-1 text-sm text-muted-foreground">{liveReceipts.length} live payment notification receipt(s) · {(liveGross / 100).toLocaleString('en-IE', { style: 'currency', currency: 'EUR' })} gross EUR represented. This is not net revenue.</p>
         <p className="mt-2 text-sm text-muted-foreground">{typedOutcomes.length} recorded commercial outcome(s) · gross outcomes {formatCurrencyTotals(reportedGrossByCurrency)} · settled AeroTrade revenue {formatCurrencyTotals(settledRevenueByCurrency)}.</p>
-        <p className="mt-2 text-xs text-muted-foreground">Reported and documented outcomes are not counted as settled revenue. Stripe receipts and marketplace outcomes remain separate evidence sources.</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <FunnelStep label="Economics measured" value={outcomesWithEconomics.length} />
+          <FunnelStep label="Economics missing" value={outcomesMissingEconomics} />
+          <div className="rounded-xl border bg-background p-4"><p className="text-xs font-medium text-muted-foreground">Evidence-backed contribution</p><p className="mt-2 font-bold">{formatCurrencyTotals(evidencedContributionByCurrency)}</p></div>
+          <div className="rounded-xl border bg-background p-4"><p className="text-xs font-medium text-muted-foreground">Settled contribution</p><p className="mt-2 font-bold">{formatCurrencyTotals(settledContributionByCurrency)}</p></div>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">Reported and documented outcomes are not counted as settled revenue. Missing costs remain unmeasured and are never converted to zero. Contribution may legitimately be negative. Stripe receipts and marketplace outcomes remain separate evidence sources.</p>
       </div>
 
       <section className="rounded-2xl border bg-card overflow-hidden">
@@ -835,6 +862,7 @@ function OutcomeEditor({ entityType, entityId, outcome, suggestion }: {
   const suggestedAmount = suggestion?.gross_amount_minor === null || suggestion?.gross_amount_minor === undefined
     ? ''
     : amount(suggestion.gross_amount_minor)
+  const economicsLocked = outcome?.contribution_margin_minor !== null && outcome?.contribution_margin_minor !== undefined
   return (
     <details className="rounded-xl border bg-muted/20">
       <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
@@ -844,11 +872,12 @@ function OutcomeEditor({ entityType, entityId, outcome, suggestion }: {
         <select name="outcome_type" defaultValue={outcome?.outcome_type || 'sale'} className="rounded-lg border bg-background px-3 py-2 text-sm">
           <option value="sale">Sale</option><option value="intermediation">Intermediation</option><option value="other">Other</option>
         </select>
-        <select name="currency" defaultValue={outcome?.currency || suggestion?.currency || 'EUR'} className="rounded-lg border bg-background px-3 py-2 text-sm">
+        {economicsLocked ? <input type="hidden" name="currency" value={outcome?.currency} /> : null}
+        <select name={economicsLocked ? undefined : 'currency'} disabled={economicsLocked} defaultValue={outcome?.currency || suggestion?.currency || 'EUR'} className="rounded-lg border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-70">
           <option value="EUR">EUR</option><option value="GBP">GBP</option><option value="USD">USD</option>
         </select>
         <input name="gross_amount" required inputMode="decimal" defaultValue={outcome ? amount(outcome.gross_amount_minor) : suggestedAmount} placeholder="Gross transaction amount" aria-label="Gross transaction amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
-        <input name="aerotrade_revenue" required inputMode="decimal" defaultValue={amount(outcome?.aerotrade_revenue_minor)} placeholder="AeroTrade revenue" aria-label="AeroTrade revenue" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+        <input name="aerotrade_revenue" required readOnly={economicsLocked} inputMode="decimal" defaultValue={amount(outcome?.aerotrade_revenue_minor)} placeholder="AeroTrade revenue" aria-label="AeroTrade revenue" className="rounded-lg border bg-background px-3 py-2 text-sm read-only:cursor-not-allowed read-only:opacity-70" />
         <select name="evidence_level" defaultValue={outcome?.evidence_level || 'reported'} className="rounded-lg border bg-background px-3 py-2 text-sm">
           <option value="reported">Reported</option><option value="documented">Documented</option><option value="settled">Settled</option>
         </select>
@@ -859,9 +888,39 @@ function OutcomeEditor({ entityType, entityId, outcome, suggestion }: {
         <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save outcome</button>
         {suggestion && !outcome ? <p className="text-xs font-semibold text-amber-800 sm:col-span-2 lg:col-span-8">The seller reported this sale on {formatDate(suggestion.reported_at)}{suggestedAmount ? ` with a gross amount of ${suggestedAmount} ${suggestion.currency}` : ''}. These fields are only a review aid: verify them before saving. AeroTrade revenue remains 0 until you enter supported evidence.</p> : null}
         <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-8">Documented results require a document reference. Settled AeroTrade revenue requires a bank-transfer or Stripe reference. The outcome, audit snapshot and WON status commit together.</p>
+        {economicsLocked ? <p className="text-xs font-medium text-amber-800 sm:col-span-2 lg:col-span-8">Currency and AeroTrade revenue are locked because unit economics already use that basis. Other outcome evidence can still be strengthened without silently changing contribution.</p> : null}
         <textarea name="outcome_notes" maxLength={2000} defaultValue={outcome?.notes || ''} placeholder="Evidence note (no passwords, card data or full bank details)" className="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2 lg:col-span-8" />
       </form>
+      {outcome ? <CommercialEconomicsEditor outcome={outcome} /> : null}
     </details>
+  )
+}
+
+function CommercialEconomicsEditor({ outcome }: { outcome: CommercialOutcome }) {
+  const amount = (minor: number | null) => minor === null ? '' : (minor / 100).toFixed(2)
+  const contribution = outcome.contribution_margin_minor === null
+    ? 'Not measured'
+    : (outcome.contribution_margin_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: outcome.currency })
+  return (
+    <form action={recordCommercialUnitEconomics.bind(null, outcome.id)} className="grid gap-3 border-t bg-background/40 p-4 sm:grid-cols-2 lg:grid-cols-8">
+      <div className="sm:col-span-2 lg:col-span-8">
+        <p className="text-sm font-semibold">Unit economics · contribution {contribution}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Record every cost component explicitly. Leaving economics unrecorded is safer than treating an unknown cost as zero. Confirm the outcome currency and AeroTrade revenue first; that financial basis is locked once economics are recorded.</p>
+      </div>
+      <input name="direct_cost" required inputMode="decimal" defaultValue={amount(outcome.direct_cost_minor)} placeholder="Direct cost" aria-label="Direct cost" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+      <input name="payment_fee" required inputMode="decimal" defaultValue={amount(outcome.payment_fee_minor)} placeholder="Payment fee" aria-label="Payment fee" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+      <input name="tax_amount" required inputMode="decimal" defaultValue={amount(outcome.tax_amount_minor)} placeholder="Tax amount" aria-label="Tax amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+      <select name="economics_evidence_level" defaultValue={outcome.economics_evidence_level || 'reported'} className="rounded-lg border bg-background px-3 py-2 text-sm">
+        <option value="reported">Reported</option><option value="documented">Documented</option><option value="settled">Settled</option>
+      </select>
+      <select name="economics_evidence_source" defaultValue={outcome.economics_evidence_source || 'operator_report'} className="rounded-lg border bg-background px-3 py-2 text-sm">
+        <option value="operator_report">Operator report</option><option value="invoice">Invoice</option><option value="stripe_balance_transaction">Stripe balance transaction</option><option value="bank_statement">Bank statement</option><option value="other_document">Other document</option>
+      </select>
+      <input name="economics_evidence_reference" defaultValue={outcome.economics_evidence_reference || ''} placeholder="Evidence reference" aria-label="Economics evidence reference" className="rounded-lg border bg-background px-3 py-2 text-sm lg:col-span-2" />
+      <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save economics</button>
+      <textarea name="economics_notes" maxLength={2000} defaultValue={outcome.economics_notes || ''} placeholder="Cost evidence note (no passwords, card data or full bank details)" className="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2 lg:col-span-8" />
+      <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-8">Reported values use an operator report without a reference. Documented values require a document reference. Settled values require a bank-statement or Stripe balance-transaction reference. Every save creates an immutable audit event and is verified by readback.</p>
+    </form>
   )
 }
 
