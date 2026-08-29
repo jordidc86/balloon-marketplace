@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   buildNewBalloonManufacturerFunnel,
   getNewBalloonManufacturer,
+  inferNewBalloonManufacturerPreference,
   normalizeNewBalloonManufacturerPreference,
 } from '../src/utils/new-balloon-manufacturers.mjs'
 
@@ -11,6 +12,10 @@ test('new-balloon manufacturer routes and preferences remain closed', () => {
   assert.equal(getNewBalloonManufacturer('schroeder')?.shortName, 'Schroeder')
   assert.equal(getNewBalloonManufacturer('unknown'), null)
   assert.equal(normalizeNewBalloonManufacturerPreference('unknown'), 'advice')
+  assert.equal(inferNewBalloonManufacturerPreference('Schröder G42'), 'schroeder')
+  assert.equal(inferNewBalloonManufacturerPreference('New Pasha 120'), 'pasha')
+  assert.equal(inferNewBalloonManufacturerPreference('Pasha or Schroeder'), 'advice')
+  assert.equal(inferNewBalloonManufacturerPreference('Cameron Z-350'), 'advice')
 })
 
 test('manufacturer funnel attributes outcomes to the latest operator proposal', () => {

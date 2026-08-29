@@ -27,6 +27,18 @@ export const normalizeNewBalloonManufacturerPreference = (value) => (
   getNewBalloonManufacturer(value)?.slug || 'advice'
 )
 
+const normalizedManufacturerWords = (value) => typeof value === 'string'
+  ? value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim()
+  : ''
+
+export const inferNewBalloonManufacturerPreference = (...values) => {
+  const words = values.map(normalizedManufacturerWords).filter(Boolean).join(' ')
+  const matches = new Set()
+  if (/(?:^|\s)pasha(?:\s|$)/.test(words)) matches.add('pasha')
+  if (/(?:^|\s)(?:schroeder|schroder)(?:\s|$)/.test(words)) matches.add('schroeder')
+  return matches.size === 1 ? [...matches][0] : 'advice'
+}
+
 const blankFunnel = () => ({
   preferredRequests: 0,
   proposals: 0,

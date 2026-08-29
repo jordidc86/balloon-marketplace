@@ -5,7 +5,7 @@ import { siteUrl, supportEmail } from '@/utils/site'
 import { normalizeNewBalloonLeadSource } from '@/utils/new-balloon-lead.mjs'
 import { buildNewBalloonServiceJsonLd, serializeJsonLd } from '@/utils/marketplace-seo.mjs'
 import { equipmentTypeForCategory, normalizeNewBalloonDemandContext } from '@/utils/new-balloon-request.mjs'
-import { getNewBalloonManufacturer, normalizeNewBalloonManufacturerPreference } from '@/utils/new-balloon-manufacturers.mjs'
+import { getNewBalloonManufacturer, inferNewBalloonManufacturerPreference, normalizeNewBalloonManufacturerPreference } from '@/utils/new-balloon-manufacturers.mjs'
 import { submitNewBalloonQuote } from './actions'
 import CommercialAttributionFields from '@/components/CommercialAttributionFields'
 
@@ -42,9 +42,10 @@ export default async function NewBalloonPage({
     country: typeof params.country === 'string' ? params.country : null,
   })
   const defaultEquipmentType = equipmentTypeForCategory(demandContext.requested_category)
-  const manufacturerPreference = normalizeNewBalloonManufacturerPreference(
-    typeof params.manufacturer === 'string' ? params.manufacturer : null,
-  )
+  const explicitManufacturer = typeof params.manufacturer === 'string' ? params.manufacturer : null
+  const manufacturerPreference = explicitManufacturer
+    ? normalizeNewBalloonManufacturerPreference(explicitManufacturer)
+    : inferNewBalloonManufacturerPreference(demandContext.requested_equipment)
   const selectedManufacturer = getNewBalloonManufacturer(manufacturerPreference)
 
   return (

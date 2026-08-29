@@ -11,7 +11,8 @@ type Manufacturer = {
 }
 
 export default function NewBalloonManufacturerLanding({ manufacturer }: { manufacturer: Manufacturer }) {
-  const requestHref = `/new-balloon?manufacturer=${manufacturer.slug}&source=navigation&utm_source=aerotrade&utm_medium=organic&utm_campaign=new_balloon_${manufacturer.slug}`
+  // Internal links must not overwrite the visitor's real external acquisition campaign.
+  const requestHref = `/new-balloon?manufacturer=${manufacturer.slug}&source=navigation`
 
   return (
     <div className="bg-secondary/40">

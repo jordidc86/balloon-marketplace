@@ -413,6 +413,7 @@ const checks = [
     name: 'Pasha and Schroeder acquisition paths stay non-binding and manufacturer-specific',
     file: 'src/components/NewBalloonManufacturerLanding.tsx',
     required: ['manufacturer.slug', 'Request a {manufacturer.shortName} budget', 'Any initial range is non-binding.', 'before any binding factory order or payment'],
+    forbidden: ['utm_source=aerotrade', 'utm_medium=organic', 'utm_campaign=new_balloon'],
   },
   {
     name: 'New-balloon manufacturer funnel reaches proposal, outcome and settled revenue evidence',
