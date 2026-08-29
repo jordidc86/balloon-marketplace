@@ -1,0 +1,30 @@
+{
+  "verifiedAt": "2026-08-29T10:49:00+02:00",
+  "productionUrl": "https://aerotrade.app",
+  "deployId": "6a929c32f71f4f34887d5929",
+  "commit": "d624ee9",
+  "database": {
+    "migrationVersion": "20260829260000",
+    "migrationRecorded": true,
+    "integrityColumns": 5,
+    "integrityIndexes": 2,
+    "categoryConstraint": true,
+    "rowLevelSecurity": true,
+    "anonymousOrAuthenticatedGrants": 0,
+    "quoteRequestsBeforeVerification": 0,
+    "quoteRequestsAfterVerification": 0
+  },
+  "publicJourney": {
+    "contextualQuotePageStatus": 200,
+    "contextNoticePresent": true,
+    "equipmentPreselected": true,
+    "requestedEquipmentPreserved": true,
+    "requestedCountryPreserved": true,
+    "explicitConsentPresent": true,
+    "honeypotPresent": true,
+    "catalogCtaPreservesDemandContext": true,
+    "homepageRouteVisible": true
+  },
+  "submissionPerformed": false,
+  "reason": "Production was verified without generating a fictitious commercial request."
+}

@@ -6,10 +6,10 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829250000`.
-- Validation: 63 automated tests, 59 operational contracts, ESLint and a full Next.js production build.
-- Current evidence-based score: **87.2%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a9297915e010a13617561de` is live from commit `abc0f5e`.
+- Database migrations are registered and read back through `20260829260000`.
+- Validation: 67 automated tests, 61 operational contracts, ESLint and a full Next.js production build.
+- Current evidence-based score: **87.5%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a929c32f71f4f34887d5929` is live from commit `d624ee9`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -17,7 +17,8 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 
 - Used-equipment listings, Premium windows, seller contact and private buyer enquiries.
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
-- First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source attribution and a one-time 24-hour operational follow-up.
+- First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source and demand context, explicit consent, server-side revalidation, duplicate/rate control and a one-time 24-hour operational follow-up.
+- Used-catalogue searches now carry category, equipment wording and country into the new-balloon request; production verification preserved all three without creating a fictitious lead.
 - Public search contract shared by metadata, structured data and sitemap: 12/12 public listings verified with canonical, indexability, Open Graph and breadcrumbs; 7 truthful priced Product offers, 0 invalid offers, unreleased Premium inventory excluded, and authentication pages noindexed.
 - Four clean, inventory-backed category landing pages now target high-intent used-equipment demand; empty categories are noindexed, historical filter URLs redirect without losing the search and every category keeps a direct new-balloon alternative.
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
