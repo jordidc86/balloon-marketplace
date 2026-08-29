@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "marketplace_buyer_acknowledgement_recovery_production_verification",
+  "verifiedAt": "2026-08-29T14:49:31.606Z",
+  "containsPii": false,
+  "production": {
+    "url": "https://aerotrade.app",
+    "deployId": "6a92f111e0dbec0008603e6a",
+    "commit": "54ad7af31a7454de0002a62567cabe76d59f51ce",
+    "state": "ready",
+    "publishedAt": "2026-08-29T14:48:46.953Z"
+  },
+  "validation": {
+    "automatedTests": 120,
+    "operationalContracts": 116,
+    "lint": "passed",
+    "productionBuild": "passed"
+  },
+  "productionDryRun": {
+    "dryRun": true,
+    "dueMarketplaceInquiryBuyerAcknowledgementRetries": 0,
+    "dueNewBalloonBuyerAcknowledgementRetries": 0,
+    "failed": 0,
+    "configurationBlocked": 0,
+    "messagesSent": 0
+  },
+  "readOnlyProductionEvidence": {
+    "marketplaceInquiries": 0,
+    "marketplaceInquiryBuyerAcknowledgements": 0,
+    "exhaustedMarketplaceInquiryBuyerAcknowledgements": 0,
+    "commercialNotificationReceipts": 2,
+    "acceptedReceipts": 2,
+    "syntheticRecordsCreated": 0
+  },
+  "privateCapability": {
+    "purpose": "account-free marketplace enquiry status and negotiation history",
+    "lifetimeDays": 90,
+    "boundToInquiryAndBuyerEmail": true,
+    "freshCapabilityOnRetry": true
+  },
+  "safetyBoundary": "Recovery acknowledges an already-stored marketplace enquiry. It cannot reserve equipment, accept an offer, create a sale contract or move money."
+}
