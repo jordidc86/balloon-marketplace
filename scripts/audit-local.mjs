@@ -173,6 +173,16 @@ const checks = [
     required: ['getListingQualityTransition', "transition === 'QUARANTINE'", ".update({ status: 'DRAFT' })", 'Broken listing was not safely paused', 'notifyQuarantinedSeller', 'commercial_notification_receipts'],
   },
   {
+    name: 'Buyer acknowledgements and opportunity follow-ups have durable private receipts',
+    file: 'supabase/migrations/20260829240000_opportunity_followup_notifications.sql',
+    required: ['inquiry_buyer_ack', 'inquiry_seller_followup', 'quote_admin_followup', "entity_type in ('listing', 'quote_request', 'wanted_request', 'inquiry')", "recipient_role in ('admin', 'seller', 'buyer')"],
+  },
+  {
+    name: 'Open commercial opportunities receive one evidence-backed operational follow-up',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ['getOpportunityFollowupCutoff', 'openInquiryStatuses', 'sendCommercialReceiptEmail', 'inquiry-seller-followup-', 'quote-admin-followup-', 'single operational reminder'],
+  },
+  {
     name: 'Listing publication requires a reachable image from trusted storage',
     file: 'src/utils/listing-image-quality-server.ts',
     required: ['getAllowedListingImageHosts', 'assertListingImageUrlsReachable', 'assertListingHasReachableImage', 'markListingQualityResolved'],

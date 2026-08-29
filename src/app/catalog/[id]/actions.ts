@@ -14,6 +14,7 @@ import type { BrowserCommercialContext } from '@/utils/browser-attribution'
 import { assertStoredListingRequiredFields, parseListingSubmission } from '@/utils/listing-submission.mjs'
 import { createPremiumListingCheckout } from '@/utils/listing-checkout'
 import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
+import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 
 type ListingDetailsForm = Record<string, string | number | boolean | null | undefined>
 
@@ -246,6 +247,24 @@ export async function submitListingInquiry(listingId: string, formData: FormData
       success: true,
       message: 'Your enquiry was saved, but its notification status needs an internal review.',
     }
+  }
+
+  try {
+    await sendCommercialReceiptEmail(supabaseAdmin, {
+      notificationType: 'inquiry_buyer_ack',
+      entityType: 'inquiry',
+      entityId: stored.id,
+      recipientRole: 'buyer',
+      to: inquiry.buyer_email,
+      subject: `AeroTrade received your enquiry about ${listing.title}`,
+      html: `<h2>Your enquiry is safely recorded</h2>
+      <p>We have sent your enquiry about <strong>${escapeHtml(listing.title)}</strong> to the seller.</p>
+      <p>The seller now has your contact details and can respond directly. AeroTrade has retained the opportunity so it can be followed up if it remains unattended.</p>
+      <p><a href="${escapeHtml(listingUrl)}">Return to the listing</a></p>`,
+      idempotencyKey: `inquiry-buyer-ack-${stored.id}`,
+    })
+  } catch (acknowledgementError) {
+    console.error('Buyer enquiry acknowledgement could not be completed:', acknowledgementError)
   }
 
   return {
