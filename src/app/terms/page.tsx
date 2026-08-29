@@ -25,6 +25,7 @@ export default function TermsPage() {
           <li>You agree not to post false, misleading, or fraudulent listings.</li>
           <li>If you submit a buyer enquiry, you must provide genuine contact information and use it only for a legitimate interest in the equipment.</li>
           <li>If you record wanted equipment, you must provide a genuine buying requirement. A recorded request does not guarantee that suitable equipment will be found or that a seller will respond.</li>
+          <li>A listing watch is an operational notification only. It does not reserve equipment, freeze a price, guarantee availability or create a contract, and it may end when the listing is withdrawn.</li>
         </ul>
         
         <h2>4. Fees and Paid Product Limits</h2>

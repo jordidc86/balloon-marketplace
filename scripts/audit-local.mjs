@@ -155,6 +155,32 @@ const checks = [
     required: [".eq('notify_on_match', true)", "not('status', 'in', '(CLOSED,SPAM)')", 'getUnnotifiedWantedMatchIds', 'wantedMatchDispatchFingerprint', 'isWantedMatchDispatchRetryable', 'sendCommercialReceiptEmail', 'not a marketing campaign', 'AeroTrade will not repeat these same listings'],
   },
   {
+    name: 'Listing watches are private, double-opt-in and internally consistent',
+    file: 'supabase/migrations/20260829410000_listing_watchers.sql',
+    required: ['listing_watchers', "status in ('PENDING_CONFIRMATION', 'ACTIVE', 'UNSUBSCRIBED', 'BLOCKED')", 'privacy_consent_at', 'listing_watchers_confirmation_state', 'listing_watch_dispatches_watcher_listing_fk', 'listing_watch_dispatches_delivery_state', 'enable row level security', 'revoke all on public.listing_watchers from anon, authenticated', 'not an enquiry, reservation, payment or marketing subscription'],
+  },
+  {
+    name: 'Listing-watch intake stores consent before confirmation and excludes artificial demand',
+    file: 'src/app/catalog/[id]/watch-actions.ts',
+    required: ['parseListingWatchRequest', 'createListingWatchSubmissionKey', 'Owners and marketplace operators do not create buyer watch signals', 'Buyer Early Access is required while this promoted listing is private', "status: 'PENDING_CONFIRMATION'", "from('listing_watchers')", 'listing_watch_confirmation', 'Alerts remain inactive until you do'],
+  },
+  {
+    name: 'Listing-watch alerts are material, idempotent, retryable and recheck consent before sending',
+    file: 'src/app/api/cron/listing-watch/route.ts',
+    required: [".eq('status', 'ACTIVE')", 'createListingWatchSnapshot', 'stillEarlyAccess', 'isListingWatchDispatchRetryable', 'listing_watch_update', 'listing-watch-update-${watcher.id}-${snapshot.hash}', 'Stop updates for this listing', "stillActive?.status !== 'ACTIVE'", 'last_notified_snapshot_hash'],
+  },
+  {
+    name: 'Listing-watch decisions require an explicit POST and reconcile concurrent state changes',
+    file: 'src/app/watch/actions.ts',
+    required: ['verifyListingWatchAction', "watcher.status !== 'PENDING_CONFIRMATION'", "status: 'ACTIVE'", "status: 'UNSUBSCRIBED'", 'reconciled?.status'],
+  },
+  {
+    name: 'Production marketplace evidence uses named queries rather than positional attribution',
+    file: 'scripts/capture-marketplace-audit.mjs',
+    required: ['const querySpecs = {', 'Object.entries(querySpecs)', 'Object.fromEntries', 'newBalloonProposals:', 'listingWatchers:', 'aerotrade-marketplace-audit-v2-read-only'],
+    forbidden: ['const [\n  users,'],
+  },
+  {
     name: 'Catalog search gaps are private, deduplicated and PII-minimized',
     file: 'supabase/migrations/20260829170000_catalog_search_demand.sql',
     required: ['catalog_search_events', 'event_key text not null unique', 'catalog_search_zero_result_consistency', 'enable row level security', 'revoke all on public.catalog_search_events from anon, authenticated', 'no raw visitor identifier'],

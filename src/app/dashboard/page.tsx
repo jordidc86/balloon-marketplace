@@ -1,7 +1,7 @@
 import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert, ShieldCheck } from 'lucide-react'
+import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert, ShieldCheck, BellRing } from 'lucide-react'
 import { openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
@@ -122,6 +122,17 @@ export default async function DashboardPage({
       .in('listing_id', listingIds)
     : { data: [] }
   const verificationByListing = new Map(((verificationStates as ListingVerificationState[] | null) || []).map((state) => [state.listing_id, state]))
+  const { data: activeListingWatchers } = listingIds.length > 0
+    ? await admin
+      .from('listing_watchers')
+      .select('listing_id')
+      .in('listing_id', listingIds)
+      .eq('status', 'ACTIVE')
+    : { data: [] }
+  const watcherCountByListing = (activeListingWatchers || []).reduce<Map<string, number>>((counts, watcher) => {
+    counts.set(watcher.listing_id, (counts.get(watcher.listing_id) || 0) + 1)
+    return counts
+  }, new Map())
   const { data: latestPremiumIntent } = !isPremium ? await admin
     .from('premium_checkout_intents')
     .select('status,source,created_at')
@@ -256,6 +267,7 @@ export default async function DashboardPage({
                           {verification?.status === 'VERIFIED' ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />AeroTrade evidence review complete</p> : null}
                           {verification?.status === 'IN_REVIEW' ? <p className="mt-1 text-xs font-semibold text-amber-700">Verification requested — queued for review</p> : null}
                           {verification?.status === 'REJECTED' ? <p className="mt-1 text-xs font-semibold text-red-700">Review incomplete — {verification.decision_reason ? formatClosedCode(verification.decision_reason) : 'evidence needs attention'}</p> : null}
+                          {watcherCountByListing.get(item.id) ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-700"><BellRing className="h-3.5 w-3.5" />{watcherCountByListing.get(item.id)} confirmed buyer watcher(s)</p> : null}
                         </div>
                         <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:items-end">
                           {item.status === 'PENDING_PAYMENT' ? (

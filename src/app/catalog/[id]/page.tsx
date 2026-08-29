@@ -12,6 +12,7 @@ import ListingViewTracker from './ListingViewTracker'
 import BuyerInquiryForm from './BuyerInquiryForm'
 import SafeListingImage from '@/components/SafeListingImage'
 import ListingShare from '@/components/ListingShare'
+import ListingWatchForm from './ListingWatchForm'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 import {
   buildListingBreadcrumbJsonLd,
@@ -78,9 +79,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   let isPremium = false
+  let isAdmin = false
   if (user) {
-    const { data: profile } = await supabase.from('users').select('is_premium').eq('id', user.id).single()
+    const { data: profile } = await supabase.from('users').select('is_premium,role').eq('id', user.id).single()
     isPremium = profile?.is_premium || false
+    isAdmin = profile?.role === 'admin'
   }
 
   // Fetch Listing
@@ -269,8 +272,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 </Link>
               </div>
             )}
-            {canViewFully && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(typedListing.status) ? <div className="mt-4"><ListingShare baseUrl={siteUrl} listingId={typedListing.id} title={typedListing.title} source={isOwner ? 'seller_share' : 'listing_share'} /></div> : null}
           </div>
+
+          {canViewFully && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(typedListing.status) ? <ListingShare baseUrl={siteUrl} listingId={typedListing.id} title={typedListing.title} source={isOwner ? 'seller_share' : 'listing_share'} /> : null}
 
           {/* Thumbnails */}
           {images.length > 1 && (
@@ -411,6 +415,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             ) : (
               <div className="space-y-4">
                 <BuyerInquiryForm listingId={typedListing.id} listingCurrency={typedListing.currency} />
+                {!isAdmin ? <ListingWatchForm listingId={typedListing.id} defaultEmail={user?.email || ''} /> : null}
                 <div className="pt-3 border-t">
                   <p className="mb-3 text-center text-xs text-muted-foreground">Prefer to contact the seller directly?</p>
                   <ContactSeller listingId={typedListing.id} />

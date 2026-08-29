@@ -24,7 +24,32 @@ async function rows(table, columns, configure = (query) => query) {
   return data || []
 }
 
-const [
+// Named query specifications prevent a positional result from ever being attributed to the wrong dataset.
+const querySpecs = {
+  users: ['users', 'id,is_premium,premium_source,created_at'],
+  listings: ['listings', 'id,seller_id,category,status,price,currency,condition,location_country,contact_phone,details,created_at,updated_at,public_at,instagram_posted,facebook_posted'],
+  images: ['images', 'listing_id,url,is_primary'],
+  events: ['listing_events', 'listing_id,user_id,event_type,utm_source,utm_medium,utm_campaign,created_at'],
+  quotes: ['quote_requests', 'id,status,name,email,phone,country,manufacturer_preference,equipment_type,volume_or_capacity,intended_use,budget_range,timeline,colors_or_branding,notes,created_at,updated_at'],
+  newsletterRuns: ['newsletter_runs', 'id,status,dry_run,recipients_count,sent_count,failed_count,created_at,completed_at'],
+  premiumAlertRuns: ['premium_alert_runs', 'id,listing_id,status,recipients_count,sent_count,failed_count,created_at,completed_at'],
+  stripeEvents: ['stripe_webhook_events', 'event_id,event_type,status,attempts,stripe_created_at,processed_at'],
+  paymentReceipts: ['payment_notification_receipts', 'charge_id,payment_type,livemode,amount_minor,currency,accepted_at'],
+  inquiries: ['marketplace_inquiries', 'id,listing_id,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,closed_at'],
+  negotiationEvents: ['marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,created_at'],
+  verifications: ['listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'],
+  commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,status,created_at,attempted_at,accepted_at'],
+  commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'],
+  newBalloonProposals: ['new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'],
+  wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'],
+  catalogSearchEvents: ['catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'],
+  sellerFunnelEvents: ['seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'],
+  listingWatchers: ['listing_watchers', 'id,listing_id,status,journey_key,created_at,confirmed_at,last_notified_at'],
+  listingWatchDispatches: ['listing_watch_dispatches', 'id,watcher_id,listing_id,status,created_at,accepted_at'],
+}
+
+const auditData = Object.fromEntries(await Promise.all(Object.entries(querySpecs).map(async ([name, [table, columns]]) => [name, await rows(table, columns)])))
+const {
   users,
   listings,
   images,
@@ -39,29 +64,13 @@ const [
   verifications,
   commercialNotifications,
   commercialOutcomes,
+  newBalloonProposals,
   wantedRequests,
   catalogSearchEvents,
   sellerFunnelEvents,
-] = await Promise.all([
-  rows('users', 'id,is_premium,premium_source,created_at'),
-  rows('listings', 'id,seller_id,category,status,price,currency,condition,location_country,contact_phone,details,created_at,updated_at,public_at,instagram_posted,facebook_posted'),
-  rows('images', 'listing_id,url,is_primary'),
-  rows('listing_events', 'listing_id,user_id,event_type,utm_source,utm_medium,utm_campaign,created_at'),
-  rows('quote_requests', 'id,status,name,email,phone,country,manufacturer_preference,equipment_type,volume_or_capacity,intended_use,budget_range,timeline,colors_or_branding,notes,created_at,updated_at'),
-  rows('newsletter_runs', 'id,status,dry_run,recipients_count,sent_count,failed_count,created_at,completed_at'),
-  rows('premium_alert_runs', 'id,listing_id,status,recipients_count,sent_count,failed_count,created_at,completed_at'),
-  rows('stripe_webhook_events', 'event_id,event_type,status,attempts,stripe_created_at,processed_at'),
-  rows('payment_notification_receipts', 'charge_id,payment_type,livemode,amount_minor,currency,accepted_at'),
-  rows('marketplace_inquiries', 'id,listing_id,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,closed_at'),
-  rows('marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,created_at'),
-  rows('listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'),
-  rows('commercial_notification_receipts', 'id,notification_type,entity_type,status,created_at,attempted_at,accepted_at'),
-  rows('commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'),
-  rows('new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'),
-  rows('wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'),
-  rows('catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'),
-  rows('seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'),
-])
+  listingWatchers,
+  listingWatchDispatches,
+} = auditData
 
 const countBy = (items, key) => items.reduce((counts, item) => {
   const value = String(item[key] ?? 'unknown')
@@ -123,6 +132,7 @@ const uniqueContactedListings = new Set(recentContacts.map((event) => event.list
 const registeredContacts = recentContacts.filter((event) => event.user_id).length
 const anonymousContacts = recentContacts.length - registeredContacts
 const recentQuotes = quotes.filter((quote) => quote.created_at >= since30d)
+const recentListingWatchers = listingWatchers.filter((watcher) => watcher.created_at >= since30d)
 const successfulNewsletterRuns = newsletterRuns.filter((run) => !run.dry_run && run.status === 'sent')
 const successfulPremiumAlerts = premiumAlertRuns.filter((run) => run.status === 'sent')
 const liveReceipts = paymentReceipts.filter((receipt) => receipt.livemode)
@@ -185,6 +195,11 @@ const result = {
     zeroResultCatalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.zero_results).length,
     catalogSearchesByCategory30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'category'),
     catalogSearchesByUtmSource30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'utm_source'),
+    listingWatchers: listingWatchers.length,
+    listingWatchers30d: recentListingWatchers.length,
+    listingWatchersByStatus: countBy(listingWatchers, 'status'),
+    activeListingWatchers: listingWatchers.filter((watcher) => watcher.status === 'ACTIVE').length,
+    watchedListings: new Set(listingWatchers.filter((watcher) => watcher.status === 'ACTIVE').map((watcher) => watcher.listing_id)).size,
   },
   sellerActivation: {
     events30d: sellerFunnelEvents.filter((event) => event.created_at >= since30d).length,
@@ -209,6 +224,8 @@ const result = {
     wantedRequestsByCategory: countBy(wantedRequests, 'category'),
     wantedRequestsByUtmSource: countBy(wantedRequests, 'utm_source'),
     wantedRequestsWithMatchConsent: wantedRequests.filter((request) => request.notify_on_match).length,
+    newBalloonProposals: newBalloonProposals.length,
+    newBalloonProposalsByDeliveryStatus: countBy(newBalloonProposals, 'delivery_status'),
     failedSellerNotifications: inquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length,
     closedMarketplaceTransactionsKnown: inquiries.filter((inquiry) => inquiry.status === 'WON').length,
     commercialOutcomes: commercialOutcomes.length,
@@ -234,6 +251,8 @@ const result = {
     premiumAlertRecipientsAccepted: successfulPremiumAlerts.reduce((sum, run) => sum + Number(run.sent_count || 0), 0),
     commercialNotificationReceipts: commercialNotifications.length,
     commercialNotificationStatuses: countBy(commercialNotifications, 'status'),
+    listingWatchDispatches: listingWatchDispatches.length,
+    listingWatchDispatchStatuses: countBy(listingWatchDispatches, 'status'),
     runStatuses: {
       newsletters: countBy(newsletterRuns, 'status'),
       premiumAlerts: countBy(premiumAlertRuns, 'status'),
@@ -250,7 +269,7 @@ const result = {
   },
   integrity: {
     containsPii: false,
-    queryProfile: crypto.createHash('sha256').update('aerotrade-marketplace-audit-v1-read-only').digest('hex'),
+    queryProfile: crypto.createHash('sha256').update('aerotrade-marketplace-audit-v2-read-only').digest('hex'),
   },
 }
 

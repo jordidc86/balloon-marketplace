@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/utils/supabase/server'
-import { CircleDollarSign, CreditCard, MessageSquare, Plane, Store, TriangleAlert } from 'lucide-react'
+import { BellRing, CircleDollarSign, CreditCard, MessageSquare, Plane, Store, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { recordCommercialOutcome, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
@@ -160,6 +160,23 @@ type CommercialNotification = {
   created_at: string
 }
 
+type ListingWatcher = {
+  id: string
+  listing_id: string
+  status: 'PENDING_CONFIRMATION' | 'ACTIVE' | 'UNSUBSCRIBED' | 'BLOCKED'
+  journey_key: string | null
+  created_at: string
+  confirmed_at: string | null
+}
+
+type ListingWatchDispatch = {
+  id: string
+  watcher_id: string
+  status: 'PENDING' | 'ACCEPTED' | 'FAILED' | 'CANCELLED'
+  accepted_at: string | null
+  updated_at: string
+}
+
 type CommercialOutcome = {
   id: string
   entity_type: 'marketplace_inquiry' | 'quote_request'
@@ -203,7 +220,7 @@ export default async function CommercialPage() {
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
   const defaultProposalValidUntil = new Date(nowMs + 30 * 86_400_000).toISOString().slice(0, 10)
-  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('quote_requests').select('id,name,email,equipment_type,manufacturer_preference,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
@@ -221,6 +238,8 @@ export default async function CommercialPage() {
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
     supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
+    supabase.from('listing_watchers').select('id,listing_id,status,journey_key,created_at,confirmed_at').order('created_at', { ascending: false }).limit(500),
+    supabase.from('listing_watch_dispatches').select('id,watcher_id,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
   ])
 
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
@@ -237,6 +256,8 @@ export default async function CommercialPage() {
   const typedSellerAssistance = (sellerAssistance || []) as SellerAssistance[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
   const typedListingEvents = (events || []) as ListingEvent[]
+  const typedListingWatchers = (listingWatchers || []) as ListingWatcher[]
+  const typedListingWatchDispatches = (listingWatchDispatches || []) as ListingWatchDispatch[]
   const negotiationEventsByInquiry = typedNegotiationEvents.reduce<Map<string, NegotiationEvent[]>>((byInquiry, event) => {
     const inquiryEvents = byInquiry.get(event.inquiry_id) || []
     inquiryEvents.push(event)
@@ -267,6 +288,7 @@ export default async function CommercialPage() {
   const viewJourneyKeys = new Set(typedListingEvents.filter((event) => event.event_type === 'VIEW' && event.journey_key).map((event) => event.journey_key as string))
   const searchJourneyKeys = new Set(typedSearchEvents.filter((event) => event.journey_key).map((event) => event.journey_key as string))
   const revealJourneyKeys = new Set(typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL' && event.journey_key).map((event) => event.journey_key as string))
+  const watchJourneyKeys = new Set(typedListingWatchers.filter((watcher) => watcher.status === 'ACTIVE' && watcher.created_at >= thirtyDaysAgo && watcher.journey_key).map((watcher) => watcher.journey_key as string))
   const requestJourneyKeys = new Set([
     ...recentInquiries.map((inquiry) => inquiry.journey_key),
     ...recentWanted.map((request) => request.journey_key),
@@ -276,12 +298,17 @@ export default async function CommercialPage() {
     ...viewJourneyKeys,
     ...searchJourneyKeys,
     ...revealJourneyKeys,
+    ...watchJourneyKeys,
     ...requestJourneyKeys,
   ])
   const unattributedLegacyViews = typedListingEvents.filter((event) => event.event_type === 'VIEW' && !event.journey_key).length
   const openInquiries = typedInquiries.filter((inquiry) => openInquiryStatuses.includes(inquiry.status)).length
   const openWanted = typedWantedRequests.filter((request) => !['CLOSED', 'SPAM'].includes(request.status)).length
   const openSellerAssistance = typedSellerAssistance.filter((request) => !['LISTED', 'CLOSED', 'SPAM'].includes(request.status)).length
+  const activeListingWatchers = typedListingWatchers.filter((watcher) => watcher.status === 'ACTIVE').length
+  const pendingListingWatchers = typedListingWatchers.filter((watcher) => watcher.status === 'PENDING_CONFIRMATION').length
+  const acceptedListingWatchUpdates = typedListingWatchDispatches.filter((dispatch) => dispatch.status === 'ACCEPTED').length
+  const failedListingWatchUpdates = typedListingWatchDispatches.filter((dispatch) => dispatch.status === 'FAILED').length
   const zeroResultSearches = typedSearchEvents.filter((event) => event.zero_results)
   const zeroDemandCounts = zeroResultSearches.reduce<Map<string, number>>((counts, event) => {
     const label = event.query_text || event.category || event.country || 'Unspecified catalog search'
@@ -339,23 +366,31 @@ export default async function CommercialPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${typedSearchEvents.length} catalog searches · ${sharedLinkViews} from shared links`} />
+        <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${activeListingWatchers} confirmed watchers · ${sharedLinkViews} from shared links`} />
         <Metric title="Open opportunities" value={openInquiries + openWanted + openSellerAssistance + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon · ${typedSellerAssistance.length} assisted sellers`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
-        <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Seller emails not accepted" warning={failedNotifications > 0} />
+        <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Commercial emails not accepted" warning={failedNotifications > 0} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Metric title="Confirmed listing watches" value={activeListingWatchers} icon={<BellRing className="h-5 w-5" />} detail={`${pendingListingWatchers} awaiting double opt-in`} />
+        <Metric title="Watch updates accepted" value={acceptedListingWatchUpdates} icon={<BellRing className="h-5 w-5" />} detail="Material listing changes accepted by the email provider" />
+        <Metric title="Watch updates failed" value={failedListingWatchUpdates} icon={<TriangleAlert className="h-5 w-5" />} detail="Retryable without repeating accepted alerts" warning={failedListingWatchUpdates > 0} />
       </div>
 
       <section className="rounded-2xl border bg-card p-6">
         <h2 className="text-xl font-semibold">Buyer journey evidence (30d)</h2>
         <p className="mt-1 text-sm text-muted-foreground">Daily pseudonymous journey keys connect demand to contact or a request without exposing a browser identifier. Administrator and listing-owner activity is excluded from new buyer measurements.</p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <FunnelStep label="Catalog search" value={searchJourneyKeys.size} />
           <FunnelStep label="Listing viewed" value={viewJourneyKeys.size} />
+          <FunnelStep label="Listing watched" value={watchJourneyKeys.size} />
           <FunnelStep label="Contact revealed" value={revealJourneyKeys.size} />
           <FunnelStep label="Request sent" value={requestJourneyKeys.size} />
         </div>
         <p className="mt-4 text-sm text-muted-foreground">{attributableJourneyKeys.size} attributable buyer journey(s). Each stage is a distinct journey count, not a claim that every visitor moved through every preceding step.</p>
         {unattributedLegacyViews > 0 ? <p className="mt-2 text-xs text-amber-700">{unattributedLegacyViews} older or unattributed listing view(s) remain visible but cannot be reconstructed into a journey.</p> : null}
+        {listingWatchersError || listingWatchDispatchesError ? <p className="mt-2 text-xs text-destructive">Listing-watch evidence is unavailable: {listingWatchersError?.message || listingWatchDispatchesError?.message}</p> : null}
       </section>
 
       <section className="rounded-2xl border bg-card p-6">
