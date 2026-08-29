@@ -40,7 +40,7 @@ Exact approval wording:
 1. Confirm the feature branch and `origin/main` still resolve to the exact commits above or recalculate this plan.
 2. Confirm the worktree is clean and no secret or generated directory is tracked.
 3. Run `npm test`, `npm run audit:local`, `npm run lint`, `npx tsc --noEmit`, `git diff --check` and `npm run build`.
-4. Confirm the expected result remains 146/146 tests and 145/145 operational contracts.
+4. Confirm the expected result remains 147/147 tests and 146/146 operational contracts.
 5. Capture read-only counts of existing commercial outcomes and current Supabase migration versions without including personal data.
 
 ## Database order and readback
@@ -99,6 +99,8 @@ The safe rollback is runtime-first and non-destructive:
 - Deploy previews and branch validation are not production releases and must be used for intermediate work.
 - Never increment `release/netlify-production.json` for documentation, evidence or an isolated incremental change.
 - If more than one production deploy is created, stop the release and investigate before any further push.
+
+The production auditor is release-version aware: the currently deployed schema remains fully auditable while these four candidate migrations are pending. Candidate-only datasets are reported as `not_deployed`; authentication, permission and network failures still fail the audit closed.
 
 ## Score gate
 

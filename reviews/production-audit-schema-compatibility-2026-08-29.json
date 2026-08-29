@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_production_audit_schema_compatibility",
+  "verifiedAt": "2026-08-29T17:01:46.464Z",
+  "containsPii": false,
+  "productionMutation": false,
+  "netlifyDeployTriggered": false,
+  "result": "passed",
+  "evidence": {
+    "automatedTestsPassed": 147,
+    "operationalContractsPassed": 146,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "readOnlyProductionAuditPassed": true,
+    "candidateDatasetsNotDeployed": 4,
+    "authenticationFailuresRemainFatal": true,
+    "permissionFailuresRemainFatal": true,
+    "networkFailuresRemainFatal": true
+  },
+  "productionAggregate": {
+    "activeListings": 12,
+    "activeSellers": 5,
+    "views30d": 60,
+    "comparablePostInstrumentationViews": 0,
+    "contactReveals30d": 0,
+    "marketplaceInquiries": 0,
+    "commercialOutcomes": 0,
+    "ownerAvailabilityConfirmations": 0
+  },
+  "interpretation": "The auditor can measure the deployed production schema while a grouped release is pending, without hiding authentication, permission or network failures. Current production has real inventory and legacy-attribution traffic but no evidenced buyer-to-seller conversion or commercial closure."
+}
