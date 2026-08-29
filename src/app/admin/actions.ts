@@ -16,6 +16,8 @@ import { parseListingVerificationDecision } from '@/utils/listing-verification.m
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeSellerAssistanceStatus } from '@/utils/seller-assistance.mjs'
 import { newBalloonProposalFingerprint, parseNewBalloonProposal } from '@/utils/new-balloon-proposal.mjs'
+import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
+import { listingAvailabilityRequestIdempotencyKey } from '@/utils/listing-availability-request.mjs'
 
 async function checkAdmin() {
   const sessionSupabase = await createClient()
@@ -355,6 +357,42 @@ export async function sendNewBalloonProposal(requestId: string, formData: FormDa
   if (acceptanceError || acceptedId !== stored.id || proposalReadback?.delivery_status !== 'accepted' || !proposalReadback.accepted_at || quoteReadback?.status !== 'QUOTE_SENT') {
     throw new Error('Provider accepted the proposal, but its commercial transition was not verified')
   }
+  revalidatePath('/admin/commercial')
+}
+
+export async function requestListingAvailabilityConfirmation(listingId: string) {
+  const { supabase } = await checkAdmin()
+  const [{ data: listing, error: listingError }, { data: latestConfirmation, error: confirmationError }] = await Promise.all([
+    supabase.from('listings').select('id,title,contact_email,status').eq('id', listingId).single(),
+    supabase.from('listing_availability_confirmations').select('id,confirmed_at').eq('listing_id', listingId).order('confirmed_at', { ascending: false }).limit(1).maybeSingle(),
+  ])
+  if (listingError || !listing || !['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(listing.status)) {
+    throw new Error('Only an active listing can receive an availability request')
+  }
+  if (confirmationError) throw new Error('Availability evidence could not be read')
+  if (getListingAvailabilityState(latestConfirmation?.confirmed_at).publiclyFresh) {
+    throw new Error('This listing already has a current availability confirmation')
+  }
+
+  const idempotencyKey = listingAvailabilityRequestIdempotencyKey(listing.id, latestConfirmation?.id || null)
+  const delivery = await sendCommercialReceiptEmail(supabase, {
+    notificationType: 'listing_availability_request',
+    entityType: 'listing',
+    entityId: listing.id,
+    recipientRole: 'seller',
+    to: listing.contact_email,
+    subject: `Please confirm your AeroTrade listing is still available: ${listing.title}`,
+    html: `<p>Your AeroTrade advert <strong>${escapeHtml(listing.title)}</strong> is active, but it does not currently have a recent availability confirmation.</p><p>Please sign in and use <strong>Confirm still available</strong> in your dashboard:</p><p><a href="${escapeHtml(`${siteUrl}/dashboard`)}">Open your AeroTrade dashboard</a></p><p>This request does not change the advert, its price or its publication status. AeroTrade will show a dated availability badge only after you confirm it yourself.</p>`,
+    idempotencyKey,
+  })
+  if (!delivery.success) {
+    throw new Error(delivery.reason === 'deferred'
+      ? 'The first delivery attempt is awaiting its safe retry window'
+      : delivery.reason === 'exhausted'
+        ? 'Availability request delivery is exhausted and needs manual review'
+        : 'Availability request was stored but provider acceptance was not confirmed')
+  }
+
   revalidatePath('/admin/commercial')
 }
 

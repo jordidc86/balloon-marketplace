@@ -428,6 +428,11 @@ const checks = [
     required: ['getListingAvailabilityState', 'availabilityConfirmation.publiclyFresh', 'Seller confirmed availability on'],
   },
   {
+    name: 'Availability requests are manual, transactional and one-per-confirmation-cycle',
+    file: 'src/app/admin/actions.ts',
+    required: ['requestListingAvailabilityConfirmation', 'listingAvailabilityRequestIdempotencyKey', "notificationType: 'listing_availability_request'", 'This request does not change the advert'],
+  },
+  {
     name: 'Listing verification decisions store only closed evidence categories and atomic audit events',
     file: 'supabase/migrations/20260829280000_listing_verification_workflow.sql',
     required: ['listing_verification_events', 'request_listing_verification', 'decide_listing_verification', 'for update', "grant execute on function public.request_listing_verification", 'stores no document copy'],

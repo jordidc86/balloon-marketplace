@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/utils/new-balloon-manufacturers.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
-import { recordCommercialOutcome, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
+import { recordCommercialOutcome, requestListingAvailabilityConfirmation, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -292,6 +292,10 @@ export default async function CommercialPage() {
   const premiumRecoveryByListing = new Map(typedNotifications
     .filter((notification) => notification.notification_type === 'premium_listing_checkout_recovery')
     .map((notification) => [notification.entity_id, notification.status]))
+  const availabilityRequestByListing = new Map<string, CommercialNotification>()
+  for (const notification of typedNotifications.filter((item) => item.notification_type === 'listing_availability_request')) {
+    if (!availabilityRequestByListing.has(notification.entity_id)) availabilityRequestByListing.set(notification.entity_id, notification)
+  }
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
   const typedIndexingReceipts = (indexingReceipts || []) as IndexingSubmissionReceipt[]
   const latestIndexingReceipt = typedIndexingReceipts[0]
@@ -423,11 +427,19 @@ export default async function CommercialPage() {
         <h2 className="text-xl font-semibold">Listing availability evidence</h2>
         <p className="mt-1 text-sm text-muted-foreground">Only explicit seller confirmations count. Listing edits, publication dates and administrator activity never imply availability.</p>
         {listingAvailabilityError ? <p className="mt-4 text-sm text-destructive">Availability evidence is unavailable: {listingAvailabilityError.message}</p> : (
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <Metric title="Fresh confirmations" value={activeListingsWithFreshAvailability} icon={<Store className="h-5 w-5" />} detail="Seller-confirmed within 90 days" />
-            <Metric title="Never confirmed" value={activeListingsNeverConfirmed} icon={<TriangleAlert className="h-5 w-5" />} detail="No availability evidence yet" warning={activeListingsNeverConfirmed > 0} />
-            <Metric title="Confirmation expired" value={activeListingsWithStaleAvailability} icon={<TriangleAlert className="h-5 w-5" />} detail="Last confirmation is older than 90 days" warning={activeListingsWithStaleAvailability > 0} />
-          </div>
+          <>
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <Metric title="Fresh confirmations" value={activeListingsWithFreshAvailability} icon={<Store className="h-5 w-5" />} detail="Seller-confirmed within 90 days" />
+              <Metric title="Never confirmed" value={activeListingsNeverConfirmed} icon={<TriangleAlert className="h-5 w-5" />} detail="No availability evidence yet" warning={activeListingsNeverConfirmed > 0} />
+              <Metric title="Confirmation expired" value={activeListingsWithStaleAvailability} icon={<TriangleAlert className="h-5 w-5" />} detail="Last confirmation is older than 90 days" warning={activeListingsWithStaleAvailability > 0} />
+            </div>
+            <div className="mt-5 divide-y rounded-xl border">
+              {typedSellerPipelineListings.filter((listing) => ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(listing.status) && !getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), new Date(nowMs)).publiclyFresh).map((listing) => {
+                const request = availabilityRequestByListing.get(listing.id)
+                return <div key={listing.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">{listing.title}</p><p className="text-xs text-muted-foreground">{latestAvailabilityByListing.has(listing.id) ? 'Confirmation expired' : 'Never confirmed'}{request ? ` · request ${request.status}` : ' · no request sent'}</p></div>{request?.status === 'accepted' ? <span className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700">Request accepted by email provider</span> : <form action={requestListingAvailabilityConfirmation.bind(null, listing.id)}><button className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted">Request confirmation</button></form>}</div>
+              })}
+            </div>
+          </>
         )}
       </section>
 
