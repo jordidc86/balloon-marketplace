@@ -7,15 +7,16 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 
 - Production: `https://aerotrade.app`, deployed from `main`.
 - Database migrations are registered and read back through `20260829360000`.
-- Validation: 93 automated tests, 83 operational contracts, ESLint, TypeScript and a full Next.js production build.
-- Current evidence-based score: **91.5%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92be08f57b8fc130ddcbc0` is live from code commit `1f2213bb76e6fbca76f5902847aa94a204481b7a`.
+- Validation: 94 automated tests, 85 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Current evidence-based score: **91.9%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92c0f09a9104f4dec38424` is live from code commit `fb1f7e6d2bfc8bcffe9749d4435106ef04b8fd69`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
 ## Material capabilities now live
 
-- Used-equipment listings, Premium windows, seller contact and private buyer enquiries.
+- Used-equipment listings, 48-hour Buyer Early Access windows, seller contact and private buyer enquiries.
+- The annual 9.99 EUR Buyer Early Access product and one-time 5 EUR Seller Launch Promotion are now named and scoped separately across the website, Stripe checkout, dashboard, payment notifications, recovery and terms. Prices, payment modes and webhook metadata remain unchanged; unsupported personal WhatsApp, personal outreach and priority-response claims were removed.
 - A buyer may attach a structured indicative offer to a listing enquiry. The listing owner can continue negotiating, counter or decline through an owner-only atomic workflow; every event is stored before notification and read back. It is explicitly non-binding and performs no reservation, payment or contract action.
 - Closing a marketplace enquiry or new-balloon quote as won now requires one admin-authorized atomic transaction. Gross value, AeroTrade revenue, WON state and an immutable evidence snapshot commit together. Manual WON bypasses are blocked at both UI/action and database levels; documented outcomes need a reference, settled revenue needs a bank or Stripe reference, and evidence cannot be downgraded.
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
@@ -33,13 +34,13 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Three inventory-backed manufacturer pages now expose 6 Cameron, 3 Kubicek and 2 Ultramagic active matches. A two-public-listing threshold prevents thin pages; Schroeder and unknown manufacturers do not enter the sitemap. The 29-URL public set was accepted by IndexNow and a repeated run was deduplicated.
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
 - Two-check listing-image quarantine: one broken listing was paused, the seller notification was accepted and the post-action audit reports 0 inaccessible active image files.
-- One-time Premium listing checkout recovery: the real pending listing had one expired Stripe session and no paid session; one reminder was accepted, linked to the funnel and duplicate execution was suppressed.
+- One-time Seller Launch Promotion checkout recovery: the real pending listing had one expired Stripe session and no paid session; one reminder was accepted, linked to the funnel and duplicate execution was suppressed.
 - Seller-requested listing verification: only eligible public listings can enter the private queue; decisions require bounded identity/evidence categories and an explicit scope acknowledgement, state plus audit event commit atomically, notification evidence is durable, and no document copy or identifier is retained.
 - Evidence-based admin commercial pipeline and outcome values separated from settled AeroTrade revenue.
-- Seller funnel measurement and owner-only recovery of interrupted Premium listing payment.
+- Seller funnel measurement and owner-only recovery of interrupted Seller Launch Promotion payment.
 - A public but private-by-default assisted-sale intake now converts owners who lack photos, documents or pricing into a consented commercial case. It stores before notification, suppresses duplicates and abuse, receives one 24-hour admin follow-up, and cannot be marked LISTED without a matching normal marketplace listing.
 - A public high-intent seller page routes owners into either the complete free listing or the private assisted path. Authentication happens before the long form, preserving the seller return path; a closed, non-PII entry label now measures which seller path reaches submission, checkout and publication.
-- Private Premium-membership checkout ledger, safe session resumption/replacement and signed-webhook closure.
+- Private Buyer Early Access checkout ledger, safe session resumption/replacement and signed-webhook closure.
 - Durable email/provider evidence, controlled recovery semantics and privacy-minimized attribution.
 
 ## Principal remaining constraints

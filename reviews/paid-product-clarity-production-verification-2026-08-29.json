@@ -1,0 +1,53 @@
+{
+  "verifiedAt": "2026-08-29T13:24:04+02:00",
+  "productionOrigin": "https://aerotrade.app",
+  "codeCommit": "fb1f7e6d2bfc8bcffe9749d4435106ef04b8fd69",
+  "productionDeploy": "6a92c0f09a9104f4dec38424",
+  "deployState": "ready",
+  "products": {
+    "buyer": {
+      "publicName": "AeroTrade Buyer Early Access",
+      "billing": "annual subscription",
+      "amountMinor": 999,
+      "currency": "eur",
+      "stripeMetadataTypePreserved": "premium_subscription"
+    },
+    "seller": {
+      "publicName": "AeroTrade Seller Launch Promotion",
+      "billing": "one-time per listing",
+      "amountMinor": 500,
+      "currency": "eur",
+      "stripeMetadataTypePreserved": "listing_fee"
+    }
+  },
+  "productionPages": [
+    { "path": "/pricing", "status": 200, "buyerAndSellerProductsDistinguished": true },
+    { "path": "/signup", "status": 200, "buyerProductNamed": true },
+    { "path": "/terms", "status": 200, "billingAndScopeSeparated": true },
+    { "path": "/contact", "status": 200, "unsupportedPriorityResponseRemoved": true },
+    { "path": "/sell-hot-air-balloon", "status": 200, "sellerProductAndOneTimePriceNamed": true }
+  ],
+  "truthfulness": {
+    "personalWhatsAppOutreachClaimRemoved": true,
+    "personalBuyerOutreachClaimRemoved": true,
+    "priorityResponseClaimRemoved": true,
+    "sellerBenefitsLimitedToImplementedChannels": true
+  },
+  "compatibility": {
+    "pricesChanged": false,
+    "stripeMetadataTypesChanged": false,
+    "webhookRoutingChanged": false,
+    "chargesCreated": 0,
+    "emailsSent": 0,
+    "databaseRowsChanged": 0
+  },
+  "validation": {
+    "automatedTests": 94,
+    "operationalContracts": 85,
+    "lint": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "publicSmokeChecks": "passed"
+  },
+  "remainingGap": "Product comprehension and conversion improvement require genuine buyer and seller checkout traffic; this deployment proves technical and semantic separation, not commercial uplift."
+}
