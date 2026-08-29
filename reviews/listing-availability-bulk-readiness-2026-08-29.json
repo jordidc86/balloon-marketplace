@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "aerotrade_listing_availability_bulk_readiness",
-  "capturedAt": "2026-08-29T17:26:06.668Z",
+  "capturedAt": "2026-08-29T17:35:41.896Z",
   "containsPii": false,
   "readOnlyProductionAudit": true,
   "productionMutation": false,
@@ -22,6 +22,11 @@
     "accepted": 0,
     "failed": 0
   },
+  "existingSellerDigestReceipts": {
+    "total": 0,
+    "accepted": 0,
+    "failed": 0
+  },
   "candidate": {
     "migration": "20260829540000_bulk_listing_availability_confirmation.sql",
     "ownerAuthenticated": true,
@@ -30,7 +35,17 @@
     "databaseReadbackRequired": true,
     "changesListingState": false,
     "sendsEmail": false,
-    "createsPayment": false
+    "createsPayment": false,
+    "groupedSellerDigest": {
+      "migration": "20260829550000_seller_availability_digest.sql",
+      "usesExistingPrivateDeliveryLedger": true,
+      "oneMessagePerSellerCycle": true,
+      "cycleBoundToLatestConfirmationEvidence": true,
+      "changedDigestCooldownDays": 30,
+      "providerAcceptanceReadbackRequired": true,
+      "automaticSend": false,
+      "outreachSeparatelyAuthorized": false
+    }
   },
-  "interpretation": "Five authenticated sellers can confirm all twelve currently active adverts through five total dashboard actions instead of twelve separate confirmations. No confirmation is inferred and no seller has been contacted."
+  "interpretation": "Five authenticated sellers can confirm all twelve currently active adverts through five total dashboard actions instead of twelve separate confirmations. An administrator can later request the same work through at most five grouped, provider-audited emails rather than twelve advert-level emails, but no confirmation is inferred and no seller has been contacted."
 }

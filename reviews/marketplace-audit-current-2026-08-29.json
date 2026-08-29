@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T17:27:27.215Z",
+  "capturedAt": "2026-08-29T17:35:41.896Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T17:27:27.215Z"
+    "since": "2026-07-30T17:35:41.896Z"
   },
   "supply": {
     "listingsTotal": 14,
@@ -52,6 +52,9 @@
       "requestReceipts": 0,
       "acceptedRequests": 0,
       "failedRequests": 0,
+      "sellerDigestReceipts": 0,
+      "acceptedSellerDigests": 0,
+      "failedSellerDigests": 0,
       "caveat": "Counts are grouped without seller identifiers. A request is delivery evidence, not seller confirmation; only a seller-authenticated confirmation makes availability current."
     },
     "listingClosures": {
@@ -129,7 +132,7 @@
     "buyerFunnelComparable": {
       "measurementStartedAt": "2026-08-29T13:37:34.312Z",
       "comparableFrom": "2026-08-29T13:37:34.312Z",
-      "observedDays": 0.16,
+      "observedDays": 0.17,
       "excludedEarlierEvents": 60,
       "views": 0,
       "ctaClicks": 0,
