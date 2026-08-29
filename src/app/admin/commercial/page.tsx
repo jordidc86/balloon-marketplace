@@ -23,11 +23,12 @@ type Inquiry = {
 type NegotiationEvent = {
   id: string
   inquiry_id: string
-  event_type: 'BUYER_OFFERED' | 'SELLER_ACCEPTED_FOR_NEGOTIATION' | 'SELLER_COUNTERED' | 'SELLER_DECLINED'
+  event_type: 'BUYER_OFFERED' | 'BUYER_ACCEPTED_FOR_NEGOTIATION' | 'BUYER_COUNTERED' | 'BUYER_DECLINED' | 'SELLER_ACCEPTED_FOR_NEGOTIATION' | 'SELLER_COUNTERED' | 'SELLER_DECLINED'
   actor_role: 'BUYER' | 'SELLER' | 'ADMIN'
   amount_minor: number | null
   currency: string
   buyer_notification_status: 'pending' | 'accepted' | 'failed' | 'not_required'
+  seller_notification_status: 'pending' | 'accepted' | 'failed' | 'not_required'
   created_at: string
 }
 
@@ -222,7 +223,7 @@ export default async function CommercialPage() {
   const defaultProposalValidUntil = new Date(nowMs + 30 * 86_400_000).toISOString().slice(0, 10)
   const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
-    supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
+    supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('quote_requests').select('id,name,email,equipment_type,manufacturer_preference,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('new_balloon_quote_proposals').select('id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,created_at').order('created_at', { ascending: false }).limit(300),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
@@ -342,9 +343,11 @@ export default async function CommercialPage() {
   const buyerOffers = typedNegotiationEvents.filter((event) => event.event_type === 'BUYER_OFFERED')
   const sellerNegotiationResponses = typedNegotiationEvents.filter((event) => event.actor_role !== 'BUYER')
   const failedBuyerResponseNotifications = sellerNegotiationResponses.filter((event) => event.buyer_notification_status === 'failed').length
+  const failedSellerResponseNotifications = typedNegotiationEvents.filter((event) => event.actor_role === 'BUYER' && event.event_type !== 'BUYER_OFFERED' && event.seller_notification_status === 'failed').length
   const failedNotifications = typedInquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length
     + typedNotifications.filter((notification) => notification.status === 'failed').length
     + failedBuyerResponseNotifications
+    + failedSellerResponseNotifications
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
   const settledRevenueByCurrency = typedOutcomes
@@ -545,6 +548,7 @@ export default async function CommercialPage() {
                   <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{inquiry.status}</span>
                   {inquiry.seller_notification_status === 'failed' ? <p className="mt-2 text-destructive">Seller email not accepted; lead remains visible.</p> : null}
                   {latestNegotiationEvent && latestNegotiationEvent.actor_role !== 'BUYER' ? <p className={`mt-2 text-xs ${latestNegotiationEvent.buyer_notification_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Buyer response email: {latestNegotiationEvent.buyer_notification_status}</p> : null}
+                  {latestNegotiationEvent && latestNegotiationEvent.actor_role === 'BUYER' && latestNegotiationEvent.event_type !== 'BUYER_OFFERED' ? <p className={`mt-2 text-xs ${latestNegotiationEvent.seller_notification_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Seller response email: {latestNegotiationEvent.seller_notification_status}</p> : null}
                 </div>
                 {inquiry.status === 'WON' ? <p className="text-sm font-semibold text-emerald-700">Won · managed through the outcome evidence below</p> : <form action={updateAdminInquiryStatus.bind(null, inquiry.id)} className="flex gap-2">
                   <select name="status" defaultValue={inquiry.status} className="rounded-lg border bg-background px-3 py-2 text-sm">

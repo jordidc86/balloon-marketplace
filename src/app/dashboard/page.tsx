@@ -31,12 +31,13 @@ type SellerInquiry = {
 type InquiryOfferEvent = {
   id: string
   inquiry_id: string
-  event_type: 'BUYER_OFFERED' | 'SELLER_ACCEPTED_FOR_NEGOTIATION' | 'SELLER_COUNTERED' | 'SELLER_DECLINED'
+  event_type: 'BUYER_OFFERED' | 'BUYER_ACCEPTED_FOR_NEGOTIATION' | 'BUYER_COUNTERED' | 'BUYER_DECLINED' | 'SELLER_ACCEPTED_FOR_NEGOTIATION' | 'SELLER_COUNTERED' | 'SELLER_DECLINED'
   actor_role: 'BUYER' | 'SELLER' | 'ADMIN'
   amount_minor: number | null
   currency: string
   note: string | null
   buyer_notification_status: 'pending' | 'accepted' | 'failed' | 'not_required'
+  seller_notification_status: 'pending' | 'accepted' | 'failed' | 'not_required'
   created_at: string
 }
 
@@ -94,7 +95,7 @@ export default async function DashboardPage({
   const { data: inquiryOfferEvents } = inquiryIds.length > 0
     ? await supabase
       .from('marketplace_inquiry_offer_events')
-      .select('id,inquiry_id,event_type,actor_role,amount_minor,currency,note,buyer_notification_status,created_at')
+      .select('id,inquiry_id,event_type,actor_role,amount_minor,currency,note,buyer_notification_status,seller_notification_status,created_at')
       .in('inquiry_id', inquiryIds)
       .order('created_at', { ascending: false })
     : { data: [] }
@@ -332,7 +333,7 @@ export default async function DashboardPage({
                             <div key={event.id} className="text-sm">
                               <p><strong>{event.event_type.replaceAll('_', ' ').toLowerCase().replace(/^./, (letter) => letter.toUpperCase())}</strong>{formatOffer(event) ? ` · ${formatOffer(event)}` : ''}</p>
                               {event.note ? <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{event.note}</p> : null}
-                              <p className="text-xs text-muted-foreground">{new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' }).format(new Date(event.created_at))}{event.actor_role !== 'BUYER' ? ` · buyer email ${event.buyer_notification_status}` : ''}</p>
+                              <p className="text-xs text-muted-foreground">{new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' }).format(new Date(event.created_at))}{event.actor_role !== 'BUYER' ? ` · buyer email ${event.buyer_notification_status}` : event.event_type !== 'BUYER_OFFERED' ? ` · seller email ${event.seller_notification_status}` : ''}</p>
                             </div>
                           ))}
                         </div>

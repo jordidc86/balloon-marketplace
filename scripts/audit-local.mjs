@@ -110,6 +110,27 @@ const checks = [
     required: ['respondToBuyerInquiry', 'parseSellerInquiryResponse', "rpc('record_seller_inquiry_response'", 'The negotiation response was not confirmed by readback', 'inquiry_buyer_seller_response', 'inquiry-buyer-seller-response-${event.id}', 'The buyer notification result could not be verified'],
   },
   {
+    name: 'Buyer negotiation replies are capability-bound, atomic and service-only',
+    file: 'supabase/migrations/20260829420000_buyer_negotiation_loop.sql',
+    required: ['responding_to_event_id', 'marketplace_inquiry_one_buyer_response_per_seller_event', 'record_buyer_inquiry_response', 'for update of inquiry', 'This negotiation link is no longer current', 'revoke all on function public.record_buyer_inquiry_response', 'grant execute on function public.record_buyer_inquiry_response', 'cannot reserve equipment, move money or form a contract'],
+    forbidden: ['payment_intent', 'reservation_id'],
+  },
+  {
+    name: 'Buyer negotiation links are private, time-limited and context-bound',
+    file: 'src/utils/inquiry-buyer-capability.mjs',
+    required: ['inquiryBuyerCapabilityLifetimeMs', 'inquiry-buyer-response|v1', 'createHmac', 'timingSafeEqual', 'maximumFutureLifetimeMs'],
+  },
+  {
+    name: 'Seller responses issue a buyer capability without weakening delivery evidence',
+    file: 'src/app/dashboard/actions.ts',
+    required: ['signInquiryBuyerCapability', 'capabilityExpiresAt', 'Respond securely through AeroTrade', 'This private link expires after 30 days.', 'inquiry_buyer_seller_response'],
+  },
+  {
+    name: 'Buyer replies verify authority before atomic storage and seller notification',
+    file: 'src/app/inquiry/respond/actions.ts',
+    required: ['verifyInquiryBuyerCapability', "rpc('record_buyer_inquiry_response'", 'responseReadbackError', 'inquiry_seller_buyer_response', 'inquiry-seller-buyer-response-${event.id}', 'seller_notification_status'],
+  },
+  {
     name: 'Commercial operational emails have private durable receipts',
     file: 'supabase/migrations/20260829130000_commercial_notification_receipts.sql',
     required: ['commercial_notification_receipts', 'idempotency_key text not null unique', 'enable row level security', 'revoke all on public.commercial_notification_receipts from anon, authenticated'],

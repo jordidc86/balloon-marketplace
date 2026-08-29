@@ -70,6 +70,10 @@ export function parseSellerInquiryResponse(formData) {
   }
 }
 
+export function parseBuyerInquiryResponse(formData) {
+  return parseSellerInquiryResponse(formData)
+}
+
 export function normalizeInquiryStatus(value) {
   return inquiryStatuses.includes(value) ? value : null
 }

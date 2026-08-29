@@ -14,6 +14,7 @@ import { assertListingHasReachableImage } from '@/utils/listing-image-quality-se
 import { assertStoredListingRequiredFields } from '@/utils/listing-submission.mjs'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { escapeHtml } from '@/utils/html'
+import { inquiryBuyerCapabilityLifetimeMs, signInquiryBuyerCapability } from '@/utils/inquiry-buyer-capability.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
@@ -204,7 +205,7 @@ export async function respondToBuyerInquiry(inquiryId: string, formData: FormDat
 
   const [{ data: event, error: eventError }, { data: storedInquiry, error: readbackError }] = await Promise.all([
     admin.from('marketplace_inquiry_offer_events')
-      .select('id,event_type,amount_minor,currency,note,buyer_notification_status')
+      .select('id,event_type,amount_minor,currency,note,buyer_notification_status,created_at')
       .eq('id', result.event_id)
       .eq('inquiry_id', inquiry.id)
       .single(),
@@ -228,6 +229,20 @@ export async function respondToBuyerInquiry(inquiryId: string, formData: FormDat
       : event.event_type === 'SELLER_DECLINED'
         ? '<p>The seller has declined this opportunity. No reservation, payment or sale has been created.</p>'
         : '<p>The seller has accepted your price indication as a basis for further negotiation.</p>'
+    const capabilityExpiresAt = new Date(new Date(event.created_at).getTime() + inquiryBuyerCapabilityLifetimeMs)
+    const buyerCapability = event.event_type === 'SELLER_DECLINED' ? null : signInquiryBuyerCapability({
+      inquiryId: inquiry.id,
+      eventId: event.id,
+      buyerEmail: inquiry.buyer_email,
+      expiresAt: capabilityExpiresAt,
+      secret: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    })
+    if (event.event_type !== 'SELLER_DECLINED' && !buyerCapability) {
+      throw new Error('The buyer response capability could not be prepared')
+    }
+    const buyerResponseUrl = buyerCapability
+      ? `${siteUrl}/inquiry/respond?id=${encodeURIComponent(inquiry.id)}&event=${encodeURIComponent(event.id)}&token=${encodeURIComponent(buyerCapability)}`
+      : null
     let notificationStatus: 'accepted' | 'failed' = 'failed'
     let providerMessageId: string | null = null
     try {
@@ -243,7 +258,8 @@ export async function respondToBuyerInquiry(inquiryId: string, formData: FormDat
         ${detail}
         ${event.note ? `<p><strong>Seller note:</strong><br />${escapeHtml(event.note).replaceAll('\n', '<br />')}</p>` : ''}
         <p>All amounts in this message are invitations to negotiate only. This message does not reserve the equipment, execute a payment or form a sale contract.</p>
-        <p>To continue, contact the seller at <a href="mailto:${escapeHtml(listing.contact_email)}">${escapeHtml(listing.contact_email)}</a> or <a href="${escapeHtml(`${siteUrl}/catalog/${listing.id}`)}">return to the listing</a>.</p>`,
+        ${buyerResponseUrl ? `<p><a href="${escapeHtml(buyerResponseUrl)}">Respond securely through AeroTrade</a>. This private link expires after 30 days.</p>` : ''}
+        <p>You can also contact the seller at <a href="mailto:${escapeHtml(listing.contact_email)}">${escapeHtml(listing.contact_email)}</a> or <a href="${escapeHtml(`${siteUrl}/catalog/${listing.id}`)}">return to the listing</a>.</p>`,
         idempotencyKey: `inquiry-buyer-seller-response-${event.id}`,
       })
       notificationStatus = delivery.success ? 'accepted' : 'failed'
