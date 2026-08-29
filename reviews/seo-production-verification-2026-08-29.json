@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_transactional_seo_production_verification",
+  "capturedAt": "2026-08-29T08:21:22Z",
+  "containsPii": false,
+  "productionOrigin": "https://aerotrade.app",
+  "deployId": "6a92961890ee2175dff6816f",
+  "commit": "76769b62fdc7b82790727c99b09833d5169ffa98",
+  "routeHealth": {
+    "publicRoutesChecked": 7,
+    "successful": 7
+  },
+  "sitemap": {
+    "urls": 20,
+    "publicListingUrls": 12,
+    "authenticationUrls": 0
+  },
+  "publicListingPages": {
+    "checked": 12,
+    "canonicalCorrect": 12,
+    "indexable": 12,
+    "openGraphComplete": 12,
+    "breadcrumbMarkup": 12,
+    "pricedProductMarkup": 7,
+    "truthfulOffers": 7,
+    "invalidOffers": 0,
+    "jsonParseFailures": 0
+  },
+  "newBalloonRoute": {
+    "canonicalCorrect": true,
+    "serviceMarkupPresent": true,
+    "indicativeBudgetPathPresent": true
+  },
+  "privateRoutes": {
+    "loginNoindex": true,
+    "signupNoindex": true
+  },
+  "validation": {
+    "automatedTestsPassed": 61,
+    "operationalContractsPassed": 58,
+    "lintPassed": true,
+    "productionBuildPassed": true
+  }
+}

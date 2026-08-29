@@ -7,9 +7,9 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 
 - Production: `https://aerotrade.app`, deployed from `main`.
 - Database migrations are registered and read back through `20260829250000`.
-- Validation: 56 automated tests, 56 operational contracts, ESLint and a full Next.js production build.
-- Current evidence-based score: **86.5%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92936cb551c93aae93a8bd` is live from commit `e314d0d`.
+- Validation: 61 automated tests, 58 operational contracts, ESLint and a full Next.js production build.
+- Current evidence-based score: **87.1%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92961890ee2175dff6816f` is live from commit `76769b6`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -18,6 +18,7 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 - Used-equipment listings, Premium windows, seller contact and private buyer enquiries.
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
 - First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source attribution and a one-time 24-hour operational follow-up.
+- Public search contract shared by metadata, structured data and sitemap: 12/12 public listings verified with canonical, indexability, Open Graph and breadcrumbs; 7 truthful priced Product offers, 0 invalid offers, unreleased Premium inventory excluded, and authentication pages noindexed.
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
 - Two-check listing-image quarantine: one broken listing was paused, the seller notification was accepted and the post-action audit reports 0 inaccessible active image files.
 - One-time Premium listing checkout recovery: the real pending listing had one expired Stripe session and no paid session; one reminder was accepted, linked to the funnel and duplicate execution was suppressed.
@@ -31,9 +32,9 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 1. Real marketplace liquidity: no tracked enquiry, wanted request or new-balloon quote has yet produced a validated live opportunity.
 2. Checkout economics: the first real recovery is live and verified but has not yet improved the historical 20% completion rate; its eventual payment or free publication remains to be observed.
 3. Supply quality: five sellers currently have active listings, no listing has completed the controlled verification gate, and two historical flight records still lack a serial number that cannot be inferred.
-4. Acquisition: search and source ledgers start with little or no production volume; seller recruitment has not been executed.
+4. Acquisition: public inventory is technically discoverable and measurable, but search and source ledgers still have little or no production volume; Search Console performance evidence and seller recruitment remain absent.
 5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
 
 ## Next highest-value work
 
-Use real funnel evidence to recruit supply against repeated buyer demand and measure source-to-contact-to-outcome conversion. Do not inflate scores from implementation alone, infer revenue, alter prices, or launch unsolicited campaigns without the relevant evidence and authorization.
+Connect actual Search Console coverage/performance evidence to the existing source, search, contact and outcome ledgers, then recruit supply only against repeated verified demand. Do not inflate scores from implementation alone, infer revenue, alter prices, or launch unsolicited campaigns without the relevant evidence and authorization.
