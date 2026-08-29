@@ -183,6 +183,13 @@ const flightFieldCoverage = Object.fromEntries(
 
 const sellerListingCounts = countBy(activeListings, 'seller_id')
 const sellerConcentration = Object.values(sellerListingCounts).sort((a, b) => b - a)
+const availabilityDueListings = activeListings.filter((listing) => !availabilityStateByListing.get(listing.id)?.publiclyFresh)
+const availabilityDueBySeller = countBy(availabilityDueListings, 'seller_id')
+const availabilityDuePortfolioDistribution = Object.values(availabilityDueBySeller).reduce((distribution, listingCount) => {
+  const key = String(listingCount)
+  distribution[key] = (distribution[key] || 0) + 1
+  return distribution
+}, {})
 const recentEvents = events.filter((event) => event.created_at >= since30d)
 const recentViews = recentEvents.filter((event) => event.event_type === 'VIEW')
 const recentContacts = recentEvents.filter((event) => event.event_type === 'CONTACT_REVEAL')
@@ -200,6 +207,7 @@ const inquiryBuyerAcknowledgements = commercialNotifications.filter((notificatio
 const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const buyerEarlyAccessCheckoutRecoveries = commercialNotifications.filter((notification) => notification.notification_type === 'buyer_early_access_checkout_recovery')
 const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
+const listingAvailabilityRequests = commercialNotifications.filter((notification) => notification.notification_type === 'listing_availability_request')
 const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   quotes,
   proposals: newBalloonProposals,
@@ -245,6 +253,15 @@ const result = {
       never: activeListings.filter((listing) => availabilityStateByListing.get(listing.id)?.status === 'never').length,
       invalid: activeListings.filter((listing) => availabilityStateByListing.get(listing.id)?.status === 'invalid').length,
       eventsTotal: listingAvailabilityConfirmations.length,
+    },
+    availabilityRecovery: {
+      dueListings: availabilityDueListings.length,
+      dueSellers: Object.keys(availabilityDueBySeller).length,
+      sellerPortfolioDistribution: availabilityDuePortfolioDistribution,
+      requestReceipts: listingAvailabilityRequests.length,
+      acceptedRequests: listingAvailabilityRequests.filter((request) => request.status === 'accepted').length,
+      failedRequests: listingAvailabilityRequests.filter((request) => request.status === 'failed').length,
+      caveat: 'Counts are grouped without seller identifiers. A request is delivery evidence, not seller confirmation; only a seller-authenticated confirmation makes availability current.',
     },
     listingClosures: {
       eventsTotal: listingLifecycleEvents.length,

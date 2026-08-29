@@ -546,6 +546,17 @@ const checks = [
     forbidden: ["status: 'ACTIVE_PUBLIC'", "status: 'ACTIVE_PREMIUM'"],
   },
   {
+    name: 'One explicit seller action can confirm every owned active listing with per-listing evidence',
+    file: 'supabase/migrations/20260829540000_bulk_listing_availability_confirmation.sql',
+    required: ['confirm_all_listing_availability', 'auth.uid()', "listing.seller_id = v_user_id", "listing.status in ('ACTIVE_PUBLIC', 'ACTIVE_PREMIUM')", 'for update', 'listing_availability_confirmations', 'on conflict (listing_id, confirmed_on) do nothing', 'revoke all on function', 'grant execute'],
+    forbidden: ['update public.listings', 'delete from public.listings'],
+  },
+  {
+    name: 'Bulk availability confirmation is authenticated and fully verified by readback',
+    file: 'src/app/dashboard/actions.ts',
+    required: ['confirmAllListingAvailability', "rpc('confirm_all_listing_availability')", 'Bulk availability confirmation returned duplicate evidence', "from('listing_availability_confirmations')", 'activeIds.size !== confirmations.length', 'Bulk availability confirmation was not verified by readback'],
+  },
+  {
     name: 'Public availability trust appears only inside the bounded freshness window',
     file: 'src/app/catalog/[id]/page.tsx',
     required: ['getListingAvailabilityState', 'availabilityConfirmation.publiclyFresh', 'Seller confirmed availability on'],

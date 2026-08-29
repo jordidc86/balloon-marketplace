@@ -2,7 +2,7 @@ import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert, ShieldCheck, BellRing } from 'lucide-react'
-import { confirmListingAvailability, openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateNewsletterPreference, updateSellerInquiryStatus } from './actions'
+import { confirmAllListingAvailability, confirmListingAvailability, openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateNewsletterPreference, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 import SellerInquiryResponseForm from './SellerInquiryResponseForm'
@@ -176,6 +176,10 @@ export default async function DashboardPage({
     .limit(1)
     .maybeSingle() : { data: null }
   const hasRecoverablePremiumIntent = latestPremiumIntent?.status === 'STARTED'
+  const activeListingsNeedingAvailability = (listings || []).filter((listing) => (
+    ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(listing.status)
+    && !getListingAvailabilityState(latestAvailabilityByListing.get(listing.id) || null).publiclyFresh
+  ))
 
   return (
     <div className="min-h-screen bg-secondary/30 py-12">
@@ -275,7 +279,16 @@ export default async function DashboardPage({
           {/* Listings List */}
           <div className="lg:col-span-2">
             <div className="bg-background p-6 rounded-2xl border shadow-sm">
-              <h2 className="text-lg font-semibold mb-6">Your Listings</h2>
+              <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div><h2 className="text-lg font-semibold">Your Listings</h2><p className="mt-1 text-xs text-muted-foreground">Availability is shown publicly only after your dated confirmation.</p></div>
+                {activeListingsNeedingAvailability.length > 0 ? (
+                  <form action={confirmAllListingAvailability}>
+                    <button className="rounded-lg border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">
+                      Confirm all {activeListingsNeedingAvailability.length} active listing{activeListingsNeedingAvailability.length === 1 ? '' : 's'} available
+                    </button>
+                  </form>
+                ) : null}
+              </div>
               
               {!listings || listings.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed rounded-xl">

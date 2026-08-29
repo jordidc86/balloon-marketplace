@@ -210,6 +210,60 @@ export async function confirmListingAvailability(listingId: string) {
   revalidatePath('/catalog')
 }
 
+export async function confirmAllListingAvailability() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data, error } = await supabase.rpc('confirm_all_listing_availability')
+  const confirmations = Array.isArray(data) ? data : []
+  if (error || confirmations.length === 0) {
+    throw new Error(error?.message || 'No active listings were available to confirm')
+  }
+
+  const confirmationIds = confirmations.map((confirmation) => confirmation.confirmation_id)
+  const listingIds = confirmations.map((confirmation) => confirmation.listing_id)
+  if (new Set(confirmationIds).size !== confirmationIds.length || new Set(listingIds).size !== listingIds.length) {
+    throw new Error('Bulk availability confirmation returned duplicate evidence')
+  }
+
+  const admin = await createAdminClient()
+  const [{ data: activeListings, error: listingsError }, { data: readback, error: readbackError }] = await Promise.all([
+    admin
+      .from('listings')
+      .select('id')
+      .eq('seller_id', user.id)
+      .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
+    admin
+      .from('listing_availability_confirmations')
+      .select('id,listing_id,seller_id,confirmed_at')
+      .in('id', confirmationIds)
+      .eq('seller_id', user.id),
+  ])
+  const activeIds = new Set((activeListings || []).map((listing) => listing.id))
+  const readbackById = new Map((readback || []).map((confirmation) => [confirmation.id, confirmation]))
+  const evidenceMatches = confirmations.every((confirmation) => {
+    const stored = readbackById.get(confirmation.confirmation_id)
+    return activeIds.has(confirmation.listing_id)
+      && stored?.listing_id === confirmation.listing_id
+      && stored?.seller_id === user.id
+      && stored?.confirmed_at === confirmation.confirmed_at
+  })
+  if (
+    listingsError
+    || readbackError
+    || activeIds.size !== confirmations.length
+    || readbackById.size !== confirmations.length
+    || !evidenceMatches
+  ) {
+    throw new Error('Bulk availability confirmation was not verified by readback')
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/catalog')
+  for (const listingId of listingIds) revalidatePath(`/catalog/${listingId}`)
+}
+
 export async function closeListingBySeller(listingId: string, formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
