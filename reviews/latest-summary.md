@@ -1,15 +1,15 @@
 # AeroTrade Latest Summary
 
 Date: 2026-08-29
-Status: `Production deployed, reconciled and measurable; buyer demand can enter a traceable non-binding negotiation, real liquidity remains unproven`
+Status: `Production deployed, reconciled and measurable; negotiation and economic closure are traceable, real liquidity and revenue remain unproven`
 
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829320000`.
-- Validation: 85 automated tests, 75 operational contracts, ESLint and a full Next.js production build.
-- Current evidence-based score: **90.2%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92afddd730da00085e0f0f` is live from commit `592a1ef`.
+- Database migrations are registered and read back through `20260829330000`.
+- Validation: 86 automated tests, 75 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Current evidence-based score: **90.5%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92b320636ebf000865a00a` is live from commit `4e38da1`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -17,6 +17,7 @@ Status: `Production deployed, reconciled and measurable; buyer demand can enter 
 
 - Used-equipment listings, Premium windows, seller contact and private buyer enquiries.
 - A buyer may attach a structured indicative offer to a listing enquiry. The listing owner can continue negotiating, counter or decline through an owner-only atomic workflow; every event is stored before notification and read back. It is explicitly non-binding and performs no reservation, payment or contract action.
+- Closing a marketplace enquiry or new-balloon quote as won now requires one admin-authorized atomic transaction. Gross value, AeroTrade revenue, WON state and an immutable evidence snapshot commit together. Manual WON bypasses are blocked at both UI/action and database levels; documented outcomes need a reference, settled revenue needs a bank or Stripe reference, and evidence cannot be downgraded.
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
 - Daily, opt-in wanted-equipment matching now sends at most five compatible active listings per digest, never repeats an accepted advert and retries failed or stale provider attempts through a private dispatch ledger.
 - First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source and demand context, explicit consent, server-side revalidation, duplicate/rate control and a one-time 24-hour operational follow-up.

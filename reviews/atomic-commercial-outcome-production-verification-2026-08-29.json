@@ -1,0 +1,50 @@
+{
+  "capturedAt": "2026-08-29T12:24:48+02:00",
+  "environment": "production",
+  "baseUrl": "https://aerotrade.app",
+  "commit": "4e38da1bab2d73c288dffd3d51f607844659838a",
+  "deploy": {
+    "provider": "netlify",
+    "id": "6a92b320636ebf000865a00a",
+    "state": "ready",
+    "error": null,
+    "secretScanMatches": 0
+  },
+  "database": {
+    "migration": "20260829330000",
+    "migrationRegistered": true,
+    "outcomeEvidenceColumns": 3,
+    "outcomeEventTablePresent": true,
+    "outcomeEventRowLevelSecurity": true,
+    "outcomeEventPublicMutationGrants": 0,
+    "wonStatusInvariantTriggers": 2,
+    "atomicClosureFunctionPresent": true,
+    "atomicClosureFunctionAnonymousExecute": false,
+    "atomicClosureFunctionAuthenticatedExecute": true,
+    "commercialOutcomes": 0,
+    "commercialOutcomeEvents": 0
+  },
+  "invariants": {
+    "outcomeAndWonStatusCommitTogether": true,
+    "wonCannotBeSelectedWithoutOutcome": true,
+    "wonCannotBeReopenedWhileOutcomeExists": true,
+    "saleOrIntermediationRequiresPositiveGrossAmount": true,
+    "documentedOutcomeRequiresEvidenceReference": true,
+    "settledRevenueRequiresBankOrStripeReference": true,
+    "evidenceCannotBeDowngraded": true,
+    "immutableOutcomeSnapshotRecorded": true,
+    "postWriteReadbackRequired": true
+  },
+  "validation": {
+    "automatedTestsPassed": 86,
+    "operationalContractsPassed": 75,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "migrationRollbackValidationPassed": true
+  },
+  "noSyntheticOutcomes": true,
+  "noSyntheticRevenue": true,
+  "economicActionsPerformed": 0,
+  "interpretation": "Production can now close a marketplace enquiry or new-balloon quote as won only through one admin-authorized transaction that stores the economic outcome, immutable evidence snapshot and WON state together. No real closed outcome exists yet, so the mechanism is verified but revenue remains unproven."
+}
