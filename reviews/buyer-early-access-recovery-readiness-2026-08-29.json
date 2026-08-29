@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "buyer_early_access_checkout_recovery_readiness",
+  "projectId": "aerotrade",
+  "capturedAt": "2026-08-29T18:12:00.000+02:00",
+  "productionChanged": false,
+  "releaseCandidateCommit": "2aba405f519d929c31dc786a047bb9113c0fb6f3",
+  "migration": "20260829520000_buyer_early_access_checkout_recovery",
+  "eligibility": {
+    "latestIntentPerUserOnly": true,
+    "requiredStatus": "EXPIRED",
+    "allowedSources": ["signup", "pricing", "dashboard"],
+    "minimumAgeHours": 24,
+    "premiumAccountsExcluded": true,
+    "validEmailRequired": true
+  },
+  "deliveryBoundary": {
+    "maximumAttempts": 2,
+    "acceptedReceiptSuppressesRepeat": true,
+    "exhaustedReceiptSuppressesRepeat": true,
+    "emailCreatesCheckout": false,
+    "emailCreatesCharge": false,
+    "emailCreatesPayment": false,
+    "destination": "authenticated_dashboard"
+  },
+  "observability": {
+    "dryRunCount": "dueBuyerEarlyAccessCheckoutRecoveries",
+    "controlTowerStatuses": ["accepted", "failed", "exhausted"],
+    "piiInAggregateAudit": false
+  },
+  "deploymentCostControl": {
+    "explicitReleaseMarkerRequired": true,
+    "releaseMarker": "release/netlify-production.json",
+    "expectedProductionDeploys": 1,
+    "estimatedNetlifyCredits": 15
+  },
+  "validation": {
+    "automatedTestsPassed": 146,
+    "operationalContractsPassed": 145,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "diffCheckPassed": true
+  },
+  "releaseGate": "explicit_grouped_production_approval_required",
+  "realEmailGate": "separate_explicit_approval_after_dry_run_count",
+  "scoreCredited": false,
+  "scoreCreditCondition": "genuine_accepted_recovery_followed_by_verified_annual_payment"
+}
