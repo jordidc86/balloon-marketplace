@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T06:35:16.103Z",
+  "capturedAt": "2026-08-29T06:46:02.101Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T06:35:16.103Z"
+    "since": "2026-07-30T06:46:02.101Z"
   },
   "supply": {
     "listingsTotal": 14,
@@ -88,7 +88,11 @@
     "contactedListings30d": 0,
     "registeredContactReveals30d": 0,
     "anonymousContactReveals30d": 0,
-    "viewToContactRate": 0
+    "viewToContactRate": 0,
+    "catalogSearches30d": 0,
+    "zeroResultCatalogSearches30d": 0,
+    "catalogSearchesByCategory30d": {},
+    "catalogSearchesByUtmSource30d": {}
   },
   "opportunities": {
     "quoteRequestsTotal": 0,

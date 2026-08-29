@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { Metadata } from 'next'
 import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
 import SafeListingImage from '@/components/SafeListingImage'
+import CatalogSearchTracker from './CatalogSearchTracker'
 
 export const metadata: Metadata = {
   title: 'Catalog | AeroTrade Marketplace',
@@ -85,6 +86,7 @@ export default async function CatalogPage({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <CatalogSearchTracker search={{ query: searchQuery, category: categoryFilter, country: countryFilter, sort, resultCount: rawListings?.length || 0 }} />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Marketplace Catalog</h1>

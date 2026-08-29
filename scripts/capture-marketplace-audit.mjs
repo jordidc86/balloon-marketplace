@@ -39,6 +39,7 @@ const [
   commercialNotifications,
   commercialOutcomes,
   wantedRequests,
+  catalogSearchEvents,
 ] = await Promise.all([
   rows('users', 'id,is_premium,premium_source,created_at'),
   rows('listings', 'id,seller_id,category,status,price,currency,condition,location_country,contact_phone,details,created_at,updated_at,public_at,instagram_posted,facebook_posted'),
@@ -54,6 +55,7 @@ const [
   rows('commercial_notification_receipts', 'id,notification_type,entity_type,status,created_at,attempted_at,accepted_at'),
   rows('commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,closed_at'),
   rows('wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'),
+  rows('catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'),
 ])
 
 const countBy = (items, key) => items.reduce((counts, item) => {
@@ -170,6 +172,10 @@ const result = {
     registeredContactReveals30d: registeredContacts,
     anonymousContactReveals30d: anonymousContacts,
     viewToContactRate: recentViews.length ? Number((recentContacts.length / recentViews.length).toFixed(4)) : 0,
+    catalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d).length,
+    zeroResultCatalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.zero_results).length,
+    catalogSearchesByCategory30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'category'),
+    catalogSearchesByUtmSource30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'utm_source'),
   },
   opportunities: {
     quoteRequestsTotal: quotes.length,

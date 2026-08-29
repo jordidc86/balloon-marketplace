@@ -51,6 +51,17 @@ type MatchableListing = {
   price: number
 }
 
+type CatalogSearchEvent = {
+  id: string
+  query_text: string | null
+  category: string | null
+  country: string | null
+  result_count: number
+  zero_results: boolean
+  utm_source: string | null
+  created_at: string
+}
+
 type CommercialNotification = {
   id: string
   notification_type: string
@@ -85,11 +96,12 @@ export default async function CommercialPage() {
   // This is a force-dynamic server component; the cutoff is intentionally evaluated per request.
   // eslint-disable-next-line react-hooks/purity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
-  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: matchableListings }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('quote_requests').select('id,name,email,equipment_type,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
+    supabase.from('catalog_search_events').select('id,query_text,category,country,result_count,zero_results,utm_source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,status,created_at').order('created_at', { ascending: false }).limit(100),
@@ -100,6 +112,7 @@ export default async function CommercialPage() {
   const typedQuotes = (quotes || []) as Quote[]
   const typedWantedRequests = (wantedRequests || []) as WantedRequest[]
   const typedMatchableListings = (matchableListings || []) as MatchableListing[]
+  const typedSearchEvents = (searchEvents || []) as CatalogSearchEvent[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
@@ -107,6 +120,13 @@ export default async function CommercialPage() {
   const reveals = (events || []).filter((event) => event.event_type === 'CONTACT_REVEAL').length
   const openInquiries = typedInquiries.filter((inquiry) => openInquiryStatuses.includes(inquiry.status)).length
   const openWanted = typedWantedRequests.filter((request) => !['CLOSED', 'SPAM'].includes(request.status)).length
+  const zeroResultSearches = typedSearchEvents.filter((event) => event.zero_results)
+  const zeroDemandCounts = zeroResultSearches.reduce<Map<string, number>>((counts, event) => {
+    const label = event.query_text || event.category || event.country || 'Unspecified catalog search'
+    counts.set(label, (counts.get(label) || 0) + 1)
+    return counts
+  }, new Map())
+  const topZeroDemand = [...zeroDemandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
   const won = typedInquiries.filter((inquiry) => inquiry.status === 'WON').length + typedQuotes.filter((quote) => quote.status === 'WON').length
   const failedNotifications = typedInquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length
     + typedNotifications.filter((notification) => notification.status === 'failed').length
@@ -131,7 +151,7 @@ export default async function CommercialPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} direct contact reveals`} />
+        <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${typedSearchEvents.length} catalog searches`} />
         <Metric title="Open opportunities" value={openInquiries + openWanted + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
         <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Seller emails not accepted" warning={failedNotifications > 0} />
@@ -146,6 +166,12 @@ export default async function CommercialPage() {
 
       {notificationsError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial notification evidence unavailable: {notificationsError.message}</p> : null}
       {outcomesError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial outcome evidence unavailable: {outcomesError.message}</p> : null}
+
+      <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">Catalog demand gaps (30d)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{typedSearchEvents.length} deduplicated search(es) · {zeroResultSearches.length} with no matching inventory. Likely email, phone and URL searches are not retained.</p>
+        {searchEventsError ? <p className="mt-4 text-sm text-destructive">Search-demand evidence unavailable: {searchEventsError.message}</p> : topZeroDemand.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No zero-result demand has been recorded yet.</p> : <div className="mt-4 grid gap-2 sm:grid-cols-2">{topZeroDemand.map(([label, count]) => <div key={label} className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3 text-sm"><span className="font-medium">{label}</span><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{count}</span></div>)}</div>}
+      </section>
 
       <section className="rounded-2xl border bg-card overflow-hidden">
         <div className="border-b p-6"><h2 className="text-xl font-semibold">Buyer demand without a listing</h2><p className="mt-1 text-sm text-muted-foreground">Private wanted requests and basic matches against active supply. No buyer email is sent automatically from this screen.</p></div>

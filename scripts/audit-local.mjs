@@ -78,6 +78,16 @@ const checks = [
     required: ['referrer_host text', 'utm_source text', 'wanted_requests_attribution_idx', 'No raw visitor identifier'],
   },
   {
+    name: 'Catalog search gaps are private, deduplicated and PII-minimized',
+    file: 'supabase/migrations/20260829170000_catalog_search_demand.sql',
+    required: ['catalog_search_events', 'event_key text not null unique', 'catalog_search_zero_result_consistency', 'enable row level security', 'revoke all on public.catalog_search_events from anon, authenticated', 'no raw visitor identifier'],
+  },
+  {
+    name: 'Catalog search instrumentation cannot block browsing',
+    file: 'src/app/catalog/CatalogSearchTracker.tsx',
+    required: ['sessionStorage', 'logCatalogSearch(search, getBrowserCommercialContext())', 'Analytics cannot block catalog browsing'],
+  },
+  {
     name: 'Listing trust badges have an explicit non-airworthiness boundary',
     file: 'supabase/migrations/20260829110000_listing_verification.sql',
     required: ['listing_verifications', 'supporting_documents_checked', 'This is not an airworthiness inspection.', 'enable row level security'],
