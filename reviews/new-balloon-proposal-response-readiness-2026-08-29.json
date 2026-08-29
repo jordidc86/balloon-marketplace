@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "kind": "new_balloon_proposal_response_readiness",
+  "projectId": "aerotrade",
+  "capturedAt": "2026-08-29T16:37:50.000Z",
+  "productionChanged": false,
+  "releaseCandidateCommit": "827cf84d870d6967580b5cec93bb3fba5eee74fc",
+  "migration": "20260829510000_new_balloon_proposal_responses",
+  "capability": {
+    "proposalBound": true,
+    "quoteRequestBound": true,
+    "buyerEmailBound": true,
+    "expiryBoundToProposalValidity": true
+  },
+  "responseContract": {
+    "allowed": ["INTERESTED", "QUESTION", "DECLINED"],
+    "oneImmutableResponsePerProposal": true,
+    "databaseReadbackRequired": true,
+    "adminNotificationReceiptRequired": true,
+    "createsOrder": false,
+    "createsReservation": false,
+    "createsPayment": false,
+    "closesOpportunity": false
+  },
+  "validation": {
+    "automatedTestsPassed": 145,
+    "operationalContractsPassed": 141,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "diffCheckPassed": true
+  },
+  "releaseGate": "explicit_production_approval_required",
+  "scoreCredited": false,
+  "scoreCreditCondition": "genuine_buyer_response_read_back_after_release"
+}
