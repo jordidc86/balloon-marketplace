@@ -17,14 +17,14 @@ import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeSellerAssistanceStatus } from '@/utils/seller-assistance.mjs'
 
 async function checkAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const sessionSupabase = await createClient()
+  const { data: { user } } = await sessionSupabase.auth.getUser()
   if (!user) throw new Error('Not logged in')
 
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+  const { data: profile } = await sessionSupabase.from('users').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') throw new Error('Not authorized')
 
-  return { supabase: await createAdminClient(), adminUserId: user.id }
+  return { supabase: await createAdminClient(), sessionSupabase, adminUserId: user.id }
 }
 
 export async function togglePremiumStatus(userId: string) {
@@ -158,6 +158,7 @@ export async function updateAdminInquiryStatus(inquiryId: string, formData: Form
   const { supabase } = await checkAdmin()
   const status = normalizeInquiryStatus(formData.get('status'))
   if (!status) throw new Error('Invalid enquiry status')
+  if (status === 'WON') throw new Error('Record the commercial outcome to close an enquiry as won')
 
   const now = new Date().toISOString()
   const { data, error } = await supabase
@@ -179,7 +180,7 @@ export async function updateAdminInquiryStatus(inquiryId: string, formData: Form
 export async function updateQuoteRequestStatus(requestId: string, formData: FormData) {
   const { supabase } = await checkAdmin()
   const status = formData.get('status')
-  const allowed = ['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'WON', 'LOST']
+  const allowed = ['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'LOST']
   if (typeof status !== 'string' || !allowed.includes(status)) throw new Error('Invalid quote status')
 
   const { data, error } = await supabase
@@ -270,51 +271,47 @@ export async function recordCommercialOutcome(
   entityId: string,
   formData: FormData,
 ) {
-  const { supabase, adminUserId } = await checkAdmin()
+  const { supabase, sessionSupabase } = await checkAdmin()
   const outcome = parseCommercialOutcome(formData)
   const table = entityType === 'marketplace_inquiry' ? 'marketplace_inquiries' : 'quote_requests'
 
-  const { data: entity, error: entityError } = await supabase
-    .from(table)
-    .select('id')
-    .eq('id', entityId)
-    .single()
-  if (entityError || !entity?.id) throw new Error('Commercial opportunity not found')
+  const { data: outcomeId, error: outcomeError } = await sessionSupabase.rpc('record_commercial_outcome', {
+    p_entity_type: entityType,
+    p_entity_id: entityId,
+    p_outcome_type: outcome.outcome_type,
+    p_currency: outcome.currency,
+    p_gross_amount_minor: outcome.gross_amount_minor,
+    p_aerotrade_revenue_minor: outcome.aerotrade_revenue_minor,
+    p_evidence_level: outcome.evidence_level,
+    p_evidence_source: outcome.evidence_source,
+    p_evidence_reference: outcome.evidence_reference,
+    p_notes: outcome.notes,
+  })
+  if (outcomeError || !outcomeId) throw new Error(outcomeError?.message || 'Could not atomically record the commercial outcome')
 
-  const now = new Date().toISOString()
-  const { data: stored, error: outcomeError } = await supabase
-    .from('commercial_outcomes')
-    .upsert({
-      entity_type: entityType,
-      entity_id: entityId,
-      ...outcome,
-      recorded_by: adminUserId,
-      closed_at: now,
-    }, { onConflict: 'entity_type,entity_id' })
-    .select('id,entity_type,entity_id,gross_amount_minor,aerotrade_revenue_minor,evidence_level')
-    .single()
+  const [{ data: stored, error: readbackError }, { data: statusReadback, error: statusError }, { data: latestEvent, error: eventError }] = await Promise.all([
+    supabase.from('commercial_outcomes').select('id,entity_type,entity_id,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,settled_at').eq('id', outcomeId).single(),
+    supabase.from(table).select('id,status').eq('id', entityId).single(),
+    supabase.from('commercial_outcome_events').select('id,outcome_id,evidence_level,evidence_source,evidence_reference').eq('outcome_id', outcomeId).order('created_at', { ascending: false }).limit(1).single(),
+  ])
 
-  if (outcomeError || !stored?.id
+  if (readbackError || !stored?.id
     || stored.entity_type !== entityType
     || stored.entity_id !== entityId
     || Number(stored.gross_amount_minor) !== outcome.gross_amount_minor
     || Number(stored.aerotrade_revenue_minor) !== outcome.aerotrade_revenue_minor
-    || stored.evidence_level !== outcome.evidence_level) {
+    || stored.evidence_level !== outcome.evidence_level
+    || stored.evidence_source !== outcome.evidence_source
+    || stored.evidence_reference !== outcome.evidence_reference
+    || Boolean(stored.settled_at) !== (outcome.evidence_level === 'settled')) {
     throw new Error('Could not persist and verify the commercial outcome')
   }
-
-  const statusUpdate = entityType === 'marketplace_inquiry'
-    ? { status: 'WON', last_activity_at: now, closed_at: now }
-    : { status: 'WON', updated_at: now }
-  const { data: statusReadback, error: statusError } = await supabase
-    .from(table)
-    .update(statusUpdate)
-    .eq('id', entityId)
-    .select('id,status')
-    .single()
-
-  if (statusError || statusReadback?.status !== 'WON') {
-    throw new Error('Outcome stored, but the opportunity status needs review')
+  if (statusError || statusReadback?.status !== 'WON'
+    || eventError || latestEvent?.outcome_id !== outcomeId
+    || latestEvent.evidence_level !== outcome.evidence_level
+    || latestEvent.evidence_source !== outcome.evidence_source
+    || latestEvent.evidence_reference !== outcome.evidence_reference) {
+    throw new Error('The atomic outcome or its audit event was not confirmed by readback')
   }
 
   revalidatePath('/admin/commercial')

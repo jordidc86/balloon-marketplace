@@ -147,7 +147,7 @@ export async function updateSellerInquiryStatus(inquiryId: string, formData: For
   if (!user) redirect('/login')
 
   const requestedStatus = normalizeInquiryStatus(formData.get('status'))
-  if (!requestedStatus || !['CONTACTED', 'QUALIFIED', 'NEGOTIATING', 'WON', 'LOST', 'SPAM'].includes(requestedStatus)) {
+  if (!requestedStatus || !['CONTACTED', 'QUALIFIED', 'NEGOTIATING', 'LOST', 'SPAM'].includes(requestedStatus)) {
     throw new Error('Invalid enquiry status')
   }
 

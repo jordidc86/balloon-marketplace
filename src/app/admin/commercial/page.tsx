@@ -162,8 +162,11 @@ type CommercialOutcome = {
   gross_amount_minor: number
   aerotrade_revenue_minor: number
   evidence_level: string
+  evidence_source: string
+  evidence_reference: string | null
   notes: string | null
   closed_at: string
+  settled_at: string | null
 }
 
 type IndexingSubmissionReceipt = {
@@ -207,7 +210,7 @@ export default async function CommercialPage() {
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
-    supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,notes,closed_at').order('closed_at', { ascending: false }).limit(200),
+    supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
     supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
   ])
 
@@ -484,12 +487,12 @@ export default async function CommercialPage() {
                   {inquiry.seller_notification_status === 'failed' ? <p className="mt-2 text-destructive">Seller email not accepted; lead remains visible.</p> : null}
                   {latestNegotiationEvent && latestNegotiationEvent.actor_role !== 'BUYER' ? <p className={`mt-2 text-xs ${latestNegotiationEvent.buyer_notification_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Buyer response email: {latestNegotiationEvent.buyer_notification_status}</p> : null}
                 </div>
-                <form action={updateAdminInquiryStatus.bind(null, inquiry.id)} className="flex gap-2">
+                {inquiry.status === 'WON' ? <p className="text-sm font-semibold text-emerald-700">Won · managed through the outcome evidence below</p> : <form action={updateAdminInquiryStatus.bind(null, inquiry.id)} className="flex gap-2">
                   <select name="status" defaultValue={inquiry.status} className="rounded-lg border bg-background px-3 py-2 text-sm">
-                    {['NEW', 'SELLER_NOTIFIED', 'CONTACTED', 'QUALIFIED', 'NEGOTIATING', 'WON', 'LOST', 'SPAM'].map((status) => <option value={status} key={status}>{status}</option>)}
+                    {['NEW', 'SELLER_NOTIFIED', 'CONTACTED', 'QUALIFIED', 'NEGOTIATING', 'LOST', 'SPAM'].map((status) => <option value={status} key={status}>{status}</option>)}
                   </select>
                   <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
-                </form>
+                </form>}
                 <div className="lg:col-span-3">
                   <OutcomeEditor entityType="marketplace_inquiry" entityId={inquiry.id} outcome={outcomesByEntity.get(`marketplace_inquiry:${inquiry.id}`)} />
                 </div>
@@ -507,12 +510,12 @@ export default async function CommercialPage() {
               <div key={quote.id} className="grid gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
                 <div><p className="font-semibold">{quote.name} · {quote.equipment_type}</p><a href={`mailto:${quote.email}`} className="text-sm text-primary hover:underline">{quote.email}</a><p className="mt-1 text-xs text-muted-foreground">Source: {quote.source_context} · {formatDate(quote.created_at)}</p></div>
                 <span className="text-sm font-bold">{quote.status}</span>
-                <form action={updateQuoteRequestStatus.bind(null, quote.id)} className="flex gap-2">
+                {quote.status === 'WON' ? <p className="text-sm font-semibold text-emerald-700">Won · managed through the outcome evidence below</p> : <form action={updateQuoteRequestStatus.bind(null, quote.id)} className="flex gap-2">
                   <select name="status" defaultValue={quote.status} className="rounded-lg border bg-background px-3 py-2 text-sm">
-                    {['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'WON', 'LOST'].map((status) => <option value={status} key={status}>{status}</option>)}
+                    {['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'LOST'].map((status) => <option value={status} key={status}>{status}</option>)}
                   </select>
                   <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
-                </form>
+                </form>}
                 <div className="lg:col-span-3">
                   <OutcomeEditor entityType="quote_request" entityId={quote.id} outcome={outcomesByEntity.get(`quote_request:${quote.id}`)} />
                 </div>
@@ -550,20 +553,25 @@ function OutcomeEditor({ entityType, entityId, outcome }: {
       <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
         {outcome ? `Outcome: ${outcome.evidence_level} · ${amount(outcome.gross_amount_minor)} ${outcome.currency}` : 'Record commercial outcome'}
       </summary>
-      <form action={recordCommercialOutcome.bind(null, entityType, entityId)} className="grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-6">
+      <form action={recordCommercialOutcome.bind(null, entityType, entityId)} className="grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-8">
         <select name="outcome_type" defaultValue={outcome?.outcome_type || 'sale'} className="rounded-lg border bg-background px-3 py-2 text-sm">
           <option value="sale">Sale</option><option value="intermediation">Intermediation</option><option value="other">Other</option>
         </select>
         <select name="currency" defaultValue={outcome?.currency || 'EUR'} className="rounded-lg border bg-background px-3 py-2 text-sm">
           <option value="EUR">EUR</option><option value="GBP">GBP</option><option value="USD">USD</option>
         </select>
-        <input name="gross_amount" required inputMode="decimal" defaultValue={amount(outcome?.gross_amount_minor)} placeholder="Gross amount" aria-label="Gross amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+        <input name="gross_amount" required inputMode="decimal" defaultValue={outcome ? amount(outcome.gross_amount_minor) : ''} placeholder="Gross transaction amount" aria-label="Gross transaction amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
         <input name="aerotrade_revenue" required inputMode="decimal" defaultValue={amount(outcome?.aerotrade_revenue_minor)} placeholder="AeroTrade revenue" aria-label="AeroTrade revenue" className="rounded-lg border bg-background px-3 py-2 text-sm" />
         <select name="evidence_level" defaultValue={outcome?.evidence_level || 'reported'} className="rounded-lg border bg-background px-3 py-2 text-sm">
           <option value="reported">Reported</option><option value="documented">Documented</option><option value="settled">Settled</option>
         </select>
+        <select name="evidence_source" defaultValue={outcome?.evidence_source || 'operator_report'} className="rounded-lg border bg-background px-3 py-2 text-sm">
+          <option value="operator_report">Operator report</option><option value="contract">Contract</option><option value="invoice">Invoice</option><option value="bank_transfer">Bank transfer</option><option value="stripe_payment">Stripe payment</option><option value="other_document">Other document</option>
+        </select>
+        <input name="evidence_reference" defaultValue={outcome?.evidence_reference || ''} placeholder="Evidence reference" aria-label="Evidence reference" className="rounded-lg border bg-background px-3 py-2 text-sm" />
         <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save outcome</button>
-        <textarea name="outcome_notes" maxLength={2000} defaultValue={outcome?.notes || ''} placeholder="Evidence note (no passwords or card data)" className="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2 lg:col-span-6" />
+        <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-8">Documented results require a document reference. Settled AeroTrade revenue requires a bank-transfer or Stripe reference. The outcome, audit snapshot and WON status commit together.</p>
+        <textarea name="outcome_notes" maxLength={2000} defaultValue={outcome?.notes || ''} placeholder="Evidence note (no passwords, card data or full bank details)" className="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2 lg:col-span-8" />
       </form>
     </details>
   )

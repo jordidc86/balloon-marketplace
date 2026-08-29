@@ -328,17 +328,16 @@ export default async function DashboardPage({
                       {!isClosed ? (
                         <SellerInquiryResponseForm inquiryId={inquiry.id} currency={inquiry.currency} />
                       ) : null}
-                      <form action={updateSellerInquiryStatus.bind(null, inquiry.id)} className="flex items-center gap-2">
+                      {!isClosed ? <form action={updateSellerInquiryStatus.bind(null, inquiry.id)} className="flex items-center gap-2">
                         <select name="status" defaultValue={inquiry.status === 'NEW' || inquiry.status === 'SELLER_NOTIFIED' ? 'CONTACTED' : inquiry.status} className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2 text-sm">
                           <option value="CONTACTED">Contacted</option>
                           <option value="QUALIFIED">Qualified</option>
                           <option value="NEGOTIATING">Negotiating</option>
-                          <option value="WON">Won</option>
                           <option value="LOST">Lost</option>
                           <option value="SPAM">Spam</option>
                         </select>
                         <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
-                      </form>
+                      </form> : <p className="text-xs text-muted-foreground">This enquiry is closed. A won result is recorded centrally with its economic evidence.</p>}
                     </div>
                   </div>
                 </article>
