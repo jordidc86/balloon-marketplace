@@ -33,6 +33,12 @@ const checks = [
     required: ['[build]', 'ignore = "node scripts/netlify-ignore-build.mjs"'],
   },
   {
+    name: 'Netlify release gate is rehearsed against real Git ranges without external deployment',
+    file: 'scripts/rehearse-netlify-release-gate.mjs',
+    required: ['merge-base', 'release/netlify-production.json', 'Candidate should request exactly one Netlify build', 'A later evidence-only commit should not create another Netlify build', 'productionAccessed: false', 'netlifyApiAccessed: false', 'netlifyDeploysCreated: 0', 'rmSync(tempRoot'],
+    forbidden: ["'deploy'", 'netlify api', 'NETLIFY_AUTH_TOKEN'],
+  },
+  {
     name: 'Database recovery rehearsal is disposable, local-only and checksum-bound',
     file: 'scripts/rehearse-database-recovery.mjs',
     required: [
