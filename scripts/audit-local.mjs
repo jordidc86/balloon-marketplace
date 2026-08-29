@@ -23,6 +23,16 @@ const checks = [
     required: ['"next": "16.3.3"', '"eslint-config-next": "16.3.3"', '"resend": "6.25.0"'],
   },
   {
+    name: 'Netlify skips evidence-only commits but fails safe for runtime changes',
+    file: 'scripts/netlify-ignore-build.mjs',
+    required: ['CACHED_COMMIT_REF', 'COMMIT_REF', "spawnSync('git', ['diff', '--name-only'", 'runtimeFiles.length === 0', 'process.exit(0)', 'process.exit(1)', "normalized === 'scripts/netlify-ignore-build.mjs'"],
+  },
+  {
+    name: 'Netlify executes the reviewed build gate before consuming a build',
+    file: 'netlify.toml',
+    required: ['[build]', 'ignore = "node scripts/netlify-ignore-build.mjs"'],
+  },
+  {
     name: 'Stripe webhook verifies signatures and audits idempotency',
     file: 'src/app/api/webhooks/stripe/route.ts',
     required: ['stripe.webhooks.constructEvent', "from('stripe_webhook_events')", "from('payment_notification_receipts')", "finishWebhookEvent(supabaseAdmin, event.id, 'processed')", "case 'charge.succeeded'", 'buildPaymentNotification', 'buildPaymentNotificationReceipt', 'matchesPaymentNotificationReceipt', 'Premium fulfillment readback failed'],

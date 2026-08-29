@@ -1,2 +1,5 @@
+[build]
+ignore = "node scripts/netlify-ignore-build.mjs"
+
 [functions]
 included_files = ["node_modules/@jimp/plugin-print/dist/fonts/**"]

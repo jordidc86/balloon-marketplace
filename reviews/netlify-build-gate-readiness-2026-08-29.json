@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_netlify_build_gate_readiness",
+  "capturedAt": "2026-08-29T12:52:00.000Z",
+  "containsPii": false,
+  "policy": {
+    "skipOnlyKnownNonRuntimeChanges": true,
+    "unknownFilesTriggerBuild": true,
+    "applicationChangesTriggerBuild": true,
+    "functionChangesTriggerBuild": true,
+    "configurationChangesTriggerBuild": true,
+    "diffFailureTriggersBuild": true,
+    "missingCommitRangeTriggersBuild": true
+  },
+  "verification": {
+    "evidenceOnlyExitCode": 0,
+    "runtimeChangeExitCode": 1,
+    "testsPassed": 110,
+    "operationalContractsPassed": 103,
+    "lintPassed": true,
+    "productionBuildPassed": true
+  },
+  "historicalSimulation": {
+    "commitsAssessed": 20,
+    "buildsRequired": 11,
+    "buildsAvoidable": 9,
+    "avoidableShare": 0.45
+  },
+  "production": {
+    "active": false,
+    "reasonCode": "account_credit_usage_exceeded",
+    "scoreChanged": false
+  }
+}

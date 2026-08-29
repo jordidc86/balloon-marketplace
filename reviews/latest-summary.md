@@ -7,10 +7,11 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 
 - Production: `https://aerotrade.app`, deployed from `main`.
 - Database migrations are registered and read back through `20260829420000`; four previously remote-only historical versions are also consolidated in source control.
-- Validation: 107 automated tests, 98 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Validation: 110 automated tests, 103 operational contracts, ESLint, TypeScript and a full Next.js production build.
 - Current evidence-based score: **92.8%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
 - Production deploy `6a92cf99ee6f577815a20405` is live from code commit `70644e3`.
 - Buyer-to-seller negotiation reply code is validated and consolidated in commit `fddd61f`, and its additive private migration is live. Netlify skipped deploy `6a92d372f0cc6700084631e1` before build because account credit usage was exceeded, so this route is deliberately not counted as live and the score remains unchanged.
+- A conservative Netlify build gate is release-ready: it skips only evidence, documentation, test, script and separately managed migration-only commits, and fails safe for application, function, configuration, unknown-file or diff errors. A replay of the latest 20 commits would have avoided 9 unnecessary builds (45%) while retaining all 11 runtime builds. It is not counted as live until Netlify can deploy the configuration.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
