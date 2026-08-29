@@ -52,6 +52,15 @@ type MatchableListing = {
   price: number
 }
 
+type WantedMatchDispatch = {
+  id: string
+  wanted_request_id: string
+  listing_ids: string[]
+  status: 'PENDING' | 'ACCEPTED' | 'FAILED' | 'CANCELLED'
+  accepted_at: string | null
+  updated_at: string
+}
+
 type CatalogSearchEvent = {
   id: string
   query_text: string | null
@@ -125,10 +134,11 @@ export default async function CommercialPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
-  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('quote_requests').select('id,name,email,equipment_type,source_context,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
     supabase.from('catalog_search_events').select('id,query_text,category,country,result_count,zero_results,utm_source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
@@ -143,12 +153,19 @@ export default async function CommercialPage() {
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
   const typedQuotes = (quotes || []) as Quote[]
   const typedWantedRequests = (wantedRequests || []) as WantedRequest[]
+  const typedWantedMatchDispatches = (wantedMatchDispatches || []) as WantedMatchDispatch[]
   const typedMatchableListings = (matchableListings || []) as MatchableListing[]
   const typedSearchEvents = (searchEvents || []) as CatalogSearchEvent[]
   const typedSellerFunnelEvents = (sellerFunnelEvents || []) as SellerFunnelEvent[]
   const typedSellerPipelineListings = (sellerPipelineListings || []) as SellerPipelineListing[]
   const typedSellerUsers = (sellerUsers || []) as SellerUser[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
+  const wantedDispatchesByRequest = typedWantedMatchDispatches.reduce<Map<string, WantedMatchDispatch[]>>((byRequest, dispatch) => {
+    const rows = byRequest.get(dispatch.wanted_request_id) || []
+    rows.push(dispatch)
+    byRequest.set(dispatch.wanted_request_id, rows)
+    return byRequest
+  }, new Map())
   const premiumRecoveryByListing = new Map(typedNotifications
     .filter((notification) => notification.notification_type === 'premium_listing_checkout_recovery')
     .map((notification) => [notification.entity_id, notification.status]))
@@ -257,7 +274,8 @@ export default async function CommercialPage() {
       </section>
 
       <section className="rounded-2xl border bg-card overflow-hidden">
-        <div className="border-b p-6"><h2 className="text-xl font-semibold">Buyer demand without a listing</h2><p className="mt-1 text-sm text-muted-foreground">Private wanted requests and basic matches against active supply. No buyer email is sent automatically from this screen.</p></div>
+        <div className="border-b p-6"><h2 className="text-xl font-semibold">Buyer demand without a listing</h2><p className="mt-1 text-sm text-muted-foreground">Private wanted requests and basic matches against active supply. Consented buyers receive one deduplicated operational digest when new compatible listings appear.</p></div>
+        {wantedMatchDispatchError ? <p className="border-b p-6 text-sm text-destructive">Wanted-match delivery evidence is unavailable: {wantedMatchDispatchError.message}</p> : null}
         {wantedError ? <p className="p-6 text-destructive">Wanted-demand pipeline unavailable: {wantedError.message}</p> : typedWantedRequests.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No tracked wanted-equipment requests yet.</p> : (
           <div className="divide-y">
             {typedWantedRequests.map((request) => {
@@ -265,10 +283,14 @@ export default async function CommercialPage() {
               const budget = request.budget_min_minor === null && request.budget_max_minor === null
                 ? 'Budget not specified'
                 : `${request.budget_min_minor === null ? '0' : (request.budget_min_minor / 100).toLocaleString('en-IE')}–${request.budget_max_minor === null ? 'open' : (request.budget_max_minor / 100).toLocaleString('en-IE')} ${request.currency}`
+              const matchDispatches = wantedDispatchesByRequest.get(request.id) || []
+              const acceptedDispatches = matchDispatches.filter((dispatch) => dispatch.status === 'ACCEPTED')
+              const notifiedListings = acceptedDispatches.reduce((count, dispatch) => count + dispatch.listing_ids.length, 0)
+              const failedDispatches = matchDispatches.filter((dispatch) => dispatch.status === 'FAILED').length
               return (
                 <div key={request.id} className="grid gap-4 p-6 lg:grid-cols-[1.2fr_1fr_auto] lg:items-start">
                   <div><p className="font-semibold">{request.buyer_name} · {request.category}</p><a href={`mailto:${request.buyer_email}`} className="text-sm text-primary hover:underline">{request.buyer_email}</a><p className="mt-1 text-xs text-muted-foreground">{formatDate(request.created_at)} · {request.location_preference || 'No location preference'} · {budget}</p><p className="mt-3 whitespace-pre-wrap text-sm">{request.details}</p></div>
-                  <div className="space-y-2 text-sm"><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{request.status}</span><p>{request.notify_on_match ? 'Buyer consented to match email.' : 'No match-email consent.'}</p><p className="font-semibold">{matches.length} basic catalog match(es)</p>{matches.slice(0, 3).map((listing) => <Link key={listing.id} href={`/catalog/${listing.id}`} className="block text-primary hover:underline">{listing.title}</Link>)}{matches.length > 3 ? <p className="text-xs text-muted-foreground">+{matches.length - 3} more</p> : null}</div>
+                  <div className="space-y-2 text-sm"><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{request.status}</span><p>{request.notify_on_match ? 'Buyer consented to match email.' : 'No match-email consent.'}</p><p className="font-semibold">{matches.length} basic catalog match(es)</p><p className="text-xs text-muted-foreground">{notifiedListings} listing alert(s) accepted by provider · {failedDispatches} failed digest(s)</p>{matches.slice(0, 3).map((listing) => <Link key={listing.id} href={`/catalog/${listing.id}`} className="block text-primary hover:underline">{listing.title}</Link>)}{matches.length > 3 ? <p className="text-xs text-muted-foreground">+{matches.length - 3} more</p> : null}</div>
                   <form action={updateWantedRequestStatus.bind(null, request.id)} className="flex gap-2"><select name="status" defaultValue={request.status} className="rounded-lg border bg-background px-3 py-2 text-sm">{['NEW', 'REVIEWING', 'MATCHED', 'CONTACTED', 'CLOSED', 'SPAM'].map((status) => <option value={status} key={status}>{status}</option>)}</select><button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button></form>
                 </div>
               )

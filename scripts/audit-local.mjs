@@ -113,6 +113,16 @@ const checks = [
     required: ['referrer_host text', 'utm_source text', 'wanted_requests_attribution_idx', 'No raw visitor identifier'],
   },
   {
+    name: 'Consented wanted matches have a private, durable and deduplicated dispatch ledger',
+    file: 'supabase/migrations/20260829270000_wanted_match_dispatches.sql',
+    required: ['wanted_match_dispatches', 'match_fingerprint text not null unique', 'cardinality(listing_ids) between 1 and 5', 'wanted_match_buyer', 'enable row level security', 'revoke all on public.wanted_match_dispatches from anon, authenticated'],
+  },
+  {
+    name: 'Wanted-match alerts are opt-in, digest-based, retryable and never repeat the same listing',
+    file: 'src/app/api/cron/wanted-match/route.ts',
+    required: [".eq('notify_on_match', true)", "not('status', 'in', '(CLOSED,SPAM)')", 'getUnnotifiedWantedMatchIds', 'wantedMatchDispatchFingerprint', 'isWantedMatchDispatchRetryable', 'sendCommercialReceiptEmail', 'not a marketing campaign', 'AeroTrade will not repeat these same listings'],
+  },
+  {
     name: 'Catalog search gaps are private, deduplicated and PII-minimized',
     file: 'supabase/migrations/20260829170000_catalog_search_demand.sql',
     required: ['catalog_search_events', 'event_key text not null unique', 'catalog_search_zero_result_consistency', 'enable row level security', 'revoke all on public.catalog_search_events from anon, authenticated', 'no raw visitor identifier'],

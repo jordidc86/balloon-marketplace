@@ -1,5 +1,5 @@
 import { listingCategories, listingCurrencies } from './listing-submission.mjs'
-import { createHmac } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 
 export const wantedRequestStatuses = ['NEW', 'REVIEWING', 'MATCHED', 'CONTACTED', 'CLOSED', 'SPAM']
 
@@ -66,4 +66,37 @@ export function listingMatchesWantedRequest(listing, request) {
   if (!Number.isFinite(priceMinor)) return false
   if (request.budget_max_minor !== null && request.budget_max_minor !== undefined && priceMinor > request.budget_max_minor) return false
   return true
+}
+
+export const wantedMatchDispatchStatuses = ['PENDING', 'ACCEPTED', 'FAILED', 'CANCELLED']
+export const wantedMatchRetryDelayMs = 30 * 60 * 1000
+
+export function wantedMatchDispatchFingerprint(wantedRequestId, listingIds) {
+  const requestId = typeof wantedRequestId === 'string' ? wantedRequestId.trim() : ''
+  const normalizedListingIds = Array.from(new Set(
+    Array.isArray(listingIds) ? listingIds.filter((id) => typeof id === 'string' && id.trim()).map((id) => id.trim()) : [],
+  )).sort()
+  if (!requestId || normalizedListingIds.length === 0 || normalizedListingIds.length > 5) return null
+  return createHash('sha256').update(`${requestId}|${normalizedListingIds.join('|')}`).digest('hex')
+}
+
+export function getUnnotifiedWantedMatchIds(listingIds, dispatches, limit = 5) {
+  const seen = new Set()
+  for (const dispatch of Array.isArray(dispatches) ? dispatches : []) {
+    if (dispatch?.status === 'CANCELLED') continue
+    for (const id of Array.isArray(dispatch?.listing_ids) ? dispatch.listing_ids : []) seen.add(id)
+  }
+  return Array.from(new Set(Array.isArray(listingIds) ? listingIds : []))
+    .filter((id) => typeof id === 'string' && id && !seen.has(id))
+    .sort()
+    .slice(0, Math.max(0, Math.min(Number(limit) || 0, 5)))
+}
+
+export function isWantedMatchDispatchRetryable(dispatch, now = new Date(), delayMs = wantedMatchRetryDelayMs) {
+  if (!dispatch || dispatch.status === 'ACCEPTED' || dispatch.status === 'CANCELLED') return false
+  if (dispatch.status === 'FAILED') return true
+  if (dispatch.status !== 'PENDING') return false
+  const updatedAt = new Date(dispatch.updated_at).getTime()
+  const current = now instanceof Date ? now.getTime() : new Date(now).getTime()
+  return Number.isFinite(updatedAt) && Number.isFinite(current) && current - updatedAt >= delayMs
 }
