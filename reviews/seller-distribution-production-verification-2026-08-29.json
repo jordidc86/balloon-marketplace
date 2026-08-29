@@ -1,0 +1,56 @@
+{
+  "verifiedAt": "2026-08-29T14:02:04+02:00",
+  "productionOrigin": "https://aerotrade.app",
+  "codeCommit": "7b40896ccd593bd7a9e6b1a1e179913d1b481bc5",
+  "productionDeploy": "6a92c97ff57b8ff231ddcb38",
+  "deployState": "ready",
+  "assistedTransfer": {
+    "publicRoute": "/sell/assisted",
+    "routeStatus": 200,
+    "privateSourceUrlFieldPresent": true,
+    "manualReviewBoundaryVisible": true,
+    "automaticFetchCopyOrPublication": false,
+    "databaseMigration": "20260829400000_assisted_listing_transfer.sql",
+    "databaseReadback": "passed",
+    "existingRowsChanged": 0
+  },
+  "listingDistribution": {
+    "activeListingRouteStatus": 200,
+    "publicSharePanelPresent": true,
+    "sellerDashboardSharePanelBuilt": true,
+    "channels": ["whatsapp", "email", "native", "copy"],
+    "campaign": "listing_distribution",
+    "sources": ["listing_share", "seller_share"],
+    "automaticMessagesSent": false,
+    "sharedLinkViews30d": 0
+  },
+  "migrationIntegrity": {
+    "remoteHistoryReconciledLocally": true,
+    "remoteOnlyHistoricalVersionsRecovered": 4,
+    "pendingMigrationsAfterPush": 0
+  },
+  "productionSnapshot": {
+    "activeListings": 12,
+    "activeSellers": 5,
+    "topThreeSellerShare": 0.8333,
+    "catalogViews30d": 60,
+    "contactReveals30d": 0,
+    "sellerActivationEvents30d": 0,
+    "assistedSellerRequests": 0
+  },
+  "validation": {
+    "automatedTests": 101,
+    "operationalContracts": 89,
+    "lint": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "publicSmoke": "passed"
+  },
+  "sideEffects": {
+    "commercialLeadsCreated": 0,
+    "emailsSent": 0,
+    "chargesCreated": 0,
+    "listingOrUserRowsChanged": 0
+  },
+  "remainingGap": "The transfer and seller-led distribution loops are production-ready and measurable, but no genuine assisted request or shared-link visit has yet proved seller adoption or buyer conversion."
+}

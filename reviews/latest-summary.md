@@ -6,10 +6,10 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829360000`.
-- Validation: 97 automated tests, 87 operational contracts, ESLint, TypeScript and a full Next.js production build.
-- Current evidence-based score: **92.1%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92c2c9fec7b3ceb9dd2b2a` is live from code commit `c34bf5679f1d645e76216c01428f531009c18996`.
+- Database migrations are registered and read back through `20260829400000`; four previously remote-only historical versions are now also consolidated in source control.
+- Validation: 101 automated tests, 89 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Current evidence-based score: **92.4%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92c97ff57b8ff231ddcb38` is live from code commit `7b40896ccd593bd7a9e6b1a1e179913d1b481bc5`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -41,6 +41,8 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Seller funnel measurement and owner-only recovery of interrupted Seller Launch Promotion payment.
 - A public but private-by-default assisted-sale intake now converts owners who lack photos, documents or pricing into a consented commercial case. It stores before notification, suppresses duplicates and abuse, receives one 24-hour admin follow-up, and cannot be marked LISTED without a matching normal marketplace listing.
 - A public high-intent seller page routes owners into either the complete free listing or the private assisted path. Authentication happens before the long form, preserving the seller return path; a closed, non-PII entry label now measures which seller path reaches submission, checkout and publication.
+- Assisted sellers can now provide an existing public advert URL once for private manual transfer review. The application validates and stores the reference but never fetches, copies or publishes its content automatically.
+- Every active public listing now has channel-specific WhatsApp, email, native-share and copy links, while active owners have the same compact controls in their dashboard. The links use bounded campaign labels so genuine seller-led distribution can be separated from legacy unattributed views without sending any message automatically.
 - Private Buyer Early Access checkout ledger, safe session resumption/replacement and signed-webhook closure.
 - Durable email/provider evidence, controlled recovery semantics and privacy-minimized attribution.
 
@@ -48,7 +50,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 
 1. Real marketplace liquidity: production still has 0 marketplace enquiries and 0 negotiation events. The enquiry, indicative-offer and seller-response paths are healthy, but no real buyer/seller exchange has exercised response time or conversion.
 2. Checkout economics: the first real recovery is live and verified but has not yet improved the historical 20% completion rate; its eventual payment or free publication remains to be observed.
-3. Supply quality: five sellers currently have active listings, ten ordinary accounts have no listing and no measured seller intent, no assisted-sale request or listing-verification request has yet exercised either controlled workflow, and two historical flight records still lack a serial number that cannot be inferred.
+3. Supply quality: five sellers currently have active listings, eleven accounts have no active listing, no assisted-sale request, seller-share visit or listing-verification request has yet exercised those controlled workflows, and two historical flight records still lack a serial number that cannot be inferred.
 4. Acquisition: public inventory is discoverable, daily IndexNow delivery is accepted and future journeys are attributable, but the 60 legacy views cannot be reconstructed. The accessible Google account has no `aerotrade.app` Search Console property, and a public search sample surfaced only the homepage plus one listing, so Google coverage/performance and seller recruitment remain absent.
 5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
 
