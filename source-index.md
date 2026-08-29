@@ -13,6 +13,7 @@ Last updated: 2026-08-29.
 | `reviews/latest-summary.md` | Current improvement-loop summary | Yes |
 | `reviews/monetization-boundary-audit-2026-08-29.md` | Evidence and exact business choice separating current paid products, fixed services and commission models | Yes, before adding any transaction-fee payment path |
 | `reviews/seller-response-recovery-2026-08-29.md` | Bounded internal escalation after a provider-accepted seller reminder remains unresolved | Yes, when reviewing marketplace conversion recovery |
+| `reviews/grouped-migration-rehearsal-2026-08-29.md` | Isolated application, lint, permission and behavioral evidence for migrations `20260829490000` through `20260829590000` | Yes, before approving this release |
 | `docs/production-audit-runbook.md` | Post-deploy verification and rollback gate | Yes, after an approved deploy |
 | `docs/grouped-release-social-economics-20260829.md` | Exact migration, one-deploy, verification and non-destructive rollback plan for the current release candidate | Yes, before approving this release |
 | `scripts/audit-local.mjs` | Static operational contract checks | Yes, before every release |

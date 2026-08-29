@@ -19,7 +19,7 @@ The escalation contains no buyer contact data, sends nothing to the buyer, makes
 
 ## Evidence gate
 
-- 161/161 automated tests and 165/165 operational contracts pass in the complete grouped candidate.
+- 161/161 automated tests and 166/166 operational contracts pass in the complete grouped candidate after the database-integrity rehearsal.
 - ESLint, TypeScript and the full Next.js production build pass.
 - Migration `20260829580000` retains all 24 previous closed notification types and adds exactly `inquiry_seller_escalation`.
 - The production snapshot contains zero marketplace enquiries, so this is operational readiness only. Commercial value requires a genuine stored enquiry, accepted seller reminder, 48-hour stall and a later recorded recovery action.

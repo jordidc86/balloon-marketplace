@@ -20,7 +20,7 @@ Every entry has a self-canonical URL, reciprocal `hreflang` alternatives with `x
 ## Local verification
 
 - 161/161 automated tests in the grouped candidate.
-- 165/165 operational contracts in the grouped candidate.
+- 166/166 operational contracts in the grouped candidate after the database-integrity rehearsal.
 - ESLint and TypeScript pass.
 - Full Next.js production build passes and exposes all four dynamic routes.
 - Local Netlify-runtime check returned HTTP 200 for all four pages, six real public listing links on each page and HTTP 200 for the sitemap containing all four URLs.
