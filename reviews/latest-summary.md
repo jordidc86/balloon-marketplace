@@ -6,10 +6,10 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829350000`.
-- Validation: 88 automated tests, 77 operational contracts, ESLint, TypeScript and a full Next.js production build.
-- Current evidence-based score: **90.9%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92b77cdb316a41a446bc5b` is live from code commit `1774955`.
+- Database migrations are registered and read back through `20260829360000`.
+- Validation: 90 automated tests, 81 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Current evidence-based score: **91.2%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92bbd7b8459d963676d3c6` is live from code commit `d931f665c5088b99638041f4fb86dd8db36edf92`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -21,6 +21,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
 - Daily, opt-in wanted-equipment matching now sends at most five compatible active listings per digest, never repeats an accepted advert and retries failed or stale provider attempts through a private dispatch ledger.
 - First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source and demand context, explicit consent, server-side revalidation, duplicate/rate control and a one-time 24-hour operational follow-up.
+- Every missing-inventory state now gives the buyer two explicit commercial paths: tell AeroTrade what used equipment is needed, or request an approximate Pasha/Schroeder budget. Factory-new availability is stated independently of the used catalogue, while the price remains non-binding until configuration review.
 - AeroTrade now states explicitly in its company positioning and contact journey that it can sell a factory-new Pasha or Schroeder balloon when used inventory is unsuitable. About, contact and zero-result entry points route to the same structured quotation path and retain a bounded source for conversion measurement.
 - A stored new-balloon request can now become a structured operator-priced proposal with manufacturer, price range, configuration, delivery guidance, validity and conditions. It is saved before delivery, explicitly non-binding, deduplicated by content and advances to QUOTE_SENT only after provider acceptance plus database readback.
 - Used-catalogue searches now carry category, equipment wording and country into the new-balloon request; production verification preserved all three without creating a fictitious lead.
@@ -36,6 +37,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Evidence-based admin commercial pipeline and outcome values separated from settled AeroTrade revenue.
 - Seller funnel measurement and owner-only recovery of interrupted Premium listing payment.
 - A public but private-by-default assisted-sale intake now converts owners who lack photos, documents or pricing into a consented commercial case. It stores before notification, suppresses duplicates and abuse, receives one 24-hour admin follow-up, and cannot be marked LISTED without a matching normal marketplace listing.
+- A public high-intent seller page routes owners into either the complete free listing or the private assisted path. Authentication happens before the long form, preserving the seller return path; a closed, non-PII entry label now measures which seller path reaches submission, checkout and publication.
 - Private Premium-membership checkout ledger, safe session resumption/replacement and signed-webhook closure.
 - Durable email/provider evidence, controlled recovery semantics and privacy-minimized attribution.
 
@@ -43,7 +45,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 
 1. Real marketplace liquidity: production still has 0 marketplace enquiries and 0 negotiation events. The enquiry, indicative-offer and seller-response paths are healthy, but no real buyer/seller exchange has exercised response time or conversion.
 2. Checkout economics: the first real recovery is live and verified but has not yet improved the historical 20% completion rate; its eventual payment or free publication remains to be observed.
-3. Supply quality: five sellers currently have active listings, no assisted-sale request or listing-verification request has yet exercised either controlled workflow, and two historical flight records still lack a serial number that cannot be inferred.
+3. Supply quality: five sellers currently have active listings, ten ordinary accounts have no listing and no measured seller intent, no assisted-sale request or listing-verification request has yet exercised either controlled workflow, and two historical flight records still lack a serial number that cannot be inferred.
 4. Acquisition: public inventory is discoverable, daily IndexNow delivery is accepted and future journeys are attributable, but the 60 legacy views cannot be reconstructed. The accessible Google account has no `aerotrade.app` Search Console property, and a public search sample surfaced only the homepage plus one listing, so Google coverage/performance and seller recruitment remain absent.
 5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
 

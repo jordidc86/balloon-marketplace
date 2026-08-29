@@ -1,0 +1,54 @@
+{
+  "verifiedAt": "2026-08-29T13:01:46+02:00",
+  "productionOrigin": "https://aerotrade.app",
+  "codeCommit": "d931f665c5088b99638041f4fb86dd8db36edf92",
+  "productionDeploy": "6a92bbd7b8459d963676d3c6",
+  "deployState": "ready",
+  "productionChecks": {
+    "catalogZeroResult": {
+      "path": "/catalog?q=no-suitable-balloon-zzzz",
+      "status": 200,
+      "evidence": [
+        "Did not find the balloon or equipment you want?",
+        "Tell us what you need",
+        "Get a new-balloon estimate",
+        "Get an approximate new-balloon budget"
+      ]
+    },
+    "newBalloonBudget": {
+      "path": "/new-balloon?source=catalog-empty",
+      "status": 200,
+      "evidence": [
+        "Get an approximate new-balloon budget.",
+        "AeroTrade does not only sell used equipment.",
+        "Ask for an approximate price",
+        "Request Approximate Budget & Visual Concept"
+      ]
+    },
+    "homeAlternative": {
+      "path": "/",
+      "status": 200,
+      "evidence": [
+        "Tell us what you need",
+        "Get a new-balloon estimate"
+      ]
+    }
+  },
+  "commercialBoundary": {
+    "instantPriceInvented": false,
+    "currentFactoryPriceMatrixAvailable": false,
+    "process": "The buyer records a bounded requirement and AeroTrade prepares a non-binding indicative Pasha or Schroeder range after configuration review."
+  },
+  "validation": {
+    "automatedTests": 90,
+    "operationalContracts": 81,
+    "lint": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed"
+  },
+  "sideEffects": {
+    "quoteRequestsCreated": 0,
+    "emailsSent": 0,
+    "listingOrUserRowsChanged": 0
+  }
+}

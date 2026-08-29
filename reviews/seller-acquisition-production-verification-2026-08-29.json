@@ -1,0 +1,51 @@
+{
+  "verifiedAt": "2026-08-29T13:01:46+02:00",
+  "productionOrigin": "https://aerotrade.app",
+  "codeCommit": "1963d9768abb3cdb420943ef1cc656b19ad80656",
+  "productionDeploy": "6a92ba482ecfe68e61cf735d",
+  "migration": "20260829360000_seller_acquisition_context",
+  "preChangeProductionAudit": {
+    "recoverablePendingPaymentListings": 1,
+    "pendingPaymentListingsAlreadyRecovered": 1,
+    "technicalQuarantinesExcludedFromAbandonment": 1,
+    "ordinaryUsersWithoutListing": 10,
+    "usersWithoutListingAndMeasuredSellerIntent": 0,
+    "interpretation": "Production contained no genuine abandoned seller draft to recover and no evidence-backed recipient list for a seller campaign."
+  },
+  "verifiedCapabilities": {
+    "highIntentSellerRoute": {
+      "path": "/sell-hot-air-balloon",
+      "status": 200,
+      "evidence": [
+        "Sell your hot air balloon",
+        "Create a free listing",
+        "Get help preparing the sale"
+      ]
+    },
+    "lateAuthenticationGateway": {
+      "path": "/sell?source=seller_seo",
+      "status": 200,
+      "longFormExposedBeforeAuthentication": false,
+      "redirectPreservesSource": true,
+      "assistedAlternativePresent": true
+    },
+    "assistedSellerAttribution": {
+      "path": "/sell/assisted?source=seller_seo",
+      "status": 200,
+      "boundedSourcePreserved": "seller_seo"
+    },
+    "privateMeasurement": {
+      "migrationReadBack": true,
+      "anonymousMutationGrants": 0,
+      "legacyFunnelEventsClassifiedAsSystem": 1,
+      "freeTextSourceAccepted": false
+    }
+  },
+  "sideEffects": {
+    "emailsSent": 0,
+    "sellerAssistanceRequestsCreated": 0,
+    "listingsCreatedOrChanged": 0,
+    "userRecordsChanged": 0
+  },
+  "remainingCommercialGap": "The acquisition and onboarding path is measurable but has not yet produced a real seller conversion."
+}
