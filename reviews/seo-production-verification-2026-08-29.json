@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "kind": "aerotrade_transactional_seo_production_verification",
-  "capturedAt": "2026-08-29T08:21:22Z",
+  "capturedAt": "2026-08-29T08:27:21Z",
   "containsPii": false,
   "productionOrigin": "https://aerotrade.app",
-  "deployId": "6a92961890ee2175dff6816f",
-  "commit": "76769b62fdc7b82790727c99b09833d5169ffa98",
+  "deployId": "6a9297915e010a13617561de",
+  "commit": "abc0f5e97fb13a2fe3ac701244a93f84fe070991",
   "routeHealth": {
     "publicRoutesChecked": 7,
     "successful": 7
@@ -31,13 +31,26 @@
     "serviceMarkupPresent": true,
     "indicativeBudgetPathPresent": true
   },
+  "categoryDemandRoutes": {
+    "publicCategoriesInSitemap": 4,
+    "checked": 4,
+    "successful": 4,
+    "canonicalCorrect": 4,
+    "indexable": 4,
+    "highIntentHeadingPresent": 4,
+    "newBalloonFallbackPresent": 4,
+    "emptyCategoryNoindex": true,
+    "unknownCategoryNotFound": true,
+    "legacyFilterRedirectPreservesSearch": true,
+    "homepageUsesCleanCategoryLinks": true
+  },
   "privateRoutes": {
     "loginNoindex": true,
     "signupNoindex": true
   },
   "validation": {
-    "automatedTestsPassed": 61,
-    "operationalContractsPassed": 58,
+    "automatedTestsPassed": 63,
+    "operationalContractsPassed": 59,
     "lintPassed": true,
     "productionBuildPassed": true
   }

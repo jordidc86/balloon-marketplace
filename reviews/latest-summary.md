@@ -7,9 +7,9 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 
 - Production: `https://aerotrade.app`, deployed from `main`.
 - Database migrations are registered and read back through `20260829250000`.
-- Validation: 61 automated tests, 58 operational contracts, ESLint and a full Next.js production build.
-- Current evidence-based score: **87.1%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92961890ee2175dff6816f` is live from commit `76769b6`.
+- Validation: 63 automated tests, 59 operational contracts, ESLint and a full Next.js production build.
+- Current evidence-based score: **87.2%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a9297915e010a13617561de` is live from commit `abc0f5e`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -19,6 +19,7 @@ Status: `Production deployed, reconciled and measurable; used-or-new buyer journ
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
 - First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source attribution and a one-time 24-hour operational follow-up.
 - Public search contract shared by metadata, structured data and sitemap: 12/12 public listings verified with canonical, indexability, Open Graph and breadcrumbs; 7 truthful priced Product offers, 0 invalid offers, unreleased Premium inventory excluded, and authentication pages noindexed.
+- Four clean, inventory-backed category landing pages now target high-intent used-equipment demand; empty categories are noindexed, historical filter URLs redirect without losing the search and every category keeps a direct new-balloon alternative.
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
 - Two-check listing-image quarantine: one broken listing was paused, the seller notification was accepted and the post-action audit reports 0 inaccessible active image files.
 - One-time Premium listing checkout recovery: the real pending listing had one expired Stripe session and no paid session; one reminder was accepted, linked to the funnel and duplicate execution was suppressed.
