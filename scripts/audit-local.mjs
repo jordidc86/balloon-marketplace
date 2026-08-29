@@ -23,9 +23,9 @@ const checks = [
     required: ['"next": "16.3.3"', '"eslint-config-next": "16.3.3"', '"resend": "6.25.0"'],
   },
   {
-    name: 'Netlify skips evidence-only commits but fails safe for runtime changes',
+    name: 'Netlify production builds require one explicit release marker',
     file: 'scripts/netlify-ignore-build.mjs',
-    required: ['CACHED_COMMIT_REF', 'COMMIT_REF', "spawnSync('git', ['diff', '--name-only'", 'runtimeFiles.length === 0', 'process.exit(0)', 'process.exit(1)', "normalized === 'scripts/netlify-ignore-build.mjs'"],
+    required: ['CACHED_COMMIT_REF', 'COMMIT_REF', "spawnSync('git', ['diff', '--name-only'", "netlifyProductionReleaseMarker = 'release/netlify-production.json'", '!shouldRunNetlifyBuild(files)', 'production release marker is unchanged', 'explicit production release marker changed', 'process.exit(0)', 'process.exit(1)'],
   },
   {
     name: 'Netlify executes the reviewed build gate before consuming a build',
@@ -76,6 +76,22 @@ const checks = [
     name: 'Premium membership can resume an open session or create one tracked replacement',
     file: 'src/app/dashboard/actions.ts',
     required: ['resumePremiumMembershipCheckout', "session.status === 'open'", "session.status === 'expired'", 'createPremiumMembershipCheckout'],
+  },
+  {
+    name: 'Buyer Early Access recovery selects only the latest buyer-initiated expired checkout',
+    file: 'supabase/migrations/20260829520000_buyer_early_access_checkout_recovery.sql',
+    required: ['due_buyer_early_access_checkout_recoveries', 'select distinct on (intent.user_id)', "latest.status = 'EXPIRED'", "latest.source in ('signup', 'pricing', 'dashboard')", 'users.is_premium = false', "receipt.status = 'accepted'", 'receipt.delivery_attempts >= 2', 'grant execute on function public.due_buyer_early_access_checkout_recoveries(timestamp with time zone) to service_role', 'no checkout or charge is created'],
+  },
+  {
+    name: 'Buyer Early Access recovery is dry-run safe, bounded and never creates payment',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ["supabase.rpc('due_buyer_early_access_checkout_recoveries'", 'dueBuyerEarlyAccessCheckoutRecoveries', 'if (!commit) return NextResponse.json(result)', "notificationType: 'buyer_early_access_checkout_recovery'", "entityType: 'premium_checkout_intent'", 'This email creates no checkout and makes no charge.', 'You can ignore this message', 'buyer-early-access-checkout-recovery-${intent.intent_id}'],
+    forbidden: ['stripe.checkout', 'checkout.sessions.create(', "from('payment_notification_receipts').insert"],
+  },
+  {
+    name: 'Control Tower exposes Buyer Early Access recovery outcomes without PII',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['buyerEarlyAccessCheckoutRecoveries', 'acceptedBuyerEarlyAccessCheckoutRecoveries', 'failedBuyerEarlyAccessCheckoutRecoveries', 'exhaustedBuyerEarlyAccessCheckoutRecoveries', 'Buyer Early Access checkout recovery:'],
   },
   {
     name: 'Admin Premium payment links use the same recoverable checkout ledger',

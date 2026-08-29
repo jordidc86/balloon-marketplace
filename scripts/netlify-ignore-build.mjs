@@ -17,6 +17,8 @@ const nonRuntimeExact = new Set([
   'source-index.md',
 ])
 
+export const netlifyProductionReleaseMarker = 'release/netlify-production.json'
+
 export function isNetlifyRuntimeChange(file) {
   const normalized = typeof file === 'string' ? file.trim().replaceAll('\\', '/') : ''
   if (!normalized) return false
@@ -28,7 +30,7 @@ export function isNetlifyRuntimeChange(file) {
 }
 
 export function shouldRunNetlifyBuild(files) {
-  return Array.isArray(files) && files.some(isNetlifyRuntimeChange)
+  return Array.isArray(files) && files.some((file) => file.trim().replaceAll('\\', '/') === netlifyProductionReleaseMarker)
 }
 
 function run() {
@@ -46,11 +48,11 @@ function run() {
   }
   const files = comparison.stdout.split(/\r?\n/).map((file) => file.trim()).filter(Boolean)
   const runtimeFiles = files.filter(isNetlifyRuntimeChange)
-  if (runtimeFiles.length === 0) {
-    console.log(`Netlify build gate: skipping ${files.length} non-runtime file change(s).`)
+  if (!shouldRunNetlifyBuild(files)) {
+    console.log(`Netlify build gate: staging ${runtimeFiles.length} runtime-relevant change(s); production release marker is unchanged.`)
     process.exit(0)
   }
-  console.log(`Netlify build gate: building for ${runtimeFiles.length} runtime-relevant file change(s).`)
+  console.log(`Netlify build gate: explicit production release marker changed; building ${runtimeFiles.length} runtime-relevant change(s).`)
   process.exit(1)
 }
 

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "2026-08-29-grouped-commercial-release",
+  "productionBaseCommit": "9880e56df0b1f47089c0ea176d57a613c25847a5",
+  "expectedProductionDeploys": 1,
+  "requiresExplicitApproval": true
+}

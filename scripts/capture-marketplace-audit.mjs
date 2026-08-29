@@ -38,6 +38,7 @@ const querySpecs = {
   premiumAlertRuns: ['premium_alert_runs', 'id,listing_id,status,recipients_count,sent_count,failed_count,created_at,completed_at'],
   stripeEvents: ['stripe_webhook_events', 'event_id,event_type,status,attempts,stripe_created_at,processed_at'],
   paymentReceipts: ['payment_notification_receipts', 'charge_id,payment_type,livemode,amount_minor,currency,accepted_at'],
+  premiumCheckoutIntents: ['premium_checkout_intents', 'id,user_id,source,status,created_at,completed_at,updated_at'],
   inquiries: ['marketplace_inquiries', 'id,listing_id,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,closed_at'],
   negotiationEvents: ['marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,responding_to_event_id,created_at'],
   verifications: ['listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'],
@@ -67,6 +68,7 @@ const {
   premiumAlertRuns,
   stripeEvents,
   paymentReceipts,
+  premiumCheckoutIntents,
   inquiries,
   negotiationEvents,
   verifications,
@@ -162,6 +164,8 @@ const newBalloonBuyerAcknowledgements = commercialNotifications.filter((notifica
 const exhaustedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const inquiryBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'inquiry_buyer_ack')
 const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
+const buyerEarlyAccessCheckoutRecoveries = commercialNotifications.filter((notification) => notification.notification_type === 'buyer_early_access_checkout_recovery')
+const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   quotes,
   proposals: newBalloonProposals,
@@ -345,6 +349,10 @@ const result = {
     inquiryBuyerAcknowledgementStatuses: countBy(inquiryBuyerAcknowledgements, 'status'),
     inquiryBuyerAcknowledgementAttempts: countBy(inquiryBuyerAcknowledgements, 'delivery_attempts'),
     exhaustedInquiryBuyerAcknowledgements: exhaustedInquiryBuyerAcknowledgements.length,
+    buyerEarlyAccessCheckoutRecoveries: buyerEarlyAccessCheckoutRecoveries.length,
+    buyerEarlyAccessCheckoutRecoveryStatuses: countBy(buyerEarlyAccessCheckoutRecoveries, 'status'),
+    buyerEarlyAccessCheckoutRecoveryAttempts: countBy(buyerEarlyAccessCheckoutRecoveries, 'delivery_attempts'),
+    exhaustedBuyerEarlyAccessCheckoutRecoveries: exhaustedBuyerEarlyAccessCheckoutRecoveries.length,
     listingWatchDispatches: listingWatchDispatches.length,
     listingWatchDispatchStatuses: countBy(listingWatchDispatches, 'status'),
     socialPublications30d: socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d).length,
@@ -359,6 +367,9 @@ const result = {
     },
   },
   revenue: {
+    buyerEarlyAccessCheckoutIntents: premiumCheckoutIntents.length,
+    buyerEarlyAccessCheckoutIntentStatuses: countBy(premiumCheckoutIntents, 'status'),
+    buyerEarlyAccessCheckoutIntentSources: countBy(premiumCheckoutIntents, 'source'),
     stripeEventsByType: countBy(stripeEvents, 'event_type'),
     stripeEventsByStatus: countBy(stripeEvents, 'status'),
     paymentReceipts: paymentReceipts.length,

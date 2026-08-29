@@ -463,6 +463,10 @@ export default async function CommercialPage() {
   const acceptedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'accepted').length
   const failedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed').length
   const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
+  const buyerEarlyAccessCheckoutRecoveries = typedNotifications.filter((notification) => notification.notification_type === 'buyer_early_access_checkout_recovery')
+  const acceptedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'accepted').length
+  const failedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed').length
+  const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
   const settledRevenueByCurrency = typedOutcomes
@@ -598,6 +602,7 @@ export default async function CommercialPage() {
         <h2 className="text-xl font-semibold">Revenue evidence</h2>
         <p className="mt-1 text-sm text-muted-foreground">{liveReceipts.length} live payment notification receipt(s) · {(liveGross / 100).toLocaleString('en-IE', { style: 'currency', currency: 'EUR' })} gross EUR represented. This is not net revenue.</p>
         <p className="mt-2 text-sm text-muted-foreground">{typedOutcomes.length} recorded commercial outcome(s) · gross outcomes {formatCurrencyTotals(reportedGrossByCurrency)} · settled AeroTrade revenue {formatCurrencyTotals(settledRevenueByCurrency)}.</p>
+        <p className={`mt-2 text-sm ${failedBuyerEarlyAccessCheckoutRecoveries > 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>Buyer Early Access checkout recovery: {acceptedBuyerEarlyAccessCheckoutRecoveries} accepted · {failedBuyerEarlyAccessCheckoutRecoveries} failed · {exhaustedBuyerEarlyAccessCheckoutRecoveries} exhausted.</p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <FunnelStep label="Economics measured" value={outcomesWithEconomics.length} />
           <FunnelStep label="Economics missing" value={outcomesMissingEconomics} />

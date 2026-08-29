@@ -9,6 +9,7 @@ import { siteUrl } from '@/utils/site'
 import { buildNewBalloonBuyerAcknowledgement } from '@/utils/new-balloon-buyer-acknowledgement.mjs'
 import { buildInquiryBuyerAcknowledgement } from '@/utils/inquiry-buyer-acknowledgement.mjs'
 import { inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
+import { buyerEarlyAccessProduct } from '@/utils/paid-product-labels.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,6 +55,14 @@ type InquiryBuyerAcknowledgement = {
   listings: { id: string; title: string } | Array<{ id: string; title: string }> | null
 }
 
+type BuyerEarlyAccessCheckoutRecovery = {
+  intent_id: string
+  user_id: string
+  buyer_email: string
+  source: 'signup' | 'pricing' | 'dashboard'
+  created_at: string
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -73,7 +82,7 @@ export async function GET(request: Request) {
   const cutoff = getOpportunityFollowupCutoff()
   const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult] = await Promise.all([
+  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -119,8 +128,9 @@ export async function GET(request: Request) {
       .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
       .order('created_at', { ascending: true })
       .limit(100),
+    supabase.rpc('due_buyer_early_access_checkout_recoveries', { p_cutoff: cutoff }),
   ])
-  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error) {
+  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
@@ -130,6 +140,7 @@ export async function GET(request: Request) {
   const premiumListings = (premiumListingResult.data || []) as PremiumListingRecovery[]
   const sellerAssistance = (sellerAssistanceResult.data || []) as SellerAssistance[]
   const buyerAcknowledgementRetries = (buyerAcknowledgementRetryResult.data || []) as BuyerAcknowledgementRetry[]
+  const buyerEarlyAccessRecoveries = (buyerEarlyAccessRecoveryResult.data || []) as BuyerEarlyAccessCheckoutRecovery[]
   const newBalloonBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'new_balloon_buyer_ack')
   const inquiryBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'inquiry_buyer_ack')
   const buyerAcknowledgementQuoteIds = [...new Set(newBalloonBuyerAcknowledgementRetries.map((retry) => retry.entity_id))]
@@ -165,6 +176,7 @@ export async function GET(request: Request) {
     dueSellerAssistance: sellerAssistance.length,
     dueNewBalloonBuyerAcknowledgementRetries: newBalloonBuyerAcknowledgementRetries.length,
     dueMarketplaceInquiryBuyerAcknowledgementRetries: inquiryBuyerAcknowledgementRetries.length,
+    dueBuyerEarlyAccessCheckoutRecoveries: buyerEarlyAccessRecoveries.length,
     accepted: 0,
     alreadyAccepted: 0,
     retryDeferred: 0,
@@ -244,6 +256,36 @@ export async function GET(request: Request) {
       else result.failed += 1
     } catch (error) {
       console.error('New-balloon buyer acknowledgement retry failed:', error)
+      result.failed += 1
+    }
+  }
+
+  for (const intent of buyerEarlyAccessRecoveries) {
+    if (!intent.buyer_email) {
+      result.configurationBlocked += 1
+      continue
+    }
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'buyer_early_access_checkout_recovery',
+        entityType: 'premium_checkout_intent',
+        entityId: intent.intent_id,
+        recipientRole: 'buyer',
+        to: intent.buyer_email,
+        subject: `Resume your ${buyerEarlyAccessProduct.publicName} checkout`,
+        html: `<h2>Your Buyer Early Access checkout expired</h2>
+        <p>AeroTrade has no verified Buyer Early Access payment from the checkout you started. Your account remains active.</p>
+        <p>If you still want 48-hour early access and instant listing alerts for 9.99 EUR per year, <a href="${escapeHtml(`${siteUrl}/dashboard`)}">sign in to your dashboard and choose Get Buyer Early Access</a>.</p>
+        <p>This email creates no checkout and makes no charge. A new Stripe checkout is created only after you choose to continue from your dashboard. You can ignore this message if you no longer want Buyer Early Access.</p>
+        <p>This is the only recovery reminder for this expired checkout.</p>`,
+        idempotencyKey: `buyer-early-access-checkout-recovery-${intent.intent_id}`,
+      })
+      if (delivery.duplicate) result.alreadyAccepted += 1
+      else if (delivery.success) result.accepted += 1
+      else if (delivery.skipped) result.retryDeferred += 1
+      else result.failed += 1
+    } catch (error) {
+      console.error('Buyer Early Access checkout recovery failed:', error)
       result.failed += 1
     }
   }
