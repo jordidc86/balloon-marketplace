@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "projectId": "aerotrade",
+  "verifiedAt": "2026-08-29T14:18:10.000Z",
+  "containsPii": false,
+  "economicActionsPerformed": 0,
+  "customerMessagesSent": 0,
+  "syntheticLeadsCreated": 0,
+  "deployment": {
+    "id": "6a92e9e01ee5870008ca5be5",
+    "commitRef": "00f351d499a2a82909c7f5cb4bbe148b1b006221",
+    "state": "ready",
+    "publishedAt": "2026-08-29T14:18:01.938Z"
+  },
+  "publicRoutes": {
+    "pasha": {
+      "path": "/new-balloon/pasha",
+      "status": 200,
+      "canonical": "https://aerotrade.app/new-balloon/pasha",
+      "requestLinkPresent": true,
+      "nonBindingBoundaryPresent": true
+    },
+    "schroeder": {
+      "path": "/new-balloon/schroeder",
+      "status": 200,
+      "canonical": "https://aerotrade.app/new-balloon/schroeder",
+      "requestLinkPresent": true,
+      "nonBindingBoundaryPresent": true
+    },
+    "preselectedRequest": {
+      "path": "/new-balloon?manufacturer=pasha",
+      "status": 200,
+      "manufacturerPreselected": true
+    }
+  },
+  "discovery": {
+    "sitemapStatus": 200,
+    "pashaIncluded": true,
+    "schroederIncluded": true
+  },
+  "attribution": {
+    "internalCampaignParametersAbsent": true,
+    "externalCampaignPreservedAcrossInternalNavigation": true,
+    "knownManufacturerSearchPreselected": true,
+    "ambiguousManufacturerSearchDefaultsToAdvice": true
+  },
+  "liveReadOnlyAudit": {
+    "quoteRequests": 0,
+    "proposals": 0,
+    "commercialOutcomes": 0,
+    "settledRevenueMinorByCurrency": {},
+    "manufacturerFunnelAvailable": true
+  },
+  "validation": {
+    "automatedTests": 114,
+    "operationalContracts": 109,
+    "lint": "passed",
+    "productionBuild": "passed"
+  }
+}

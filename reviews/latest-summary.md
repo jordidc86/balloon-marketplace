@@ -7,9 +7,9 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 
 - Production: `https://aerotrade.app`, deployed from `main`.
 - Database migrations are registered and read back through `20260829420000`; four previously remote-only historical versions are also consolidated in source control.
-- Validation: 112 automated tests, 107 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Validation: 114 automated tests, 109 operational contracts, ESLint, TypeScript and a full Next.js production build.
 - Current evidence-based score: **92.8%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92e584c4131c0008a0706c` is ready from tracked source commit `b0cdeb5`.
+- Production deploy `6a92e9e01ee5870008ca5be5` is ready from tracked source commit `00f351d`.
 - Buyer-to-seller negotiation replies and the private buyer response route are live. The additive migration is read back, the public route is noindexed, the service-only transition is denied to anonymous callers with `42501`, and verification created no synthetic response or customer email.
 - A conservative Netlify build gate is live: it skips only evidence, documentation, test, script and separately managed migration-only commits, and fails safe for application, function, configuration, unknown-file or diff errors. A replay of the latest 20 commits would have avoided 9 unnecessary builds (45%) while retaining all 11 runtime builds. Production then canceled evidence-only deploy `6a92e249c2b5da0008cf5bb6` for no content change while the runtime release remained ready, confirming the gate rather than merely simulating it.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
@@ -27,6 +27,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
 - Daily, opt-in wanted-equipment matching now sends at most five compatible active listings per digest, never repeats an accepted advert and retries failed or stale provider attempts through a private dispatch ledger.
 - First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source and demand context, explicit consent, server-side revalidation, duplicate/rate control and a one-time 24-hour operational follow-up.
+- Pasha and Schroeder now each have a dedicated, indexable acquisition route that carries the manufacturer into the existing request without publishing a guessed price. Known Pasha/Schroeder model searches preselect the matching path, ambiguous searches remain “advise me”, and internal navigation no longer overwrites a genuine external campaign with a self-attributed UTM. Control Tower separates preferred requests, proposals, provider-accepted proposals, evidence-backed outcomes and settled AeroTrade revenue by manufacturer; production readback confirms both routes and sitemap entries while creating 0 synthetic leads.
 - Every missing-inventory state now gives the buyer two explicit commercial paths: tell AeroTrade what used equipment is needed, or request an approximate Pasha/Schroeder budget. Factory-new availability is stated independently of the used catalogue, while the price remains non-binding until configuration review.
 - AeroTrade now states explicitly in its company positioning and contact journey that it can sell a factory-new Pasha or Schroeder balloon when used inventory is unsuitable. About, contact and zero-result entry points route to the same structured quotation path and retain a bounded source for conversion measurement.
 - A stored new-balloon request can now become a structured operator-priced proposal with manufacturer, price range, configuration, delivery guidance, validity and conditions. It is saved before delivery, explicitly non-binding, deduplicated by content and advances to QUOTE_SENT only after provider acceptance plus database readback.
@@ -59,7 +60,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 2. Checkout economics: the first real recovery is live and verified but has not yet improved the historical 20% completion rate; its eventual payment or free publication remains to be observed.
 3. Supply quality: five sellers currently have active listings, eleven accounts have no active listing, no assisted-sale request, seller-share visit or listing-verification request has yet exercised those controlled workflows, and two historical flight records still lack a serial number that cannot be inferred.
 4. Acquisition: public inventory is discoverable, daily IndexNow delivery is accepted and future journeys are attributable, but the 60 legacy views cannot be reconstructed. The accessible Google account has no `aerotrade.app` Search Console property, and a public search sample surfaced only the homepage plus one listing, so Google coverage/performance and seller recruitment remain absent.
-5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
+5. Revenue proof: the manufacturer-specific new-balloon funnel is now visible from request to settled revenue, but production still has 0 real new-balloon requests, proposals or settled intermediation outcomes; there is also no current internal receipt for the historical charge.
 6. Deployment capacity is restored and the build-credit gate has now been observed in production. The remaining infrastructure caveat is the Next.js Edge runtime deprecation warning, not a current availability failure.
 
 ## Next highest-value work

@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T14:00:23.090Z",
+  "capturedAt": "2026-08-29T14:13:43.774Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T14:00:23.090Z"
+    "since": "2026-07-30T14:13:43.774Z"
   },
   "supply": {
     "listingsTotal": 14,
@@ -121,6 +121,36 @@
     "quoteRequestsTotal": 0,
     "quoteRequests30d": 0,
     "quoteRequestsByStatus": {},
+    "newBalloonManufacturerFunnel": {
+      "pasha": {
+        "preferredRequests": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "wonOutcomes": 0,
+        "settledRevenueMinorByCurrency": {}
+      },
+      "schroeder": {
+        "preferredRequests": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "wonOutcomes": 0,
+        "settledRevenueMinorByCurrency": {}
+      },
+      "advice": {
+        "preferredRequests": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "wonOutcomes": 0,
+        "settledRevenueMinorByCurrency": {}
+      },
+      "other": {
+        "preferredRequests": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "wonOutcomes": 0,
+        "settledRevenueMinorByCurrency": {}
+      }
+    },
     "quotesWithMinimumContactData": 0,
     "marketplaceLeadPipelineAvailable": true,
     "marketplaceInquiries": 0,
