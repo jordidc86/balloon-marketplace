@@ -1,0 +1,358 @@
+{
+  "version": 1,
+  "projectId": "aerotrade",
+  "readOnly": true,
+  "capturedAt": "2026-08-29T19:35:00.105Z",
+  "period": {
+    "rollingDays": 30,
+    "since": "2026-07-30T19:35:00.105Z"
+  },
+  "supply": {
+    "listingsTotal": 14,
+    "listingsByStatus": {
+      "ACTIVE_PUBLIC": 12,
+      "DRAFT": 1,
+      "PENDING_PAYMENT": 1
+    },
+    "activeListings": 12,
+    "activeByCategory": {
+      "burners": 2,
+      "bottom-end": 2,
+      "complete": 6,
+      "envelopes": 2
+    },
+    "activeByCountry": {
+      "Türkiye": 5,
+      "Belgium": 2,
+      "Czech Republic": 2,
+      "Spain": 3
+    },
+    "activeSellers": 5,
+    "largestSellerActiveListings": 5,
+    "topThreeSellerShare": 0.8333,
+    "staleActiveListings": 0,
+    "pendingPaymentListings": 1,
+    "usersWithoutListings": 11,
+    "availabilityConfirmations": {
+      "fresh": 0,
+      "stale": 0,
+      "never": 12,
+      "invalid": 0,
+      "eventsTotal": 0
+    },
+    "availabilityRecovery": {
+      "dueListings": 12,
+      "dueSellers": 5,
+      "sellerPortfolioDistribution": {
+        "1": 2,
+        "2": 1,
+        "3": 1,
+        "5": 1
+      },
+      "requestReceipts": 0,
+      "acceptedRequests": 0,
+      "failedRequests": 0,
+      "sellerDigestReceipts": 0,
+      "acceptedSellerDigests": 0,
+      "failedSellerDigests": 0,
+      "caveat": "Counts are grouped without seller identifiers. A request is delivery evidence, not seller confirmation; only a seller-authenticated confirmation makes availability current."
+    },
+    "listingClosures": {
+      "eventsTotal": 0,
+      "soldAeroTradeReported": 0,
+      "soldOtherChannel": 0,
+      "soldNotDisclosed": 0,
+      "withdrawn": 0,
+      "pendingOutcomeReview": 0,
+      "caveat": "A seller-reported AeroTrade sale is a review signal, not settled revenue or a completed commercial outcome."
+    }
+  },
+  "quality": {
+    "activeWithoutImages": 0,
+    "activeWithoutExactlyOnePrimaryImage": 0,
+    "activeWithAtLeastThreeImages": 7,
+    "activeImageFilesChecked": 88,
+    "inaccessibleActiveImageFiles": 0,
+    "imageChecksUnknown": 0,
+    "activeListingsWithNoReachableImage": 0,
+    "flightListings": 8,
+    "flightFieldCoverage": {
+      "manufacturer": {
+        "complete": 8,
+        "eligible": 8
+      },
+      "model": {
+        "complete": 8,
+        "eligible": 8
+      },
+      "year": {
+        "complete": 8,
+        "eligible": 8
+      },
+      "hours": {
+        "complete": 8,
+        "eligible": 8
+      },
+      "registration": {
+        "complete": 8,
+        "eligible": 8
+      },
+      "serial": {
+        "complete": 6,
+        "eligible": 8
+      }
+    },
+    "activeWithPhone": 11,
+    "verifiableTrustStateAvailable": true,
+    "verifiedListings": 0,
+    "caveat": "Verification records document review only; they do not represent airworthiness or a physical inspection."
+  },
+  "demand": {
+    "usersTotal": 16,
+    "newUsers30d": 1,
+    "premiumUsers": 8,
+    "premiumBySource": {
+      "legacy": 6,
+      "stripe": 2
+    },
+    "views30d": 60,
+    "viewsByUtmSource30d": {
+      "unknown": 60
+    },
+    "sharedLinkViews30d": 0,
+    "viewedListings30d": 13,
+    "contactReveals30d": 0,
+    "contactedListings30d": 0,
+    "registeredContactReveals30d": 0,
+    "anonymousContactReveals30d": 0,
+    "viewToContactRate": 0,
+    "enquiryCtaClicks30d": 0,
+    "enquiryFormViews30d": 0,
+    "enquiryFormStarts30d": 0,
+    "buyerFunnelComparable": {
+      "measurementStartedAt": "2026-08-29T13:37:34.312Z",
+      "comparableFrom": "2026-08-29T13:37:34.312Z",
+      "observedDays": 0.25,
+      "excludedEarlierEvents": 60,
+      "views": 0,
+      "ctaClicks": 0,
+      "formViews": 0,
+      "formStarts": 0,
+      "storedInquiries": 0,
+      "rates": {
+        "viewToCta": null,
+        "formViewToStart": null,
+        "formStartToStoredInquiry": null
+      }
+    },
+    "viewToEnquiryCtaRate": null,
+    "formViewToStartRate": null,
+    "formStartToStoredInquiryRate": null,
+    "catalogSearches30d": 1,
+    "zeroResultCatalogSearches30d": 0,
+    "catalogSearchesByCategory30d": {
+      "unknown": 1
+    },
+    "catalogSearchesByUtmSource30d": {
+      "unknown": 1
+    },
+    "localizedBuyerEntryVisits30d": 0,
+    "localizedBuyerEntryVisitsByLocale30d": {},
+    "listingWatchers": 0,
+    "listingWatchers30d": 0,
+    "listingWatchersByStatus": {},
+    "activeListingWatchers": 0,
+    "listingClosedWatchers": 0,
+    "watchedListings": 0
+  },
+  "sellerActivation": {
+    "events30d": 1,
+    "stages30d": {
+      "CHECKOUT_RECOVERY_SENT": 1
+    },
+    "distinctSellers30d": 1,
+    "checkoutRecoveries30d": 0
+  },
+  "opportunities": {
+    "quoteRequestsTotal": 0,
+    "quoteRequests30d": 0,
+    "quoteRequestsByStatus": {},
+    "newBalloonManufacturerFunnel": {
+      "pasha": {
+        "preferredRequests": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "buyerResponses": 0,
+        "interestedResponses": 0,
+        "questionResponses": 0,
+        "declinedResponses": 0,
+        "wonOutcomes": 0,
+        "settledRevenueMinorByCurrency": {}
+      },
+      "schroeder": {
+        "preferredRequests": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "buyerResponses": 0,
+        "interestedResponses": 0,
+        "questionResponses": 0,
+        "declinedResponses": 0,
+        "wonOutcomes": 0,
+        "settledRevenueMinorByCurrency": {}
+      },
+      "advice": {
+        "preferredRequests": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "buyerResponses": 0,
+        "interestedResponses": 0,
+        "questionResponses": 0,
+        "declinedResponses": 0,
+        "wonOutcomes": 0,
+        "settledRevenueMinorByCurrency": {}
+      },
+      "other": {
+        "preferredRequests": 0,
+        "proposals": 0,
+        "acceptedProposals": 0,
+        "buyerResponses": 0,
+        "interestedResponses": 0,
+        "questionResponses": 0,
+        "declinedResponses": 0,
+        "wonOutcomes": 0,
+        "settledRevenueMinorByCurrency": {}
+      }
+    },
+    "quotesWithMinimumContactData": 0,
+    "marketplaceLeadPipelineAvailable": true,
+    "marketplaceInquiries": 0,
+    "marketplaceInquiriesByStatus": {},
+    "marketplaceBuyerOffers": 0,
+    "marketplaceBuyerResponses": 0,
+    "marketplaceSellerResponses": 0,
+    "marketplaceSellerResponseNotificationsFailed": 0,
+    "unresolvedSellerEnquiryEscalations": 0,
+    "sellerEnquiryEscalationStatuses": {},
+    "marketplaceBuyerResponseSellerNotificationsFailed": 0,
+    "wantedRequests": 0,
+    "wantedRequests30d": 0,
+    "wantedRequestsByStatus": {},
+    "wantedRequestsByCategory": {},
+    "wantedRequestsByUtmSource": {},
+    "wantedRequestsWithMatchConsent": 0,
+    "newBalloonProposals": 0,
+    "newBalloonProposalsByDeliveryStatus": {},
+    "newBalloonProposalResponses": 0,
+    "newBalloonProposalResponsesByType": {},
+    "newBalloonProposalResponseNotifications": {},
+    "failedSellerNotifications": 0,
+    "closedMarketplaceTransactionsKnown": 0,
+    "commercialOutcomes": 0,
+    "outcomesByEvidence": {},
+    "grossOutcomeMinorByCurrency": {},
+    "settledAerotradeRevenueMinorByCurrency": {},
+    "outcomesWithCompleteEconomics": 0,
+    "outcomesMissingEconomics": 0,
+    "unitEconomicsEvents": 0,
+    "unitEconomicsEventsByEvidence": {},
+    "evidenceBackedContributionMinorByCurrency": {},
+    "settledContributionMinorByCurrency": {},
+    "caveat": "WON is an explicit recorded outcome; transaction value, costs, contribution and settlement are never inferred. Missing economics remain null, and negative contribution is valid."
+  },
+  "communications": {
+    "newsletterConsentProfiles": 16,
+    "newsletterActiveConsents": 0,
+    "newsletterConsentStatuses": {
+      "NOT_DEPLOYED": 16
+    },
+    "newsletterRuns": 11,
+    "successfulLiveNewsletterRuns": 3,
+    "newsletterRecipientsAccepted": 45,
+    "premiumAlertRuns": 2,
+    "successfulPremiumAlertRuns": 1,
+    "premiumAlertRecipientsAccepted": 7,
+    "commercialNotificationReceipts": 2,
+    "commercialNotificationStatuses": {
+      "accepted": 2
+    },
+    "newBalloonBuyerAcknowledgements": 0,
+    "newBalloonBuyerAcknowledgementStatuses": {},
+    "newBalloonBuyerAcknowledgementAttempts": {},
+    "exhaustedNewBalloonBuyerAcknowledgements": 0,
+    "inquiryBuyerAcknowledgements": 0,
+    "inquiryBuyerAcknowledgementStatuses": {},
+    "inquiryBuyerAcknowledgementAttempts": {},
+    "exhaustedInquiryBuyerAcknowledgements": 0,
+    "buyerEarlyAccessCheckoutRecoveries": 0,
+    "buyerEarlyAccessCheckoutRecoveryStatuses": {},
+    "buyerEarlyAccessCheckoutRecoveryAttempts": {},
+    "exhaustedBuyerEarlyAccessCheckoutRecoveries": 0,
+    "listingWatchDispatches": 0,
+    "listingWatchDispatchStatuses": {},
+    "socialPublications30d": 0,
+    "socialPublicationStatuses30d": {},
+    "socialPublicationNetworksAccepted30d": {},
+    "socialPublicationPlacementsAccepted30d": {},
+    "socialPublicationNeedsAttention30d": 0,
+    "socialPublicationRetryable30d": 0,
+    "runStatuses": {
+      "newsletters": {
+        "skipped": 6,
+        "sent": 3,
+        "partial": 2
+      },
+      "premiumAlerts": {
+        "failed": 1,
+        "sent": 1
+      }
+    }
+  },
+  "revenue": {
+    "buyerEarlyAccessCheckoutIntents": 0,
+    "buyerEarlyAccessCheckoutIntentStatuses": {},
+    "buyerEarlyAccessCheckoutIntentSources": {},
+    "stripeEventsByType": {
+      "aerotrade.audit": 1,
+      "checkout.session.completed": 1,
+      "aerotrade.deploy_test": 1
+    },
+    "stripeEventsByStatus": {
+      "processed": 3
+    },
+    "paymentReceipts": 0,
+    "livePaymentReceipts": 0,
+    "liveGrossMinorByCurrency": {},
+    "receiptTypes": {},
+    "caveat": "Gross accepted amounts are not net revenue and exclude fees, tax, refunds and disputes."
+  },
+  "integrity": {
+    "containsPii": false,
+    "queryProfile": "c078b3ba5b2eae3ef1eb18f3d7521fac6a516b6ce255dbe4be0f91777333019f",
+    "releaseCandidateDatasets": {
+      "commercialOutcomeEconomics": {
+        "available": false,
+        "reason": "not_deployed"
+      },
+      "commercialUnitEconomicsEvents": {
+        "available": false,
+        "reason": "not_deployed"
+      },
+      "newBalloonProposalResponses": {
+        "available": false,
+        "reason": "not_deployed"
+      },
+      "socialPublicationReceipts": {
+        "available": false,
+        "reason": "not_deployed"
+      },
+      "newsletterConsentProfiles": {
+        "available": false,
+        "reason": "not_deployed"
+      },
+      "catalogDemandEntryContexts": {
+        "available": false,
+        "reason": "not_deployed"
+      }
+    }
+  }
+}
