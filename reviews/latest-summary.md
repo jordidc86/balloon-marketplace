@@ -6,8 +6,8 @@ Status: `Production deployed, reconciled and measurable; real marketplace liquid
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829200000`.
-- Validation: 45 automated tests, 48 operational contracts, ESLint and a full Next.js production build.
+- Database migrations are registered and read back through `20260829210000`.
+- Validation: 46 automated tests, 49 operational contracts, ESLint and a full Next.js production build.
 - Current evidence-based score: **83.3%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.

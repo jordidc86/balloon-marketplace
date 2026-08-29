@@ -3,7 +3,7 @@ import { stripe } from '@/utils/stripe'
 import { buildPremiumCheckoutParams } from '@/utils/premium-checkout-config.mjs'
 import type Stripe from 'stripe'
 
-type PremiumCheckoutSource = 'signup' | 'pricing' | 'dashboard'
+type PremiumCheckoutSource = 'signup' | 'pricing' | 'dashboard' | 'admin'
 
 export async function createPremiumMembershipCheckout({
   userId,

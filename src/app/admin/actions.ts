@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache'
 import { isClosedInquiryStatus, normalizeInquiryStatus } from '@/utils/inquiry-safety.mjs'
 import { parseCommercialOutcome } from '@/utils/commercial-outcome.mjs'
 import { normalizeWantedRequestStatus } from '@/utils/wanted-request.mjs'
+import { createPremiumMembershipCheckout } from '@/utils/premium-checkout'
 
 async function checkAdmin() {
   const supabase = await createClient()
@@ -56,7 +57,7 @@ export async function sendPremiumPaymentLink(userId: string) {
 
   const { data: user, error: userError } = await supabase
     .from('users')
-    .select('id, email, name, is_premium')
+    .select('id, email, name, is_premium, stripe_customer_id')
     .eq('id', userId)
     .single()
 
@@ -68,37 +69,15 @@ export async function sendPremiumPaymentLink(userId: string) {
     throw new Error('User is already premium')
   }
 
-  const { stripe } = await import('@/utils/stripe')
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    customer_email: user.email,
-    line_items: [
-      {
-        price_data: {
-          currency: 'eur',
-          product_data: {
-            name: 'AeroTrade Premium Club',
-            description: '48-hour Early Access & Instant Alerts',
-          },
-          unit_amount: 999,
-          recurring: { interval: 'year' },
-        },
-        quantity: 1,
-      },
-    ],
-    metadata: {
-      type: 'premium_subscription',
-      user_id: user.id,
-      source: 'admin_payment_link',
-    },
-    mode: 'subscription',
-    success_url: `${siteUrl}/login?message=Payment successful! Please log in to access your Premium Dashboard.`,
-    cancel_url: `${siteUrl}/pricing?canceled=true`,
+  const checkout = await createPremiumMembershipCheckout({
+    userId: user.id,
+    userEmail: user.email,
+    stripeCustomerId: user.stripe_customer_id,
+    origin: siteUrl,
+    source: 'admin',
+    successPath: '/login?message=Payment%20successful.%20Please%20log%20in%20to%20access%20your%20Premium%20Dashboard.',
+    cancelPath: '/pricing?canceled=true',
   })
-
-  if (!session.url) {
-    throw new Error('Failed to create Stripe payment link')
-  }
 
   const displayName = user.name || 'there'
   await sendEmail(
@@ -107,7 +86,7 @@ export async function sendPremiumPaymentLink(userId: string) {
     `<p>Hi ${escapeHtml(displayName)},</p>
     <p>Thanks for your interest in AeroTrade Premium.</p>
     <p>You can complete your Premium subscription securely through Stripe here:</p>
-    <p><a href="${escapeHtml(session.url)}">Complete AeroTrade Premium payment</a></p>
+    <p><a href="${escapeHtml(checkout.url)}">Complete AeroTrade Premium payment</a></p>
     <p>Premium gives you early access to Premium listings and instant alerts for new gear.</p>
     <p>If you did not request this, you can ignore this email.</p>`
   )

@@ -8,9 +8,9 @@ Authoritative evidence used:
 
 - Read-only production snapshot: `reviews/marketplace-audit-2026-08-29.json`.
 - Read-only live Stripe reconciliation: `reviews/stripe-commercial-audit-2026-08-29.json`.
-- Production database migrations through `20260829200000` with RLS and post-write verification.
+- Production database migrations through `20260829210000` with RLS and post-write verification.
 - Public production smoke checks against `https://aerotrade.app`.
-- 45 automated tests, 48 operational contracts, lint, production build and dependency audit.
+- 46 automated tests, 49 operational contracts, lint, production build and dependency audit.
 - Netlify production deployment and Supabase migration history.
 
 ## Scores
@@ -28,7 +28,7 @@ Authoritative evidence used:
 | 9 | Commercial automation, communications and recovery | 60% | 75% | Newsletter and Premium-alert ledgers, partial-failure semantics, selective recovery, durable operational receipts and opt-in match intent. No match campaign has been activated. | Historical newsletter runs include 2 partial results and Premium alerts include 1 failure; wanted-request follow-up remains deliberately manual until real demand validates it. |
 | 10 | Analytics, Control Tower and operational insight | 45% | 93% | One commercial dashboard joins views, catalog searches, seller activation, zero-result supply gaps, contacts, opportunities, outcomes and notification failures. Reproducible PII-free database and live Stripe audits expose cross-system gaps. | Cohort and source-to-outcome reporting needs real search, enquiry and outcome volume before it can be validated. |
 | 11 | Security, privacy, anti-fraud and data integrity | 75% | 92% | Private RLS tables, anonymous access denied, no raw visitor IDs, daily event deduplication, bounded inputs, honeypot, pseudonymous rate limiting, explicit consent and verification limits. | No independent penetration test; seller and buyer identity assurance is still operational rather than automated. |
-| 12 | Production, deployment, persistence, tests and recovery | 88% | 94% | Main branch consolidation discipline, migrations registered and read back, public route health, protected-route enforcement, 45 tests and 48 contracts. | Synthetic monitoring is not yet exercising a full safe commercial transaction; Next.js reports an Edge runtime deprecation warning. |
+| 12 | Production, deployment, persistence, tests and recovery | 88% | 94% | Main branch consolidation discipline, migrations registered and read back, public route health, protected-route enforcement, 46 tests and 49 contracts. | Synthetic monitoring is not yet exercising a full safe commercial transaction; Next.js reports an Edge runtime deprecation warning. |
 
 **Weighted equally: 57.1% initial → 83.3% current.**
 

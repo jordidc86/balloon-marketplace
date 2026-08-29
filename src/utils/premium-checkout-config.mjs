@@ -1,4 +1,4 @@
-const premiumCheckoutSources = ['signup', 'pricing', 'dashboard']
+const premiumCheckoutSources = ['signup', 'pricing', 'dashboard', 'admin']
 
 function trustedPath(value, fallback) {
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : fallback

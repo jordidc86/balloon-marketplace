@@ -31,3 +31,9 @@ test('Premium checkout configuration rejects unknown sources and external return
   assert.equal(params.success_url, 'https://aerotrade.app/dashboard?premium_payment=processing')
   assert.equal(params.cancel_url, 'https://aerotrade.app/dashboard?premium_payment=canceled')
 })
+
+test('admin-created Premium checkout uses the same durable metadata contract', () => {
+  const params = buildPremiumCheckoutParams({ userId: 'test-user', userEmail: 'test@example.invalid', origin: 'https://aerotrade.app', source: 'admin' })
+  assert.equal(params.metadata.checkout_source, 'admin')
+  assert.equal(params.metadata.intent_version, '1')
+})

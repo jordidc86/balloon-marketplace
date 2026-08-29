@@ -57,6 +57,11 @@ const checks = [
     required: ['resumePremiumMembershipCheckout', "session.status === 'open'", "session.status === 'expired'", 'createPremiumMembershipCheckout'],
   },
   {
+    name: 'Admin Premium payment links use the same recoverable checkout ledger',
+    file: 'src/app/admin/actions.ts',
+    required: ['createPremiumMembershipCheckout', "source: 'admin'", 'checkout.url'],
+  },
+  {
     name: 'Premium listing fee is independent from buyer membership',
     file: 'src/app/sell/actions.ts',
     required: ['getInitialListingPublication(listingPlan)', 'createPremiumListingCheckout', 'parseListingImageUrls'],
