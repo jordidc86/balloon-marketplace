@@ -4,6 +4,7 @@ import { catalogSearchEventKey, normalizeCatalogSearch } from '../src/utils/cata
 
 test('catalog searches preserve useful equipment demand and normalize filters', () => {
   assert.deepEqual(normalizeCatalogSearch({ query: '  Cameron   N-77 ', category: 'complete', country: 'Spain', sort: 'price_asc', resultCount: 0 }), {
+    entry_context: 'catalog_search',
     query_text: 'Cameron N-77',
     category: 'complete',
     country: 'Spain',
@@ -11,6 +12,14 @@ test('catalog searches preserve useful equipment demand and normalize filters', 
     result_count: 0,
     zero_results: true,
   })
+})
+
+test('localized acquisition demand uses one closed non-PII entry context', () => {
+  const localized = normalizeCatalogSearch({ entryContext: 'buyer_landing_de', resultCount: 12 })
+  assert.equal(localized.entry_context, 'buyer_landing_de')
+  assert.equal(localized.query_text, null)
+  assert.equal(localized.result_count, 12)
+  assert.equal(normalizeCatalogSearch({ entryContext: 'https://attacker.example', resultCount: 12 }).entry_context, 'catalog_search')
 })
 
 test('catalog analytics drop likely personal contact details', () => {

@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { listingCategories } from './listing-submission.mjs'
 
 const safeSorts = ['newest', 'price_asc', 'price_desc']
+export const catalogDemandEntryContexts = ['catalog_search', 'buyer_landing_en', 'buyer_landing_de', 'buyer_landing_fr', 'buyer_landing_es']
 const emailPattern = /[^\s@]+@[^\s@]+\.[^\s@]+/
 const urlPattern = /(?:https?:\/\/|www\.)/i
 const phonePattern = /(?:\+?\d[\d\s().-]{6,}\d)/
@@ -24,6 +25,7 @@ export function normalizeCatalogSearch(input = {}) {
   }
 
   return {
+    entry_context: catalogDemandEntryContexts.includes(input.entryContext) ? input.entryContext : 'catalog_search',
     query_text: queryText,
     category,
     country,

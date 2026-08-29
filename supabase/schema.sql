@@ -493,6 +493,7 @@ create policy "Admins can manage wanted requests" on public.wanted_requests for 
 create table public.catalog_search_events (
   id uuid default uuid_generate_v4() primary key,
   event_key text not null unique check (char_length(event_key) = 64),
+  entry_context text not null default 'catalog_search' check (entry_context in ('catalog_search', 'buyer_landing_en', 'buyer_landing_de', 'buyer_landing_fr', 'buyer_landing_es')),
   query_text text check (query_text is null or char_length(query_text) <= 120),
   category text check (category is null or category in ('complete', 'envelopes', 'baskets', 'burners', 'bottom-end', 'cylinders', 'other-equipment')),
   country text check (country is null or char_length(country) <= 100),
@@ -508,6 +509,7 @@ create table public.catalog_search_events (
 );
 create index catalog_search_zero_demand_idx on public.catalog_search_events (zero_results, category, created_at desc);
 create index catalog_search_source_idx on public.catalog_search_events (utm_source, created_at desc);
+create index catalog_search_entry_context_created_idx on public.catalog_search_events (entry_context, created_at desc);
 alter table public.catalog_search_events enable row level security;
 revoke all on public.catalog_search_events from anon, authenticated;
 create policy "Admins can read catalog search demand" on public.catalog_search_events for select to authenticated

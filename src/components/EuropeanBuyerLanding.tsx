@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, Factory, Search, ShieldCheck } from 'lucide-react'
-import CommercialAttributionSeed from '@/components/CommercialAttributionSeed'
 import SafeListingImage from '@/components/SafeListingImage'
+import CatalogSearchTracker from '@/app/catalog/CatalogSearchTracker'
 import { getPrimaryImageUrl, type ListingWithImages } from '@/utils/listings'
 import { createAdminClient } from '@/utils/supabase/server'
 import { europeanBuyerLandingAlternates } from '@/utils/european-buyer-landings.mjs'
@@ -83,7 +83,7 @@ export default async function EuropeanBuyerLanding({ landing }: { landing: Europ
 
   return (
     <div lang={landing.lang} className="bg-secondary/30">
-      <CommercialAttributionSeed />
+      <CatalogSearchTracker search={{ entryContext: `buyer_landing_${landing.key}`, query: '', category: null, country: '', sort: 'newest', resultCount: publicListings.length }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(collectionJsonLd) }} />
 
       <section className="border-b bg-background">

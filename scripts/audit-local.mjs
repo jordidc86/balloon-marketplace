@@ -417,6 +417,16 @@ const checks = [
     required: ['sessionStorage', 'logCatalogSearch(search, getBrowserCommercialContext())', 'Analytics cannot block catalog browsing'],
   },
   {
+    name: 'Localized buyer demand extends the existing private catalogue ledger',
+    file: 'supabase/migrations/20260829570000_catalog_demand_entry_context.sql',
+    required: ['catalog_search_events', 'entry_context text not null default', 'catalog_search_events_entry_context_check', "'buyer_landing_en'", "'buyer_landing_de'", "'buyer_landing_fr'", "'buyer_landing_es'", 'contains no URL, search text, visitor identifier or personal data'],
+  },
+  {
+    name: 'Control Tower separates localized acquisition from search gaps and downstream intent',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['European buyer acquisition (30d)', 'localizedBuyerEntryEvents', 'localizedBuyerListingViewJourneys', 'localizedBuyerHighIntentJourneys', "event.entry_context === 'catalog_search'", 'Page code and internal operator visits do not count as commercial proof.'],
+  },
+  {
     name: 'Transactional SEO publishes only public listings and truthful offers',
     file: 'src/utils/marketplace-seo.mjs',
     required: ['isListingPubliclyIndexable', "listing.status === 'ACTIVE_PUBLIC'", "listing.status !== 'ACTIVE_PREMIUM'", 'price <= 0', 'buildListingProductJsonLd', 'buildNewBalloonServiceJsonLd', ".replace(/</g, '\\\\u003c')"],
@@ -638,7 +648,7 @@ const checks = [
   {
     name: 'European high-intent acquisition reuses real inventory and existing conversion paths',
     file: 'src/components/EuropeanBuyerLanding.tsx',
-    required: ['CommercialAttributionSeed', "isListingPubliclyIndexable", "href=\"/catalog\"", "'/wanted?category=complete'", "'/new-balloon?source=catalog&category=complete'", 'buildBuyerAcquisitionCollectionJsonLd'],
+    required: ['CatalogSearchTracker', 'buyer_landing_', "isListingPubliclyIndexable", "href=\"/catalog\"", "'/wanted?category=complete'", "'/new-balloon?source=catalog&category=complete'", 'buildBuyerAcquisitionCollectionJsonLd'],
     forbidden: ['utm_source=aerotrade', 'certified airworthy', 'guaranteed airworthy'],
   },
   {

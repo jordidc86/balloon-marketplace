@@ -5,6 +5,7 @@ import { getBrowserCommercialContext } from '@/utils/browser-attribution'
 import { logCatalogSearch } from './actions'
 
 type CatalogSearch = {
+  entryContext?: string
   query: string
   category: string | null
   country: string

@@ -88,6 +88,7 @@ type WantedMatchDispatch = {
 
 type CatalogSearchEvent = {
   id: string
+  entry_context: 'catalog_search' | 'buyer_landing_en' | 'buyer_landing_de' | 'buyer_landing_fr' | 'buyer_landing_es'
   query_text: string | null
   category: string | null
   country: string | null
@@ -281,7 +282,7 @@ export default async function CommercialPage() {
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
-    supabase.from('catalog_search_events').select('id,query_text,category,country,result_count,zero_results,utm_source,journey_key,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
+    supabase.from('catalog_search_events').select('id,entry_context,query_text,category,country,result_count,zero_results,utm_source,journey_key,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,entry_context,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('users').select('id,email').limit(500),
@@ -409,6 +410,18 @@ export default async function CommercialPage() {
     ...recentWanted.map((request) => request.journey_key),
     ...recentQuotes.map((quote) => quote.journey_key),
   ].filter((key): key is string => Boolean(key)))
+  const catalogOnlySearchEvents = typedSearchEvents.filter((event) => event.entry_context === 'catalog_search')
+  const localizedBuyerEntryEvents = typedSearchEvents.filter((event) => event.entry_context.startsWith('buyer_landing_'))
+  const localizedBuyerJourneyKeys = new Set(localizedBuyerEntryEvents.map((event) => event.journey_key).filter((key): key is string => Boolean(key)))
+  const localizedBuyerListingViewJourneys = new Set(typedListingEvents
+    .filter((event) => event.event_type === 'VIEW' && event.journey_key && localizedBuyerJourneyKeys.has(event.journey_key))
+    .map((event) => event.journey_key as string))
+  const localizedBuyerHighIntentJourneys = new Set([...watchJourneyKeys, ...requestJourneyKeys]
+    .filter((journeyKey) => localizedBuyerJourneyKeys.has(journeyKey)))
+  const localizedBuyerEntryCounts = localizedBuyerEntryEvents.reduce<Map<string, number>>((counts, event) => {
+    counts.set(event.entry_context, (counts.get(event.entry_context) || 0) + 1)
+    return counts
+  }, new Map())
   const attributableJourneyKeys = new Set([
     ...viewJourneyKeys,
     ...searchJourneyKeys,
@@ -428,7 +441,7 @@ export default async function CommercialPage() {
   const activeListingsWithFreshAvailability = typedMatchableListings.filter((listing) => getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), new Date(nowMs)).status === 'fresh').length
   const activeListingsWithStaleAvailability = typedMatchableListings.filter((listing) => getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), new Date(nowMs)).status === 'stale').length
   const activeListingsNeverConfirmed = typedMatchableListings.length - activeListingsWithFreshAvailability - activeListingsWithStaleAvailability
-  const zeroResultSearches = typedSearchEvents.filter((event) => event.zero_results)
+  const zeroResultSearches = catalogOnlySearchEvents.filter((event) => event.zero_results)
   const zeroDemandCounts = zeroResultSearches.reduce<Map<string, number>>((counts, event) => {
     const label = event.query_text || event.category || event.country || 'Unspecified catalog search'
     counts.set(label, (counts.get(label) || 0) + 1)
@@ -651,8 +664,26 @@ export default async function CommercialPage() {
       {outcomesError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial outcome evidence unavailable: {outcomesError.message}</p> : null}
 
       <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">European buyer acquisition (30d)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Daily-deduplicated visits to the localized high-intent entries, joined to later marketplace stages through the existing privacy-minimized journey key.</p>
+        {searchEventsError ? <p className="mt-4 text-sm text-destructive">Localized acquisition evidence unavailable: {searchEventsError.message}</p> : (
+          <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <FunnelStep label="Landing visits" value={localizedBuyerEntryEvents.length} />
+              <FunnelStep label="Opened a listing" value={localizedBuyerListingViewJourneys.size} />
+              <FunnelStep label="High-intent journey" value={localizedBuyerHighIntentJourneys.size} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              {localizedBuyerEntryCounts.size === 0 ? <span className="text-muted-foreground">No localized acquisition visit has been recorded yet.</span> : [...localizedBuyerEntryCounts.entries()].map(([entry, count]) => <span key={entry} className="rounded-full border bg-background px-3 py-1 font-semibold">{entry.replace('buyer_landing_', '').toUpperCase()} · {count}</span>)}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">A high-intent journey means a stored watch, enquiry, wanted request or new-balloon request. Page code and internal operator visits do not count as commercial proof.</p>
+          </>
+        )}
+      </section>
+
+      <section className="rounded-2xl border bg-card p-6">
         <h2 className="text-xl font-semibold">Catalog demand gaps (30d)</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{typedSearchEvents.length} deduplicated search(es) · {zeroResultSearches.length} with no matching inventory. Likely email, phone and URL searches are not retained.</p>
+        <p className="mt-1 text-sm text-muted-foreground">{catalogOnlySearchEvents.length} deduplicated search(es) · {zeroResultSearches.length} with no matching inventory. Localized landing visits are reported separately; likely email, phone and URL searches are not retained.</p>
         {searchEventsError ? <p className="mt-4 text-sm text-destructive">Search-demand evidence unavailable: {searchEventsError.message}</p> : topZeroDemand.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No zero-result demand has been recorded yet.</p> : <div className="mt-4 grid gap-2 sm:grid-cols-2">{topZeroDemand.map(([label, count]) => <div key={label} className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3 text-sm"><span className="font-medium">{label}</span><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{count}</span></div>)}</div>}
       </section>
 

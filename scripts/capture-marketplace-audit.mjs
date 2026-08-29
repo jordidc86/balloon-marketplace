@@ -70,6 +70,7 @@ const optionalQuerySpecs = {
   newBalloonProposalResponses: ['new_balloon_proposal_response_events', 'id,proposal_id,quote_request_id,response_type,admin_notification_status,created_at'],
   socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at'],
   newsletterConsentProfiles: ['users', 'id,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at'],
+  catalogDemandEntryContexts: ['catalog_search_events', 'id,entry_context'],
 }
 const optionalAuditResults = Object.fromEntries(await Promise.all(Object.entries(optionalQuerySpecs).map(async ([name, [table, columns]]) => [name, await optionalRows(table, columns)])))
 const {
@@ -90,7 +91,7 @@ const {
   commercialOutcomes: baseCommercialOutcomes,
   newBalloonProposals,
   wantedRequests,
-  catalogSearchEvents,
+  catalogSearchEvents: baseCatalogSearchEvents,
   sellerFunnelEvents,
   listingWatchers,
   listingWatchDispatches,
@@ -112,6 +113,11 @@ const commercialOutcomes = baseCommercialOutcomes.map((outcome) => ({
 const commercialUnitEconomicsEvents = optionalAuditResults.commercialUnitEconomicsEvents.rows
 const newBalloonProposalResponses = optionalAuditResults.newBalloonProposalResponses.rows
 const socialPublicationReceipts = optionalAuditResults.socialPublicationReceipts.rows
+const catalogDemandEntryContextById = new Map(optionalAuditResults.catalogDemandEntryContexts.rows.map((row) => [row.id, row.entry_context]))
+const catalogSearchEvents = baseCatalogSearchEvents.map((event) => ({
+  ...event,
+  entry_context: catalogDemandEntryContextById.get(event.id) || 'catalog_search',
+}))
 const newsletterConsentByUserId = new Map(optionalAuditResults.newsletterConsentProfiles.rows.map((row) => [row.id, row]))
 const newsletterConsentProfiles = users.map((user) => ({
   id: user.id,
@@ -313,10 +319,12 @@ const result = {
     viewToEnquiryCtaRate: comparableBuyerFunnel.rates.viewToCta,
     formViewToStartRate: comparableBuyerFunnel.rates.formViewToStart,
     formStartToStoredInquiryRate: comparableBuyerFunnel.rates.formStartToStoredInquiry,
-    catalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d).length,
-    zeroResultCatalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.zero_results).length,
-    catalogSearchesByCategory30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'category'),
-    catalogSearchesByUtmSource30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'utm_source'),
+    catalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.entry_context === 'catalog_search').length,
+    zeroResultCatalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.entry_context === 'catalog_search' && event.zero_results).length,
+    catalogSearchesByCategory30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d && event.entry_context === 'catalog_search'), 'category'),
+    catalogSearchesByUtmSource30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d && event.entry_context === 'catalog_search'), 'utm_source'),
+    localizedBuyerEntryVisits30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.entry_context.startsWith('buyer_landing_')).length,
+    localizedBuyerEntryVisitsByLocale30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d && event.entry_context.startsWith('buyer_landing_')), 'entry_context'),
     listingWatchers: listingWatchers.length,
     listingWatchers30d: recentListingWatchers.length,
     listingWatchersByStatus: countBy(listingWatchers, 'status'),
