@@ -73,7 +73,7 @@ export async function GET(request: Request) {
   const cutoff = getOpportunityFollowupCutoff()
   const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult] = await Promise.all([
+  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -85,6 +85,13 @@ export async function GET(request: Request) {
       .from('quote_requests')
       .select('id,status,updated_at')
       .in('status', openQuoteStatuses)
+      .lte('updated_at', cutoff)
+      .order('updated_at', { ascending: true })
+      .limit(100),
+    supabase
+      .from('quote_requests')
+      .select('id,status,updated_at')
+      .eq('status', 'BUYER_RESPONDED')
       .lte('updated_at', cutoff)
       .order('updated_at', { ascending: true })
       .limit(100),
@@ -113,12 +120,13 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: true })
       .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error) {
+  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
   const inquiries = (inquiryResult.data || []) as unknown as Inquiry[]
   const quotes = quoteResult.data || []
+  const buyerResponseQuotes = buyerResponseQuoteResult.data || []
   const premiumListings = (premiumListingResult.data || []) as PremiumListingRecovery[]
   const sellerAssistance = (sellerAssistanceResult.data || []) as SellerAssistance[]
   const buyerAcknowledgementRetries = (buyerAcknowledgementRetryResult.data || []) as BuyerAcknowledgementRetry[]
@@ -152,6 +160,7 @@ export async function GET(request: Request) {
   const result = {
     dueSellerEnquiries: inquiries.length,
     dueNewBalloonQuotes: quotes.length,
+    dueNewBalloonProposalResponses: buyerResponseQuotes.length,
     duePremiumListingCheckouts: premiumListings.length,
     dueSellerAssistance: sellerAssistance.length,
     dueNewBalloonBuyerAcknowledgementRetries: newBalloonBuyerAcknowledgementRetries.length,
@@ -292,6 +301,34 @@ export async function GET(request: Request) {
       else result.failed += 1
     } catch (error) {
       console.error('New-balloon quote follow-up failed:', error)
+      result.failed += 1
+    }
+  }
+
+  for (const quote of buyerResponseQuotes) {
+    if (!adminEmail) {
+      result.configurationBlocked += 1
+      continue
+    }
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'new_balloon_proposal_response_followup',
+        entityType: 'quote_request',
+        entityId: quote.id,
+        recipientRole: 'admin',
+        to: adminEmail,
+        subject: 'AeroTrade: buyer response awaiting action',
+        html: `<h2>A new-balloon buyer response still needs action</h2>
+        <p>The buyer responded to an indicative Pasha or Schroeder proposal more than 24 hours ago, but the opportunity is still in BUYER_RESPONDED.</p>
+        <p><a href="${escapeHtml(`${siteUrl}/admin/commercial`)}">Open the commercial pipeline and record the next action</a>.</p>
+        <p>This is one operational reminder. It does not create an order, reservation, payment or contract.</p>`,
+        idempotencyKey: `new-balloon-proposal-response-followup-${quote.id}`,
+      })
+      if (delivery.duplicate) result.alreadyAccepted += 1
+      else if (delivery.success) result.accepted += 1
+      else result.failed += 1
+    } catch (error) {
+      console.error('New-balloon proposal response follow-up failed:', error)
       result.failed += 1
     }
   }

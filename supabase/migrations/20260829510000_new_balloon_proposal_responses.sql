@@ -18,6 +18,13 @@ create index if not exists new_balloon_proposal_response_events_quote_created_id
 alter table public.new_balloon_proposal_response_events enable row level security;
 revoke all on public.new_balloon_proposal_response_events from anon, authenticated;
 
+alter table public.quote_requests
+  drop constraint if exists quote_requests_status_check;
+alter table public.quote_requests
+  add constraint quote_requests_status_check check (status in (
+    'NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'BUYER_RESPONDED', 'WON', 'LOST'
+  ));
+
 create or replace function public.record_new_balloon_proposal_response(
   p_proposal_id uuid,
   p_buyer_email text,
@@ -82,7 +89,8 @@ begin
   ) returning id into v_event_id;
 
   update public.quote_requests
-     set updated_at = timezone('utc'::text, now())
+     set status = 'BUYER_RESPONDED',
+         updated_at = timezone('utc'::text, now())
    where id = v_quote_id;
 
   return query select v_event_id, v_response_type;
@@ -101,10 +109,10 @@ alter table public.commercial_notification_receipts
     'inquiry_seller_followup','inquiry_buyer_seller_response','inquiry_seller_buyer_response','quote_admin_followup','premium_listing_checkout_recovery',
     'wanted_match_buyer','listing_verification_requested','listing_verification_decision','seller_assistance_created_admin',
     'seller_assistance_admin_followup','new_balloon_proposal_buyer','new_balloon_buyer_ack','listing_watch_confirmation','listing_watch_update',
-    'listing_availability_request','new_balloon_proposal_response_admin'
+    'listing_availability_request','new_balloon_proposal_response_admin','new_balloon_proposal_response_followup'
   ));
 
 comment on table public.new_balloon_proposal_response_events is
   'One immutable, non-binding buyer response to an accepted indicative new-balloon proposal. It never creates an order, reservation, payment or contract.';
 comment on function public.record_new_balloon_proposal_response(uuid,text,text,text) is
-  'Records one idempotent response after service-side capability verification and exact buyer/proposal readback. It deliberately leaves commercial closure to an administrator.';
+  'Records one idempotent response after service-side capability verification and exact buyer/proposal readback. BUYER_RESPONDED exposes the action queue but commercial closure remains administrator-only.';

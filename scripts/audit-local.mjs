@@ -264,7 +264,7 @@ const checks = [
   {
     name: 'New-balloon buyer responses are immutable, idempotent and non-binding',
     file: 'supabase/migrations/20260829510000_new_balloon_proposal_responses.sql',
-    required: ['new_balloon_proposal_response_events', "response_type in ('INTERESTED', 'QUESTION', 'DECLINED')", 'proposal_id uuid not null unique', 'record_new_balloon_proposal_response', 'A different response is already recorded', 'grant execute on function public.record_new_balloon_proposal_response(uuid,text,text,text) to service_role', 'never creates an order, reservation, payment or contract'],
+    required: ['new_balloon_proposal_response_events', "response_type in ('INTERESTED', 'QUESTION', 'DECLINED')", 'proposal_id uuid not null unique', 'record_new_balloon_proposal_response', 'A different response is already recorded', 'grant execute on function public.record_new_balloon_proposal_response(uuid,text,text,text) to service_role', "set status = 'BUYER_RESPONDED'", 'commercial closure remains administrator-only', 'never creates an order, reservation, payment or contract'],
     forbidden: ["set status = 'WON'", "set status = 'LOST'", 'insert into public.commercial_outcomes'],
   },
   {
@@ -275,7 +275,7 @@ const checks = [
   {
     name: 'Public new-balloon response action re-reads trusted data and verifies persistence',
     file: 'src/app/new-balloon/proposal/actions.ts',
-    required: ['verifyNewBalloonProposalCapability', 'parseNewBalloonProposalResponse', "rpc('record_new_balloon_proposal_response'", "from('new_balloon_proposal_response_events')", 'Your response was processed, but AeroTrade could not verify its complete state.', 'new_balloon_proposal_response_admin'],
+    required: ['verifyNewBalloonProposalCapability', 'parseNewBalloonProposalResponse', "rpc('record_new_balloon_proposal_response'", "from('new_balloon_proposal_response_events')", "quoteReadback?.status !== 'BUYER_RESPONDED'", 'Your response was processed, but AeroTrade could not verify its complete state.', 'new_balloon_proposal_response_admin'],
     forbidden: ['quote.email =', 'commercial_outcomes', 'payment_intent'],
   },
   {
@@ -287,6 +287,11 @@ const checks = [
     name: 'Stored new-balloon requests acknowledge the buyer independently with durable evidence',
     file: 'src/app/new-balloon/actions.ts',
     required: ['sendCommercialReceiptEmail', 'buildNewBalloonBuyerAcknowledgement', "notificationType: 'new_balloon_buyer_ack'", "recipientRole: 'buyer'", 'new-balloon-buyer-ack-${requestId}', 'buyer acknowledgement could not be completed'],
+  },
+  {
+    name: 'New-balloon buyer responses receive one bounded operational follow-up',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: [".eq('status', 'BUYER_RESPONDED')", 'dueNewBalloonProposalResponses', 'new_balloon_proposal_response_followup', 'new-balloon-proposal-response-followup-${quote.id}', 'does not create an order, reservation, payment or contract'],
   },
   {
     name: 'New-balloon acknowledgement copy is transactional and non-binding',

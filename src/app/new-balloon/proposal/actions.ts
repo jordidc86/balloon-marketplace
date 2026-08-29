@@ -61,13 +61,16 @@ export async function submitNewBalloonProposalResponse(_state: NewBalloonProposa
     return { success: false, message: transitionError?.message || 'AeroTrade could not safely record this response.' }
   }
 
-  const { data: event, error: readbackError } = await admin
-    .from('new_balloon_proposal_response_events')
-    .select('id,proposal_id,quote_request_id,response_type,note,admin_notification_status')
-    .eq('id', result.event_id)
-    .eq('proposal_id', proposal.id)
-    .single()
-  if (readbackError || !event?.id || event.quote_request_id !== quote.id || event.response_type !== response.response_type || (event.note || null) !== response.note) {
+  const [{ data: event, error: readbackError }, { data: quoteReadback, error: quoteReadbackError }] = await Promise.all([
+    admin
+      .from('new_balloon_proposal_response_events')
+      .select('id,proposal_id,quote_request_id,response_type,note,admin_notification_status')
+      .eq('id', result.event_id)
+      .eq('proposal_id', proposal.id)
+      .single(),
+    admin.from('quote_requests').select('id,status,updated_at').eq('id', quote.id).single(),
+  ])
+  if (readbackError || quoteReadbackError || !event?.id || event.quote_request_id !== quote.id || event.response_type !== response.response_type || (event.note || null) !== response.note || quoteReadback?.status !== 'BUYER_RESPONDED') {
     return { success: false, message: 'Your response was processed, but AeroTrade could not verify its complete state.' }
   }
 

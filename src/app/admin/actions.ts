@@ -205,7 +205,7 @@ export async function updateAdminInquiryStatus(inquiryId: string, formData: Form
 export async function updateQuoteRequestStatus(requestId: string, formData: FormData) {
   const { supabase } = await checkAdmin()
   const status = formData.get('status')
-  const allowed = ['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'LOST']
+  const allowed = ['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'BUYER_RESPONDED', 'LOST']
   if (typeof status !== 'string' || !allowed.includes(status)) throw new Error('Invalid quote status')
 
   const { data, error } = await supabase
