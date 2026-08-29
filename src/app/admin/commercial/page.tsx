@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { CircleDollarSign, MessageSquare, Plane, TriangleAlert } from 'lucide-react'
-import { recordCommercialOutcome, updateAdminInquiryStatus, updateQuoteRequestStatus } from '../actions'
+import Link from 'next/link'
+import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
+import { recordCommercialOutcome, updateAdminInquiryStatus, updateQuoteRequestStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +24,31 @@ type Quote = {
   equipment_type: string
   status: string
   created_at: string
+}
+
+type WantedRequest = {
+  id: string
+  buyer_name: string
+  buyer_email: string
+  buyer_phone: string | null
+  category: string
+  location_preference: string | null
+  currency: string
+  budget_min_minor: number | null
+  budget_max_minor: number | null
+  details: string
+  notify_on_match: boolean
+  status: string
+  created_at: string
+}
+
+type MatchableListing = {
+  id: string
+  title: string
+  category: string
+  status: string
+  currency: string
+  price: number
 }
 
 type CommercialNotification = {
@@ -58,9 +85,11 @@ export default async function CommercialPage() {
   // This is a force-dynamic server component; the cutoff is intentionally evaluated per request.
   // eslint-disable-next-line react-hooks/purity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
-  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: matchableListings }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('quote_requests').select('id,name,email,equipment_type,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,status,created_at').order('created_at', { ascending: false }).limit(100),
@@ -69,12 +98,15 @@ export default async function CommercialPage() {
 
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
   const typedQuotes = (quotes || []) as Quote[]
+  const typedWantedRequests = (wantedRequests || []) as WantedRequest[]
+  const typedMatchableListings = (matchableListings || []) as MatchableListing[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
   const views = (events || []).filter((event) => event.event_type === 'VIEW').length
   const reveals = (events || []).filter((event) => event.event_type === 'CONTACT_REVEAL').length
   const openInquiries = typedInquiries.filter((inquiry) => openInquiryStatuses.includes(inquiry.status)).length
+  const openWanted = typedWantedRequests.filter((request) => !['CLOSED', 'SPAM'].includes(request.status)).length
   const won = typedInquiries.filter((inquiry) => inquiry.status === 'WON').length + typedQuotes.filter((quote) => quote.status === 'WON').length
   const failedNotifications = typedInquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length
     + typedNotifications.filter((notification) => notification.status === 'failed').length
@@ -100,7 +132,7 @@ export default async function CommercialPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} direct contact reveals`} />
-        <Metric title="Open opportunities" value={openInquiries + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} marketplace · ${typedQuotes.length} new balloon`} />
+        <Metric title="Open opportunities" value={openInquiries + openWanted + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
         <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Seller emails not accepted" warning={failedNotifications > 0} />
       </div>
@@ -114,6 +146,27 @@ export default async function CommercialPage() {
 
       {notificationsError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial notification evidence unavailable: {notificationsError.message}</p> : null}
       {outcomesError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial outcome evidence unavailable: {outcomesError.message}</p> : null}
+
+      <section className="rounded-2xl border bg-card overflow-hidden">
+        <div className="border-b p-6"><h2 className="text-xl font-semibold">Buyer demand without a listing</h2><p className="mt-1 text-sm text-muted-foreground">Private wanted requests and basic matches against active supply. No buyer email is sent automatically from this screen.</p></div>
+        {wantedError ? <p className="p-6 text-destructive">Wanted-demand pipeline unavailable: {wantedError.message}</p> : typedWantedRequests.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No tracked wanted-equipment requests yet.</p> : (
+          <div className="divide-y">
+            {typedWantedRequests.map((request) => {
+              const matches = typedMatchableListings.filter((listing) => listingMatchesWantedRequest(listing, request))
+              const budget = request.budget_min_minor === null && request.budget_max_minor === null
+                ? 'Budget not specified'
+                : `${request.budget_min_minor === null ? '0' : (request.budget_min_minor / 100).toLocaleString('en-IE')}–${request.budget_max_minor === null ? 'open' : (request.budget_max_minor / 100).toLocaleString('en-IE')} ${request.currency}`
+              return (
+                <div key={request.id} className="grid gap-4 p-6 lg:grid-cols-[1.2fr_1fr_auto] lg:items-start">
+                  <div><p className="font-semibold">{request.buyer_name} · {request.category}</p><a href={`mailto:${request.buyer_email}`} className="text-sm text-primary hover:underline">{request.buyer_email}</a><p className="mt-1 text-xs text-muted-foreground">{formatDate(request.created_at)} · {request.location_preference || 'No location preference'} · {budget}</p><p className="mt-3 whitespace-pre-wrap text-sm">{request.details}</p></div>
+                  <div className="space-y-2 text-sm"><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{request.status}</span><p>{request.notify_on_match ? 'Buyer consented to match email.' : 'No match-email consent.'}</p><p className="font-semibold">{matches.length} basic catalog match(es)</p>{matches.slice(0, 3).map((listing) => <Link key={listing.id} href={`/catalog/${listing.id}`} className="block text-primary hover:underline">{listing.title}</Link>)}{matches.length > 3 ? <p className="text-xs text-muted-foreground">+{matches.length - 3} more</p> : null}</div>
+                  <form action={updateWantedRequestStatus.bind(null, request.id)} className="flex gap-2"><select name="status" defaultValue={request.status} className="rounded-lg border bg-background px-3 py-2 text-sm">{['NEW', 'REVIEWING', 'MATCHED', 'CONTACTED', 'CLOSED', 'SPAM'].map((status) => <option value={status} key={status}>{status}</option>)}</select><button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button></form>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
 
       <section className="rounded-2xl border bg-card overflow-hidden">
         <div className="border-b p-6"><h2 className="text-xl font-semibold">Marketplace enquiries</h2></div>

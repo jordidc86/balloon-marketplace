@@ -63,6 +63,21 @@ const checks = [
     required: ['commercial_outcomes', "evidence_level in ('reported', 'documented', 'settled')", 'aerotrade_revenue_minor <= gross_amount_minor', 'enable row level security', 'revoke all on public.commercial_outcomes from anon, authenticated'],
   },
   {
+    name: 'Unmet buyer demand is durable, consented and private',
+    file: 'supabase/migrations/20260829150000_wanted_requests.sql',
+    required: ['wanted_requests', 'notify_on_match boolean not null default false', 'privacy_consent_at', 'wanted_requests_budget_order', 'submission_key text', 'enable row level security', 'revoke all on public.wanted_requests from anon, authenticated'],
+  },
+  {
+    name: 'Wanted demand stores before notification and is de-duplicated',
+    file: 'src/app/wanted/actions.ts',
+    required: ['parseWantedRequest(formData)', 'createWantedSubmissionKey', "from('wanted_requests')", 'duplicateCutoff', 'rateCutoff', "from('commercial_notification_receipts')", 'Wanted request ${stored.id} notification result could not be verified'],
+  },
+  {
+    name: 'Wanted demand records bounded source attribution without a raw visitor id',
+    file: 'supabase/migrations/20260829160000_wanted_request_attribution.sql',
+    required: ['referrer_host text', 'utm_source text', 'wanted_requests_attribution_idx', 'No raw visitor identifier'],
+  },
+  {
     name: 'Listing trust badges have an explicit non-airworthiness boundary',
     file: 'supabase/migrations/20260829110000_listing_verification.sql',
     required: ['listing_verifications', 'supporting_documents_checked', 'This is not an airworthiness inspection.', 'enable row level security'],
@@ -80,7 +95,7 @@ const checks = [
   {
     name: 'Admin has one evidence-based commercial pipeline',
     file: 'src/app/admin/commercial/page.tsx',
-    required: ['Commercial Pipeline', 'Open opportunities', 'Won outcomes', 'Revenue evidence', 'This is not net revenue.'],
+    required: ['Commercial Pipeline', 'Open opportunities', 'Won outcomes', 'Revenue evidence', 'This is not net revenue.', 'Buyer demand without a listing', 'listingMatchesWantedRequest'],
   },
   {
     name: 'New-balloon quotes fail closed unless the lead is durably stored',
@@ -91,6 +106,16 @@ const checks = [
     name: 'Listing detail image stays bounded on mobile',
     file: 'src/app/catalog/[id]/page.tsx',
     required: ['Number(b.is_primary) - Number(a.is_primary)', 'aspect-[4/3]', 'sm:h-[min(72vh,620px)]', 'object-contain'],
+  },
+  {
+    name: 'Broken listing images fail visibly and production audit checks real files',
+    file: 'src/components/SafeListingImage.tsx',
+    required: ['onError={() => setFailed(true)}', 'Image temporarily unavailable', 'image unavailable'],
+  },
+  {
+    name: 'Production audit distinguishes image rows from reachable files',
+    file: 'scripts/capture-marketplace-audit.mjs',
+    required: ["method: 'HEAD'", 'activeListingsWithNoReachableImage', 'inaccessibleActiveImageFiles', 'imageChecksUnknown'],
   },
   {
     name: 'Anonymous mobile navigation avoids horizontal overflow',

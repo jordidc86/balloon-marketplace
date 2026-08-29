@@ -1,9 +1,9 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone } from 'lucide-react'
 import { openBillingPortal, updateSellerInquiryStatus } from './actions'
+import SafeListingImage from '@/components/SafeListingImage'
 
 type DashboardListingImage = {
   url: string
@@ -127,7 +127,7 @@ export default async function DashboardPage() {
                     return (
                       <div key={item.id} className="flex items-center gap-4 p-4 border rounded-xl hover:bg-secondary/20 transition-colors">
                         <div className="w-16 h-16 rounded-lg overflow-hidden relative border bg-muted shrink-0">
-                          <Image src={primaryImage} alt={item.title} fill sizes="64px" className="object-cover" />
+                          <SafeListingImage src={primaryImage} alt={item.title} sizes="64px" className="object-cover" compact />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-sm text-foreground truncate">{item.title}</h3>

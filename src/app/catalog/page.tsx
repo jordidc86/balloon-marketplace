@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { Search, Lock, Filter } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Metadata } from 'next'
 import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
+import SafeListingImage from '@/components/SafeListingImage'
 
 export const metadata: Metadata = {
   title: 'Catalog | AeroTrade Marketplace',
@@ -89,6 +89,7 @@ export default async function CatalogPage({
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Marketplace Catalog</h1>
           <p className="text-muted-foreground mt-1">Browse the latest hot air balloon equipment worldwide.</p>
+          <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="mt-2 inline-flex text-sm font-semibold text-primary hover:underline">Cannot find it? Record what you need →</Link>
         </div>
 
         <div className="flex max-w-full flex-wrap items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
@@ -121,6 +122,12 @@ export default async function CatalogPage({
         </select>
         <button className="rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background">Apply</button>
       </form>
+
+      <div className="mb-8 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+        <div><p className="font-bold">The right used equipment is not here?</p><p className="mt-1 text-sm text-muted-foreground">Record your requirement for a future match, or ask AeroTrade for an approximate quote for a new Pasha or Schroeder balloon.</p></div>
+        <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg border border-primary/30 bg-background px-4 py-2 text-center text-sm font-semibold text-primary">Find it for me</Link>
+        <Link href="/new-balloon" className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Price a new balloon</Link>
+      </div>
 
       <p className="mb-4 text-sm text-muted-foreground">{rawListings?.length || 0} matching listing(s)</p>
 
@@ -171,7 +178,7 @@ export default async function CatalogPage({
             <Link href={`/catalog/${listing.id}`} key={listing.id} className="rounded-2xl border bg-card overflow-hidden group hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full">
               <div className="h-48 bg-muted relative overflow-hidden flex items-center justify-center shrink-0">
                 {primaryImage ? (
-                  <Image src={primaryImage} alt={displayTitle} fill sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <SafeListingImage src={primaryImage} alt={displayTitle} sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <Search className="w-8 h-8 text-muted-foreground/30" />
                 )}
@@ -204,9 +211,10 @@ export default async function CatalogPage({
             <h3 className="text-lg font-medium text-foreground">No equipment found</h3>
             <p className="text-muted-foreground mt-1">Check back later or try a different category.</p>
             <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
+              <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg bg-foreground px-5 py-2 text-sm font-bold text-background">Record what you need</Link>
               <Link href="/sell" className="text-primary hover:underline font-medium">Have something to sell?</Link>
               <Link href="/new-balloon" className="bg-primary px-5 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">
-                Request a new balloon quote
+                Price a new Pasha or Schroeder balloon
               </Link>
             </div>
           </div>

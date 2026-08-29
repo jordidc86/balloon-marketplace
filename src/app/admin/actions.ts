@@ -8,6 +8,7 @@ import { sendPremiumListingAlert } from '@/utils/premium-alerts'
 import { revalidatePath } from 'next/cache'
 import { isClosedInquiryStatus, normalizeInquiryStatus } from '@/utils/inquiry-safety.mjs'
 import { parseCommercialOutcome } from '@/utils/commercial-outcome.mjs'
+import { normalizeWantedRequestStatus } from '@/utils/wanted-request.mjs'
 
 async function checkAdmin() {
   const supabase = await createClient()
@@ -195,6 +196,27 @@ export async function updateQuoteRequestStatus(requestId: string, formData: Form
     .single()
 
   if (error || !data?.id || data.status !== status) throw new Error('Could not update quote status')
+  revalidatePath('/admin/commercial')
+}
+
+export async function updateWantedRequestStatus(requestId: string, formData: FormData) {
+  const { supabase } = await checkAdmin()
+  const status = normalizeWantedRequestStatus(formData.get('status'))
+  if (!status) throw new Error('Invalid wanted-request status')
+
+  const now = new Date().toISOString()
+  const { data, error } = await supabase
+    .from('wanted_requests')
+    .update({
+      status,
+      last_activity_at: now,
+      closed_at: ['CLOSED', 'SPAM'].includes(status) ? now : null,
+    })
+    .eq('id', requestId)
+    .select('id,status')
+    .single()
+
+  if (error || data?.id !== requestId || data.status !== status) throw new Error('Could not persist wanted-request status')
   revalidatePath('/admin/commercial')
 }
 

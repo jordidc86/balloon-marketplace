@@ -1,6 +1,5 @@
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
 import { Lock, MapPin, Calendar, Activity, CheckCircle2, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
@@ -11,6 +10,7 @@ import { siteUrl } from '@/utils/site'
 import { payListingFee, publishListingFree } from './actions'
 import ListingViewTracker from './ListingViewTracker'
 import BuyerInquiryForm from './BuyerInquiryForm'
+import SafeListingImage from '@/components/SafeListingImage'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -191,10 +191,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <div className="space-y-4 order-2 lg:order-1">
           <div className="relative aspect-[4/3] sm:aspect-auto sm:h-[min(72vh,620px)] sm:min-h-[260px] bg-muted rounded-2xl overflow-hidden border">
             {images.length > 0 ? (
-              <Image
+              <SafeListingImage
                 src={images[0]}
                 alt={displayTitle}
-                fill
                 sizes="(min-width: 1024px) 50vw, 100vw"
                 className="object-contain transition-all duration-700"
               />
@@ -224,7 +223,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <div className="flex gap-4 overflow-x-auto pb-2">
               {images.map((img: string, idx: number) => (
                 <div key={idx} className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden border bg-muted">
-                  <Image src={img} fill sizes="96px" className="object-cover" alt={`Thumbnail ${idx + 1} for ${displayTitle}`} />
+                  <SafeListingImage src={img} sizes="96px" className="object-cover" compact alt={`Thumbnail ${idx + 1} for ${displayTitle}`} />
                 </div>
               ))}
             </div>
@@ -351,6 +350,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 <div className="pt-3 border-t">
                   <p className="mb-3 text-center text-xs text-muted-foreground">Prefer to contact the seller directly?</p>
                   <ContactSeller listingId={typedListing.id} />
+                </div>
+                <div className="grid gap-2 border-t pt-4 sm:grid-cols-2">
+                  <Link href={`/wanted?category=${encodeURIComponent(typedListing.category)}`} className="rounded-lg border px-3 py-2 text-center text-sm font-semibold text-primary">Find another used option</Link>
+                  <Link href="/new-balloon" className="rounded-lg bg-primary/10 px-3 py-2 text-center text-sm font-semibold text-primary">Price a new Pasha or Schroeder</Link>
                 </div>
               </div>
             )}

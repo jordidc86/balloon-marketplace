@@ -34,6 +34,7 @@ export default async function Navbar() {
           
           <div className="hidden lg:flex items-center space-x-6">
             <Link href="/catalog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Marketplace</Link>
+            <Link href="/wanted" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Wanted</Link>
             <Link href="/sell" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sell Equipment</Link>
             <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Premium</Link>
             <Link href="/new-balloon" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">New Balloon Quote</Link>

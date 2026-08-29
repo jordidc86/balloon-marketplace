@@ -1,9 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Search, Flame, Wind, Clock, Lock, Plane, CheckCircle2, Database, Package, Layers, SlidersHorizontal } from "lucide-react";
 import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
 import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings';
+import SafeListingImage from '@/components/SafeListingImage';
 
 import { Metadata } from "next";
 
@@ -191,7 +191,7 @@ export default async function Home() {
                 <Link href={`/catalog/${listing.id}`} key={listing.id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative">
                   <div className="h-56 bg-slate-100 relative overflow-hidden flex items-center justify-center shrink-0">
                     {primaryImage ? (
-                      <Image src={primaryImage} alt={displayTitle} fill sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <SafeListingImage src={primaryImage} alt={displayTitle} sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <Search className="w-8 h-8 text-slate-300" />
                     )}
@@ -234,6 +234,13 @@ export default async function Home() {
               </Link>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="border-t bg-white py-10">
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center lg:px-8">
+          <div><p className="text-sm font-bold uppercase tracking-wider text-primary">Used or new</p><h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">Do not stop because today’s catalog is not the right fit.</h2><p className="mt-3 max-w-3xl text-slate-600">Tell AeroTrade what used equipment you need, or request an approximate price direction for a new Pasha or Schroeder balloon. The commercial path continues either way.</p></div>
+          <div className="flex flex-col gap-3 sm:flex-row"><Link href="/wanted" className="rounded-xl border border-slate-300 px-5 py-3 text-center font-bold text-slate-800 hover:border-primary hover:text-primary">Find used equipment</Link><Link href="/new-balloon" className="rounded-xl bg-primary px-5 py-3 text-center font-bold text-white hover:bg-primary/90">Price a new balloon</Link></div>
         </div>
       </section>
 

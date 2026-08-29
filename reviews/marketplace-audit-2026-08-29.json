@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T06:14:53.586Z",
+  "capturedAt": "2026-08-29T06:35:16.103Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T06:14:53.586Z"
+    "since": "2026-07-30T06:35:16.103Z"
   },
   "supply": {
     "listingsTotal": 14,
@@ -38,6 +38,10 @@
     "activeWithoutImages": 0,
     "activeWithoutExactlyOnePrimaryImage": 0,
     "activeWithAtLeastThreeImages": 8,
+    "activeImageFilesChecked": 96,
+    "inaccessibleActiveImageFiles": 8,
+    "imageChecksUnknown": 0,
+    "activeListingsWithNoReachableImage": 1,
     "flightListings": 9,
     "flightFieldCoverage": {
       "manufacturer": {
@@ -94,6 +98,12 @@
     "marketplaceLeadPipelineAvailable": true,
     "marketplaceInquiries": 0,
     "marketplaceInquiriesByStatus": {},
+    "wantedRequests": 0,
+    "wantedRequests30d": 0,
+    "wantedRequestsByStatus": {},
+    "wantedRequestsByCategory": {},
+    "wantedRequestsByUtmSource": {},
+    "wantedRequestsWithMatchConsent": 0,
     "failedSellerNotifications": 0,
     "closedMarketplaceTransactionsKnown": 0,
     "commercialOutcomes": 0,

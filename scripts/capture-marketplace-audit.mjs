@@ -38,10 +38,11 @@ const [
   verifications,
   commercialNotifications,
   commercialOutcomes,
+  wantedRequests,
 ] = await Promise.all([
   rows('users', 'id,is_premium,premium_source,created_at'),
   rows('listings', 'id,seller_id,category,status,price,currency,condition,location_country,contact_phone,details,created_at,updated_at,public_at,instagram_posted,facebook_posted'),
-  rows('images', 'listing_id,is_primary'),
+  rows('images', 'listing_id,url,is_primary'),
   rows('listing_events', 'listing_id,user_id,event_type,created_at'),
   rows('quote_requests', 'id,status,name,email,phone,country,manufacturer_preference,equipment_type,volume_or_capacity,intended_use,budget_range,timeline,colors_or_branding,notes,created_at,updated_at'),
   rows('newsletter_runs', 'id,status,dry_run,recipients_count,sent_count,failed_count,created_at,completed_at'),
@@ -52,6 +53,7 @@ const [
   rows('listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'),
   rows('commercial_notification_receipts', 'id,notification_type,entity_type,status,created_at,attempted_at,accepted_at'),
   rows('commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,closed_at'),
+  rows('wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'),
 ])
 
 const countBy = (items, key) => items.reduce((counts, item) => {
@@ -69,6 +71,24 @@ for (const image of images) {
   if (image.is_primary) current.primary += 1
   imageStats.set(image.listing_id, current)
 }
+
+const activeListingIds = new Set(activeListings.map((listing) => listing.id))
+const activeImageRows = images.filter((image) => activeListingIds.has(image.listing_id))
+const imageAvailability = await Promise.all(activeImageRows.map(async (image) => {
+  try {
+    const response = await fetch(image.url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(8_000),
+      headers: { Accept: 'image/*' },
+    })
+    const contentType = response.headers.get('content-type') || ''
+    return { listingId: image.listing_id, available: response.ok && contentType.startsWith('image/'), unknown: false }
+  } catch {
+    return { listingId: image.listing_id, available: false, unknown: true }
+  }
+}))
+const listingsWithReachableImage = new Set(imageAvailability.filter((probe) => probe.available).map((probe) => probe.listingId))
 
 const detailsPresent = (listing, field) => {
   const value = listing.details?.[field]
@@ -127,6 +147,10 @@ const result = {
     activeWithoutImages: activeListings.filter((listing) => !imageStats.get(listing.id)?.count).length,
     activeWithoutExactlyOnePrimaryImage: activeListings.filter((listing) => imageStats.get(listing.id)?.primary !== 1).length,
     activeWithAtLeastThreeImages: activeListings.filter((listing) => (imageStats.get(listing.id)?.count || 0) >= 3).length,
+    activeImageFilesChecked: imageAvailability.length,
+    inaccessibleActiveImageFiles: imageAvailability.filter((probe) => !probe.available && !probe.unknown).length,
+    imageChecksUnknown: imageAvailability.filter((probe) => probe.unknown).length,
+    activeListingsWithNoReachableImage: activeListings.filter((listing) => !listingsWithReachableImage.has(listing.id)).length,
     flightListings: flightListings.length,
     flightFieldCoverage,
     activeWithPhone: activeListings.filter((listing) => Boolean(listing.contact_phone)).length,
@@ -155,6 +179,12 @@ const result = {
     marketplaceLeadPipelineAvailable: true,
     marketplaceInquiries: inquiries.length,
     marketplaceInquiriesByStatus: countBy(inquiries, 'status'),
+    wantedRequests: wantedRequests.length,
+    wantedRequests30d: wantedRequests.filter((request) => request.created_at >= since30d).length,
+    wantedRequestsByStatus: countBy(wantedRequests, 'status'),
+    wantedRequestsByCategory: countBy(wantedRequests, 'category'),
+    wantedRequestsByUtmSource: countBy(wantedRequests, 'utm_source'),
+    wantedRequestsWithMatchConsent: wantedRequests.filter((request) => request.notify_on_match).length,
     failedSellerNotifications: inquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length,
     closedMarketplaceTransactionsKnown: inquiries.filter((inquiry) => inquiry.status === 'WON').length,
     commercialOutcomes: commercialOutcomes.length,
