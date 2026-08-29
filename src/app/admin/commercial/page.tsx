@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/utils/new-balloon-manufacturers.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
+import { buildComparableBuyerFunnel } from '@/utils/buyer-funnel.mjs'
 import { recordCommercialOutcome, requestListingAvailabilityConfirmation, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -351,12 +352,13 @@ export default async function CommercialPage() {
     outcomes: typedOutcomes,
   })
   const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
-  const enquiryCtaClicks = typedListingEvents.filter((event) => event.event_type === 'ENQUIRY_CTA_CLICKED').length
-  const enquiryFormViews = typedListingEvents.filter((event) => event.event_type === 'ENQUIRY_FORM_VIEWED').length
-  const enquiryFormStarts = typedListingEvents.filter((event) => event.event_type === 'ENQUIRY_FORM_STARTED').length
   const reveals = typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL').length
   const sharedLinkViews = typedListingEvents.filter((event) => event.event_type === 'VIEW' && ['seller_share', 'listing_share'].includes(event.utm_source || '')).length
   const recentInquiries = typedInquiries.filter((inquiry) => inquiry.created_at >= thirtyDaysAgo)
+  const comparableBuyerFunnel = buildComparableBuyerFunnel({ events: typedListingEvents, inquiries: typedInquiries, now: new Date(nowMs) })
+  const enquiryCtaClicks = comparableBuyerFunnel.ctaClicks
+  const enquiryFormViews = comparableBuyerFunnel.formViews
+  const enquiryFormStarts = comparableBuyerFunnel.formStarts
   const recentQuotes = typedQuotes.filter((quote) => quote.created_at >= thirtyDaysAgo)
   const recentWanted = typedWantedRequests.filter((request) => request.created_at >= thirtyDaysAgo)
   const viewJourneyKeys = new Set(typedListingEvents.filter((event) => event.event_type === 'VIEW' && event.journey_key).map((event) => event.journey_key as string))
@@ -461,11 +463,29 @@ export default async function CommercialPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric title="Enquiry form starts" value={enquiryFormStarts} icon={<MessageSquare className="h-5 w-5" />} detail={`${enquiryCtaClicks} CTA clicks · ${enquiryFormViews} form views · ${recentInquiries.length} stored enquiries`} />
+        <Metric title="Enquiry form starts" value={enquiryFormStarts} icon={<MessageSquare className="h-5 w-5" />} detail={`${enquiryCtaClicks} CTA clicks · ${enquiryFormViews} form views · ${comparableBuyerFunnel.storedInquiries} stored enquiries in comparable cohort`} />
         <Metric title="Confirmed listing watches" value={activeListingWatchers} icon={<BellRing className="h-5 w-5" />} detail={`${pendingListingWatchers} awaiting double opt-in`} />
         <Metric title="Watch updates accepted" value={acceptedListingWatchUpdates} icon={<BellRing className="h-5 w-5" />} detail="Material listing changes accepted by the email provider" />
         <Metric title="Watch updates failed" value={failedListingWatchUpdates} icon={<TriangleAlert className="h-5 w-5" />} detail="Retryable without repeating accepted alerts" warning={failedListingWatchUpdates > 0} />
       </div>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">Comparable buyer conversion cohort</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Only events collected after the complete listing-to-enquiry instrumentation went live are compared. Earlier views remain visible in traffic totals but no longer create a false 0% funnel.</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <FunnelStep label="Comparable views" value={comparableBuyerFunnel.views} />
+          <FunnelStep label="CTA clicks" value={comparableBuyerFunnel.ctaClicks} />
+          <FunnelStep label="Form views" value={comparableBuyerFunnel.formViews} />
+          <FunnelStep label="Form starts" value={comparableBuyerFunnel.formStarts} />
+          <FunnelStep label="Stored enquiries" value={comparableBuyerFunnel.storedInquiries} />
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <ConversionRate label="View → CTA" value={comparableBuyerFunnel.rates.viewToCta} />
+          <ConversionRate label="Form view → start" value={comparableBuyerFunnel.rates.formViewToStart} />
+          <ConversionRate label="Form start → stored" value={comparableBuyerFunnel.rates.formStartToStoredInquiry} />
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">Comparable since {formatDate(comparableBuyerFunnel.comparableFrom)} · {comparableBuyerFunnel.observedDays} observed day(s) · {comparableBuyerFunnel.excludedEarlierEvents} earlier event(s) excluded from rate denominators.</p>
+      </section>
 
       <section className="rounded-2xl border bg-card p-6">
         <h2 className="text-xl font-semibold">Listing availability evidence</h2>
@@ -760,6 +780,10 @@ function Metric({ title, value, detail, icon, warning = false }: { title: string
 
 function FunnelStep({ label, value }: { label: string; value: number }) {
   return <div className="rounded-xl border bg-background p-4"><p className="text-xs font-medium text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-bold">{value}</p></div>
+}
+
+function ConversionRate({ label, value }: { label: string; value: number | null }) {
+  return <div className="rounded-xl border bg-muted/20 p-4"><p className="text-xs font-medium text-muted-foreground">{label}</p><p className="mt-2 text-xl font-bold">{value === null ? 'Awaiting traffic' : `${(value * 100).toFixed(1)}%`}</p></div>
 }
 
 function formatCurrencyTotals(totals: Record<string, number>) {

@@ -125,6 +125,16 @@ const checks = [
     required: ['IntersectionObserver', "recordIntent('ENQUIRY_FORM_VIEWED')", "recordIntent('ENQUIRY_FORM_STARTED')", 'Commercial measurement must never block an enquiry.'],
   },
   {
+    name: 'Mobile buyers retain a visible tracked enquiry action without obscuring the form',
+    file: 'src/app/catalog/[id]/MobileBuyerAction.tsx',
+    required: ['IntersectionObserver', 'formVisible', 'BuyerIntentLink', '#buyer-enquiry', 'no account required'],
+  },
+  {
+    name: 'Buyer conversion rates exclude incompatible pre-instrumentation traffic',
+    file: 'src/utils/buyer-funnel.mjs',
+    required: ['buyerFunnelMeasurementStartedAt', 'comparableFrom', 'excludedEarlierEvents', 'viewToCta', 'formStartToStoredInquiry'],
+  },
+  {
     name: 'Marketplace negotiation is private, non-binding and atomically seller-authorized',
     file: 'supabase/migrations/20260829320000_inquiry_negotiation_events.sql',
     required: ['marketplace_inquiry_offer_events', 'record_initial_marketplace_offer', 'record_seller_inquiry_response', 'for update of inquiry', "grant execute on function public.record_seller_inquiry_response", 'buyer_notification_status', 'never reserves equipment, executes payment or forms a sale contract'],

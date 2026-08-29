@@ -6,6 +6,7 @@ import path from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { buildNewBalloonManufacturerFunnel } from '../src/utils/new-balloon-manufacturers.mjs'
 import { getListingAvailabilityState } from '../src/utils/listing-availability.mjs'
+import { buildComparableBuyerFunnel } from '../src/utils/buyer-funnel.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only after explicit approval for a read-only production audit.')
@@ -161,6 +162,7 @@ const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   outcomes: commercialOutcomes,
 })
 const recentListingWatchers = listingWatchers.filter((watcher) => watcher.created_at >= since30d)
+const comparableBuyerFunnel = buildComparableBuyerFunnel({ events, inquiries, now })
 const outcomeInquiryIds = new Set(commercialOutcomes.filter((outcome) => outcome.entity_type === 'marketplace_inquiry').map((outcome) => outcome.entity_id))
 const reportedAeroTradeListingSales = listingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE')
 const pendingReportedSaleReview = reportedAeroTradeListingSales.filter((event) => event.marketplace_inquiry_id && !outcomeInquiryIds.has(event.marketplace_inquiry_id))
@@ -241,9 +243,10 @@ const result = {
     enquiryCtaClicks30d: recentEnquiryCtaClicks.length,
     enquiryFormViews30d: recentEnquiryFormViews.length,
     enquiryFormStarts30d: recentEnquiryFormStarts.length,
-    viewToEnquiryCtaRate: recentViews.length ? Number((recentEnquiryCtaClicks.length / recentViews.length).toFixed(4)) : 0,
-    formViewToStartRate: recentEnquiryFormViews.length ? Number((recentEnquiryFormStarts.length / recentEnquiryFormViews.length).toFixed(4)) : 0,
-    formStartToStoredInquiryRate: recentEnquiryFormStarts.length ? Number((recentInquiries.length / recentEnquiryFormStarts.length).toFixed(4)) : 0,
+    buyerFunnelComparable: comparableBuyerFunnel,
+    viewToEnquiryCtaRate: comparableBuyerFunnel.rates.viewToCta,
+    formViewToStartRate: comparableBuyerFunnel.rates.formViewToStart,
+    formStartToStoredInquiryRate: comparableBuyerFunnel.rates.formStartToStoredInquiry,
     catalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d).length,
     zeroResultCatalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.zero_results).length,
     catalogSearchesByCategory30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'category'),

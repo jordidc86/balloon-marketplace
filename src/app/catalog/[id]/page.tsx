@@ -14,6 +14,7 @@ import SafeListingImage from '@/components/SafeListingImage'
 import ListingShare from '@/components/ListingShare'
 import ListingWatchForm from './ListingWatchForm'
 import BuyerIntentLink from './BuyerIntentLink'
+import MobileBuyerAction from './MobileBuyerAction'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 import {
   buildListingBreadcrumbJsonLd,
@@ -177,7 +178,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const newBalloonHref = `/new-balloon?${newBalloonParams.toString()}`
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 pb-28 pt-12 sm:px-6 sm:pb-12 lg:px-8">
       <ListingViewTracker listingId={typedListing.id} />
       {/* Public-only structured data. Premium previews and owner-only drafts never leak into it. */}
       {isPubliclyIndexable && canViewFully && structuredData.length > 0 && (
@@ -453,6 +454,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
         </div>
       </div>
+      {canViewFully && !isOwner && !isAdmin ? <MobileBuyerAction listingId={typedListing.id} /> : null}
     </div>
   )
 }
