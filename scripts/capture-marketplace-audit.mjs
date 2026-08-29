@@ -208,6 +208,7 @@ const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filte
 const buyerEarlyAccessCheckoutRecoveries = commercialNotifications.filter((notification) => notification.notification_type === 'buyer_early_access_checkout_recovery')
 const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const listingAvailabilityRequests = commercialNotifications.filter((notification) => notification.notification_type === 'listing_availability_request')
+const sellerAvailabilityDigests = commercialNotifications.filter((notification) => notification.notification_type === 'seller_availability_digest')
 const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   quotes,
   proposals: newBalloonProposals,
@@ -261,6 +262,9 @@ const result = {
       requestReceipts: listingAvailabilityRequests.length,
       acceptedRequests: listingAvailabilityRequests.filter((request) => request.status === 'accepted').length,
       failedRequests: listingAvailabilityRequests.filter((request) => request.status === 'failed').length,
+      sellerDigestReceipts: sellerAvailabilityDigests.length,
+      acceptedSellerDigests: sellerAvailabilityDigests.filter((request) => request.status === 'accepted').length,
+      failedSellerDigests: sellerAvailabilityDigests.filter((request) => request.status === 'failed').length,
       caveat: 'Counts are grouped without seller identifiers. A request is delivery evidence, not seller confirmation; only a seller-authenticated confirmation makes availability current.',
     },
     listingClosures: {

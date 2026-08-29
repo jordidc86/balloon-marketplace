@@ -5,7 +5,7 @@ import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/utils/new-balloon-manufacturers.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '@/utils/buyer-funnel.mjs'
-import { recordCommercialOutcome, recordCommercialUnitEconomics, requestListingAvailabilityConfirmation, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
+import { recordCommercialOutcome, recordCommercialUnitEconomics, requestSellerAvailabilityDigest, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -267,10 +267,10 @@ const openInquiryStatuses = ['NEW', 'SELLER_NOTIFIED', 'CONTACTED', 'QUALIFIED',
 export default async function CommercialPage() {
   const supabase = await createAdminClient()
   // This is a force-dynamic server component; the cutoff is intentionally evaluated per request.
-  // eslint-disable-next-line react-hooks/purity
+  /* eslint-disable react-hooks/purity */
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
-  // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
+  /* eslint-enable react-hooks/purity */
   const defaultProposalValidUntil = new Date(nowMs + 30 * 86_400_000).toISOString().slice(0, 10)
   const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: proposalResponses, error: proposalResponsesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }, { data: socialPublicationReceipts, error: socialPublicationError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,listing_id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(id,title)').order('created_at', { ascending: false }).limit(100),
@@ -343,10 +343,21 @@ export default async function CommercialPage() {
   const premiumRecoveryByListing = new Map(typedNotifications
     .filter((notification) => notification.notification_type === 'premium_listing_checkout_recovery')
     .map((notification) => [notification.entity_id, notification.status]))
-  const availabilityRequestByListing = new Map<string, CommercialNotification>()
-  for (const notification of typedNotifications.filter((item) => item.notification_type === 'listing_availability_request')) {
-    if (!availabilityRequestByListing.has(notification.entity_id)) availabilityRequestByListing.set(notification.entity_id, notification)
+  const availabilityDigestBySeller = new Map<string, CommercialNotification>()
+  for (const notification of typedNotifications.filter((item) => item.notification_type === 'seller_availability_digest')) {
+    if (!availabilityDigestBySeller.has(notification.entity_id)) availabilityDigestBySeller.set(notification.entity_id, notification)
   }
+  const availabilityDueBySeller = typedSellerPipelineListings
+    .filter((listing) => (
+      ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(listing.status)
+      && !getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), new Date(nowMs)).publiclyFresh
+    ))
+    .reduce<Map<string, SellerPipelineListing[]>>((bySeller, listing) => {
+      const due = bySeller.get(listing.seller_id) || []
+      due.push(listing)
+      bySeller.set(listing.seller_id, due)
+      return bySeller
+    }, new Map())
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
   const typedLifecycleEvents = (lifecycleEvents || []) as unknown as ListingLifecycleEvent[]
   const typedIndexingReceipts = (indexingReceipts || []) as IndexingSubmissionReceipt[]
@@ -562,9 +573,11 @@ export default async function CommercialPage() {
               <Metric title="Confirmation expired" value={activeListingsWithStaleAvailability} icon={<TriangleAlert className="h-5 w-5" />} detail="Last confirmation is older than 90 days" warning={activeListingsWithStaleAvailability > 0} />
             </div>
             <div className="mt-5 divide-y rounded-xl border">
-              {typedSellerPipelineListings.filter((listing) => ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(listing.status) && !getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), new Date(nowMs)).publiclyFresh).map((listing) => {
-                const request = availabilityRequestByListing.get(listing.id)
-                return <div key={listing.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">{listing.title}</p><p className="text-xs text-muted-foreground">{latestAvailabilityByListing.has(listing.id) ? 'Confirmation expired' : 'Never confirmed'}{request ? ` · request ${request.status}` : ' · no request sent'}</p></div>{request?.status === 'accepted' ? <span className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700">Request accepted by email provider</span> : <form action={requestListingAvailabilityConfirmation.bind(null, listing.id)}><button className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted">Request confirmation</button></form>}</div>
+              {Array.from(availabilityDueBySeller.entries()).map(([sellerId, dueListings]) => {
+                const request = availabilityDigestBySeller.get(sellerId)
+                const retryAt = request?.next_attempt_at ? new Date(request.next_attempt_at) : null
+                const waitingForRetry = Boolean(retryAt && retryAt.getTime() > nowMs)
+                return <div key={sellerId} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-semibold">{sellerEmailById.get(sellerId) || 'Seller contact unavailable'} · {dueListings.length} active listing{dueListings.length === 1 ? '' : 's'}</p><ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground">{dueListings.map((listing) => <li key={listing.id}>{listing.title} · {latestAvailabilityByListing.has(listing.id) ? 'confirmation expired' : 'never confirmed'}</li>)}</ul>{request ? <p className="mt-1 text-xs text-muted-foreground">Latest grouped request: {request.status} · {request.delivery_attempts} attempt{request.delivery_attempts === 1 ? '' : 's'}</p> : null}</div>{request?.status === 'accepted' ? <span className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700">One grouped request accepted</span> : waitingForRetry ? <span className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-800">Safe retry after {formatDate(request!.next_attempt_at!)}</span> : sellerEmailById.has(sellerId) ? <form action={requestSellerAvailabilityDigest.bind(null, sellerId)}><button className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted">{request ? 'Retry grouped request' : `Request all ${dueListings.length} confirmations`}</button></form> : <span className="text-xs font-semibold text-destructive">Seller email missing</span>}</div>
               })}
             </div>
           </>

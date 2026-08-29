@@ -567,6 +567,16 @@ const checks = [
     required: ['requestListingAvailabilityConfirmation', 'listingAvailabilityRequestIdempotencyKey', "notificationType: 'listing_availability_request'", 'This request does not change the advert'],
   },
   {
+    name: 'Seller availability digests extend the existing private delivery ledger',
+    file: 'supabase/migrations/20260829550000_seller_availability_digest.sql',
+    required: ["'seller_availability_digest'", "'user'", 'commercial_notification_receipts_notification_type_check', 'commercial_notification_receipts_entity_type_check', 'never changes an advert'],
+  },
+  {
+    name: 'One grouped seller request is cycle-bound, anti-churn and provider-audited',
+    file: 'src/app/admin/actions.ts',
+    required: ['requestSellerAvailabilityDigest', 'sellerAvailabilityDigestIdempotencyKey', 'changedSellerAvailabilityDigestIsCoolingDown', "notificationType: 'seller_availability_digest'", "entityType: 'user'", 'Confirm all active listings available', 'Seller availability digest acceptance was not verified by readback'],
+  },
+  {
     name: 'Listing verification decisions store only closed evidence categories and atomic audit events',
     file: 'supabase/migrations/20260829280000_listing_verification_workflow.sql',
     required: ['listing_verification_events', 'request_listing_verification', 'decide_listing_verification', 'for update', "grant execute on function public.request_listing_verification", 'stores no document copy'],

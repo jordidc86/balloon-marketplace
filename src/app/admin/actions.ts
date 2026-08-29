@@ -20,6 +20,7 @@ import { newBalloonProposalFingerprint, parseNewBalloonProposal } from '@/utils/
 import { newBalloonProposalResponseExpiry, signNewBalloonProposalCapability } from '@/utils/new-balloon-proposal-capability.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { listingAvailabilityRequestIdempotencyKey } from '@/utils/listing-availability-request.mjs'
+import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityDigestIdempotencyKey } from '@/utils/seller-availability-digest.mjs'
 
 async function checkAdmin() {
   const sessionSupabase = await createClient()
@@ -488,6 +489,89 @@ export async function requestListingAvailabilityConfirmation(listingId: string) 
       : delivery.reason === 'exhausted'
         ? 'Availability request delivery is exhausted and needs manual review'
         : 'Availability request was stored but provider acceptance was not confirmed')
+  }
+
+  revalidatePath('/admin/commercial')
+}
+
+export async function requestSellerAvailabilityDigest(sellerId: string) {
+  const { supabase } = await checkAdmin()
+  const [{ data: seller, error: sellerError }, { data: activeListings, error: listingsError }] = await Promise.all([
+    supabase.from('users').select('id,email').eq('id', sellerId).single(),
+    supabase
+      .from('listings')
+      .select('id,title,status')
+      .eq('seller_id', sellerId)
+      .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+      .order('id'),
+  ])
+  if (sellerError || !seller?.id || !seller.email) throw new Error('Seller contact is unavailable')
+  if (listingsError || !activeListings?.length) throw new Error('This seller has no active listings')
+
+  const listingIds = activeListings.map((listing) => listing.id)
+  const { data: confirmationRows, error: confirmationError } = await supabase
+    .from('listing_availability_confirmations')
+    .select('id,listing_id,confirmed_at')
+    .in('listing_id', listingIds)
+    .order('confirmed_at', { ascending: false })
+  if (confirmationError) throw new Error('Availability evidence could not be read')
+  const latestConfirmationByListing = new Map<string, { id: string; confirmed_at: string }>()
+  for (const confirmation of confirmationRows || []) {
+    if (!latestConfirmationByListing.has(confirmation.listing_id)) {
+      latestConfirmationByListing.set(confirmation.listing_id, confirmation)
+    }
+  }
+  const dueListings = activeListings.filter((listing) => (
+    !getListingAvailabilityState(latestConfirmationByListing.get(listing.id)?.confirmed_at).publiclyFresh
+  ))
+  if (dueListings.length === 0) throw new Error('Every active listing for this seller has current availability evidence')
+
+  const idempotencyKey = sellerAvailabilityDigestIdempotencyKey(seller.id, dueListings.map((listing) => ({
+    listingId: listing.id,
+    confirmationId: latestConfirmationByListing.get(listing.id)?.id || null,
+  })))
+  const { data: latestDigest, error: digestError } = await supabase
+    .from('commercial_notification_receipts')
+    .select('idempotency_key,created_at')
+    .eq('notification_type', 'seller_availability_digest')
+    .eq('entity_type', 'user')
+    .eq('entity_id', seller.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (digestError) throw new Error('Earlier seller availability requests could not be read')
+  if (changedSellerAvailabilityDigestIsCoolingDown(latestDigest, idempotencyKey)) {
+    throw new Error('The seller received a different availability digest within the last 30 days; a changed digest is blocked to prevent repeated emails')
+  }
+
+  const listingItems = dueListings
+    .map((listing) => `<li>${escapeHtml(listing.title)}</li>`)
+    .join('')
+  const delivery = await sendCommercialReceiptEmail(supabase, {
+    notificationType: 'seller_availability_digest',
+    entityType: 'user',
+    entityId: seller.id,
+    recipientRole: 'seller',
+    to: seller.email,
+    subject: `Please confirm your ${dueListings.length} active AeroTrade listing${dueListings.length === 1 ? '' : 's'}`,
+    html: `<p>You have ${dueListings.length} active AeroTrade advert${dueListings.length === 1 ? '' : 's'} without a recent owner availability confirmation:</p><ul>${listingItems}</ul><p>Please sign in and use <strong>Confirm all active listings available</strong> once in your dashboard:</p><p><a href="${escapeHtml(`${siteUrl}/dashboard`)}">Open your AeroTrade dashboard</a></p><p>This request does not change publication, price, ownership or payment. AeroTrade records one dated confirmation for each advert only after your authenticated action.</p>`,
+    idempotencyKey,
+  })
+  if (!delivery.success || !delivery.providerMessageId) {
+    throw new Error(delivery.reason === 'deferred'
+      ? 'The seller digest is awaiting its safe retry window'
+      : delivery.reason === 'exhausted'
+        ? 'Seller digest delivery is exhausted and needs manual review'
+        : 'Seller digest was stored but provider acceptance was not confirmed')
+  }
+
+  const { data: receipt, error: receiptError } = await supabase
+    .from('commercial_notification_receipts')
+    .select('status,provider_message_id,idempotency_key')
+    .eq('idempotency_key', idempotencyKey)
+    .single()
+  if (receiptError || receipt?.status !== 'accepted' || receipt.provider_message_id !== delivery.providerMessageId) {
+    throw new Error('Seller availability digest acceptance was not verified by readback')
   }
 
   revalidatePath('/admin/commercial')
