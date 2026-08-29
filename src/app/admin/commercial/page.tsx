@@ -92,6 +92,7 @@ type CommercialNotification = {
   id: string
   notification_type: string
   entity_type: string
+  entity_id: string
   status: string
   created_at: string
 }
@@ -135,7 +136,7 @@ export default async function CommercialPage() {
     supabase.from('users').select('id,email').limit(500),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,created_at').gte('created_at', thirtyDaysAgo),
-    supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,notes,closed_at').order('closed_at', { ascending: false }).limit(200),
   ])
 
@@ -148,6 +149,9 @@ export default async function CommercialPage() {
   const typedSellerPipelineListings = (sellerPipelineListings || []) as SellerPipelineListing[]
   const typedSellerUsers = (sellerUsers || []) as SellerUser[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
+  const premiumRecoveryByListing = new Map(typedNotifications
+    .filter((notification) => notification.notification_type === 'premium_listing_checkout_recovery')
+    .map((notification) => [notification.entity_id, notification.status]))
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
   const views = (events || []).filter((event) => event.event_type === 'VIEW').length
@@ -240,7 +244,10 @@ export default async function CommercialPage() {
               <div className="border-b px-4 py-3"><h3 className="font-semibold">Recovery queue</h3><p className="text-xs text-muted-foreground">Only evidence-backed interruptions are shown. Contact remains a manual decision.</p></div>
               {pendingPaymentListings.length === 0 && stalledFormStarts.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No seller activation interruption currently needs review.</p> : (
                 <div className="divide-y">
-                  {pendingPaymentListings.map((listing) => <div key={listing.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">Premium payment incomplete · {listing.title}</p><p className="text-xs text-muted-foreground">Stored {formatDate(listing.created_at)} · seller can now resume securely from their dashboard.</p></div><a href={`mailto:${listing.contact_email}`} className="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted"><CreditCard className="h-4 w-4" />Contact manually</a></div>)}
+                  {pendingPaymentListings.map((listing) => {
+                    const recoveryStatus = premiumRecoveryByListing.get(listing.id)
+                    return <div key={listing.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">Premium payment incomplete · {listing.title}</p><p className="text-xs text-muted-foreground">Stored {formatDate(listing.created_at)} · seller can resume securely from their dashboard.</p>{recoveryStatus ? <p className={`mt-1 text-xs font-semibold ${recoveryStatus === 'failed' ? 'text-destructive' : 'text-emerald-700'}`}>Automatic recovery: {recoveryStatus}</p> : null}</div>{recoveryStatus === 'accepted' ? <span className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700"><CreditCard className="h-4 w-4" />Reminder accepted</span> : <a href={`mailto:${listing.contact_email}`} className="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted"><CreditCard className="h-4 w-4" />Contact manually</a>}</div>
+                  })}
                   {stalledFormStarts.map((event) => <div key={event.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">Listing form started but no later submission</p><p className="text-xs text-muted-foreground">Last start {formatDate(event.created_at)} · no listing created afterwards.</p></div>{sellerEmailById.get(event.seller_id) ? <a href={`mailto:${sellerEmailById.get(event.seller_id)}`} className="rounded-lg border px-3 py-2 text-center text-sm font-semibold hover:bg-muted">Contact manually</a> : null}</div>)}
                 </div>
               )}

@@ -8,8 +8,17 @@ import {
 
 test('seller funnel accepts only the closed stage vocabulary', () => {
   assert.equal(normalizeSellerFunnelStage('FORM_STARTED'), 'FORM_STARTED')
+  assert.equal(normalizeSellerFunnelStage('CHECKOUT_RECOVERY_SENT'), 'CHECKOUT_RECOVERY_SENT')
   assert.equal(normalizeSellerFunnelStage('PAYMENT_CONFIRMED', true), null)
   assert.equal(normalizeSellerFunnelStage('send_everyone_an_email'), null)
+})
+
+test('one checkout recovery notification is measured per Premium listing', () => {
+  const first = sellerFunnelEventKey({ sellerId: 'seller-123', listingId: 'listing-456', stage: 'CHECKOUT_RECOVERY_SENT' })
+  const duplicate = sellerFunnelEventKey({ sellerId: 'seller-123', listingId: 'listing-456', stage: 'CHECKOUT_RECOVERY_SENT' })
+  const otherListing = sellerFunnelEventKey({ sellerId: 'seller-123', listingId: 'listing-789', stage: 'CHECKOUT_RECOVERY_SENT' })
+  assert.equal(first, duplicate)
+  assert.notEqual(first, otherListing)
 })
 
 test('seller intent is daily-deduplicated without retaining seller identifiers in the key', () => {

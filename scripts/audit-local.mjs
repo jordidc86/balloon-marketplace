@@ -180,7 +180,12 @@ const checks = [
   {
     name: 'Open commercial opportunities receive one evidence-backed operational follow-up',
     file: 'src/app/api/cron/opportunity-followup/route.ts',
-    required: ['getOpportunityFollowupCutoff', 'openInquiryStatuses', 'sendCommercialReceiptEmail', 'inquiry-seller-followup-', 'quote-admin-followup-', 'single operational reminder'],
+    required: ['getOpportunityFollowupCutoff', 'openInquiryStatuses', 'sendCommercialReceiptEmail', 'inquiry-seller-followup-', 'quote-admin-followup-', 'premium-listing-checkout-recovery-', 'single operational reminder'],
+  },
+  {
+    name: 'Abandoned Premium listing checkout receives one non-destructive recovery path',
+    file: 'supabase/migrations/20260829250000_premium_listing_checkout_recovery.sql',
+    required: ['premium_listing_checkout_recovery', 'CHECKOUT_RECOVERY_SENT', 'stores no message body, email address', 'seller_funnel_listing_stage_consistency'],
   },
   {
     name: 'Listing publication requires a reachable image from trusted storage',

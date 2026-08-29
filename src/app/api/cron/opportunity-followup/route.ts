@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { escapeHtml } from '@/utils/html'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { getOpportunityFollowupCutoff, openInquiryStatuses, openQuoteStatuses } from '@/utils/opportunity-followup.mjs'
+import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 import { siteUrl } from '@/utils/site'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +14,15 @@ type Inquiry = {
   status: string
   last_activity_at: string
   listings: { id: string; title: string; contact_email: string } | Array<{ id: string; title: string; contact_email: string }> | null
+}
+
+type PremiumListingRecovery = {
+  id: string
+  seller_id: string
+  title: string
+  contact_email: string
+  status: 'PENDING_PAYMENT'
+  created_at: string
 }
 
 const isAuthorized = (request: Request) => {
@@ -33,7 +43,7 @@ export async function GET(request: Request) {
   const commit = new URL(request.url).searchParams.get('commit') === '1'
   const cutoff = getOpportunityFollowupCutoff()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult] = await Promise.all([
+  const [inquiryResult, quoteResult, premiumListingResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -48,16 +58,26 @@ export async function GET(request: Request) {
       .lte('updated_at', cutoff)
       .order('updated_at', { ascending: true })
       .limit(100),
+    supabase
+      .from('listings')
+      .select('id,seller_id,title,contact_email,status,created_at')
+      .eq('status', 'PENDING_PAYMENT')
+      .contains('details', { listing_plan: 'premium' })
+      .lte('created_at', cutoff)
+      .order('created_at', { ascending: true })
+      .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error) {
+  if (inquiryResult.error || quoteResult.error || premiumListingResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
   const inquiries = (inquiryResult.data || []) as unknown as Inquiry[]
   const quotes = quoteResult.data || []
+  const premiumListings = (premiumListingResult.data || []) as PremiumListingRecovery[]
   const result = {
     dueSellerEnquiries: inquiries.length,
     dueNewBalloonQuotes: quotes.length,
+    duePremiumListingCheckouts: premiumListings.length,
     accepted: 0,
     alreadyAccepted: 0,
     failed: 0,
@@ -119,6 +139,44 @@ export async function GET(request: Request) {
       else result.failed += 1
     } catch (error) {
       console.error('New-balloon quote follow-up failed:', error)
+      result.failed += 1
+    }
+  }
+
+  for (const listing of premiumListings) {
+    if (!listing.contact_email) {
+      result.configurationBlocked += 1
+      continue
+    }
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'premium_listing_checkout_recovery',
+        entityType: 'listing',
+        entityId: listing.id,
+        recipientRole: 'seller',
+        to: listing.contact_email,
+        subject: 'AeroTrade: your Premium listing is saved but not public',
+        html: `<h2>Your Premium listing is safely stored</h2>
+        <p><strong>${escapeHtml(listing.title)}</strong> is still not public because its Premium publication has not completed.</p>
+        <p><a href="${escapeHtml(`${siteUrl}/dashboard`)}">Open your AeroTrade dashboard</a> to continue the Premium checkout or publish the listing using the free option.</p>
+        <p>No new account or duplicate listing is required. This is a single operational reminder.</p>`,
+        idempotencyKey: `premium-listing-checkout-recovery-${listing.id}`,
+      })
+      if (delivery.duplicate) result.alreadyAccepted += 1
+      else if (delivery.success) result.accepted += 1
+      else result.failed += 1
+
+      if (delivery.success) {
+        await persistSellerFunnelEvent(supabase, {
+          sellerId: listing.seller_id,
+          listingId: listing.id,
+          listingPlan: 'premium',
+          stage: 'CHECKOUT_RECOVERY_SENT',
+          source: 'recovery',
+        })
+      }
+    } catch (error) {
+      console.error('Premium listing checkout recovery failed:', error)
       result.failed += 1
     }
   }
