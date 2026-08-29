@@ -1,0 +1,37 @@
+{
+  "capturedAt": "2026-08-29T12:33:21+02:00",
+  "environment": "production",
+  "baseUrl": "https://aerotrade.app",
+  "commit": "0886463542642017ebc2b1b77bc1983a595164a7",
+  "deploy": { "provider": "netlify", "id": "6a92b527168a000008049c3c", "state": "ready", "error": null, "secretScanMatches": 0 },
+  "routes": {
+    "/new-balloon": { "status": 200, "indicativeBudgetIntakeVisible": true },
+    "/admin/commercial": { "unauthenticatedDestination": "https://aerotrade.app/login", "protected": true }
+  },
+  "database": {
+    "migration": "20260829340000",
+    "migrationRegistered": true,
+    "proposalTablePresent": true,
+    "rowLevelSecurityEnabled": true,
+    "publicMutationGrants": 0,
+    "acceptanceFunctionAnonymousExecute": false,
+    "acceptanceFunctionAuthenticatedExecute": true,
+    "proposalCount": 0,
+    "proposalNotificationCount": 0,
+    "quoteSentCount": 0
+  },
+  "invariants": {
+    "operatorSuppliesPriceRange": true,
+    "proposalStoredBeforeEmail": true,
+    "duplicateProposalFingerprintSuppressed": true,
+    "nonBindingBoundaryIncluded": true,
+    "quoteAdvancesOnlyAfterProviderAcceptance": true,
+    "deliveryAndQuoteStatusFinalizeAtomically": true,
+    "postWriteReadbackRequired": true
+  },
+  "validation": { "automatedTestsPassed": 88, "operationalContractsPassed": 77, "lintPassed": true, "typecheckPassed": true, "productionBuildPassed": true, "migrationRollbackValidationPassed": true },
+  "noSyntheticProposal": true,
+  "noEmailSent": true,
+  "economicActionsPerformed": 0,
+  "interpretation": "A real new-balloon request can now be converted by an administrator into a bounded operator-priced Pasha or Schroeder proposal with durable provider evidence. Production has no real request or proposal yet, so response and conversion remain unproven."
+}
