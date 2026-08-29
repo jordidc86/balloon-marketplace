@@ -6,7 +6,7 @@ import { CheckCircle2, Handshake, Loader2 } from 'lucide-react'
 import { getBrowserCommercialContext } from '@/utils/browser-attribution'
 import { submitSellerAssistanceRequest } from './actions'
 
-export default function SellerAssistanceForm({ defaultEmail = '' }: { defaultEmail?: string }) {
+export default function SellerAssistanceForm({ defaultEmail = '', sourceContext = 'sell_gateway' }: { defaultEmail?: string; sourceContext?: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
 
@@ -25,7 +25,7 @@ export default function SellerAssistanceForm({ defaultEmail = '' }: { defaultEma
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-950">
         <div className="flex gap-3"><CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0" /><div><h2 className="font-bold">Assisted-sale request recorded</h2><p className="mt-1 text-sm leading-6">{result.message}</p></div></div>
-        <div className="mt-5 flex flex-wrap gap-3"><Link href="/sell" className="rounded-lg bg-emerald-900 px-4 py-2 text-sm font-semibold text-white">Prepare the full listing now</Link><button type="button" onClick={() => setResult(null)} className="px-4 py-2 text-sm font-semibold underline">Record another item</button></div>
+        <div className="mt-5 flex flex-wrap gap-3"><Link href="/sell?source=assisted_conversion" className="rounded-lg bg-emerald-900 px-4 py-2 text-sm font-semibold text-white">Prepare the full listing now</Link><button type="button" onClick={() => setResult(null)} className="px-4 py-2 text-sm font-semibold underline">Record another item</button></div>
       </div>
     )
   }
@@ -33,6 +33,7 @@ export default function SellerAssistanceForm({ defaultEmail = '' }: { defaultEma
   return (
     <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
       <div><h2 className="text-2xl font-bold">Tell us what you may sell</h2><p className="mt-1 text-sm text-muted-foreground">A short private intake. Nothing is published until you complete and approve the normal listing.</p></div>
+      <input type="hidden" name="source_context" value={sourceContext} />
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-1.5 text-sm font-medium">Name *<input name="name" required minLength={2} maxLength={120} className="w-full rounded-lg border bg-background px-3 py-2" /></label>
         <label className="space-y-1.5 text-sm font-medium">Email *<input name="email" type="email" required maxLength={320} defaultValue={defaultEmail} className="w-full rounded-lg border bg-background px-3 py-2" /></label>
@@ -62,4 +63,3 @@ export default function SellerAssistanceForm({ defaultEmail = '' }: { defaultEma
     </form>
   )
 }
-

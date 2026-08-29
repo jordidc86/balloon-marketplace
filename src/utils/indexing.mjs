@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { getCatalogCategory, getCatalogCategoryPath } from './catalog-categories.mjs'
 import { isListingPubliclyIndexable } from './marketplace-seo.mjs'
 
-const publicStaticPaths = ['', '/catalog', '/new-balloon', '/wanted', '/sell', '/sell/assisted', '/pricing', '/about', '/contact']
+const publicStaticPaths = ['', '/catalog', '/new-balloon', '/wanted', '/sell', '/sell-hot-air-balloon', '/sell/assisted', '/pricing', '/about', '/contact']
 
 const normalizeOrigin = (value) => {
   try {

@@ -33,7 +33,7 @@ type SellFormInitialData = {
   images?: ExistingImage[]
 }
 
-export default function SellForm({ userId, defaultContactEmail, initialData }: { userId?: string | null; defaultContactEmail?: string | null; initialData?: SellFormInitialData }) {
+export default function SellForm({ userId, defaultContactEmail, initialData, sellerEntryContext = 'direct' }: { userId?: string | null; defaultContactEmail?: string | null; initialData?: SellFormInitialData; sellerEntryContext?: string }) {
   const router = useRouter()
   const supabase = createClient()
   const isEditing = !!initialData
@@ -50,13 +50,13 @@ export default function SellForm({ userId, defaultContactEmail, initialData }: {
 
   useEffect(() => {
     if (!userId || isEditing) return
-    void recordSellerFunnelStage('SELL_PAGE_VIEWED')
-  }, [isEditing, userId])
+    void recordSellerFunnelStage('SELL_PAGE_VIEWED', sellerEntryContext)
+  }, [isEditing, sellerEntryContext, userId])
 
   const recordFormStarted = () => {
     if (!userId || isEditing || formStartedRecorded.current) return
     formStartedRecorded.current = true
-    void recordSellerFunnelStage('FORM_STARTED')
+    void recordSellerFunnelStage('FORM_STARTED', sellerEntryContext)
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,6 +166,7 @@ export default function SellForm({ userId, defaultContactEmail, initialData }: {
 
   return (
     <form onSubmit={handleSubmit} onChangeCapture={recordFormStarted} className="space-y-8 bg-card p-6 sm:p-8 rounded-2xl border shadow-sm">
+      {!isEditing ? <input type="hidden" name="seller_entry_context" value={sellerEntryContext} /> : null}
       
       {/* SECTION 1: Category & Basics */}
       <div className="space-y-4">

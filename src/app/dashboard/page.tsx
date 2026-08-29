@@ -154,7 +154,7 @@ export default async function DashboardPage({
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Pilot Dashboard</h1>
             <p className="text-muted-foreground mt-1">Logged in as {user.email}</p>
           </div>
-          <Link href="/sell" className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all hover:translate-y-[-1px]">
+          <Link href="/sell?source=dashboard" className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2.5 rounded-xl font-medium shadow-sm transition-all hover:translate-y-[-1px]">
             <Plus className="h-5 w-5" />
             List Equipment
           </Link>
@@ -210,7 +210,7 @@ export default async function DashboardPage({
               {!listings || listings.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed rounded-xl">
                   <p className="text-muted-foreground">You haven't posted any equipment yet.</p>
-                  <Link href="/sell" className="text-primary font-medium text-sm inline-block mt-2 hover:underline">
+                  <Link href="/sell?source=dashboard" className="text-primary font-medium text-sm inline-block mt-2 hover:underline">
                     Create your first listing
                   </Link>
                 </div>

@@ -35,7 +35,7 @@ export default async function Navbar() {
           <div className="hidden lg:flex items-center space-x-6">
             <Link href="/catalog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Marketplace</Link>
             <Link href="/wanted" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Wanted</Link>
-            <Link href="/sell" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sell Equipment</Link>
+            <Link href="/sell?source=navigation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sell Equipment</Link>
             <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Premium</Link>
             <Link href="/new-balloon?source=navigation" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">Buy New</Link>
           </div>
@@ -48,7 +48,7 @@ export default async function Navbar() {
                     PREMIUM
                   </span>
                 )}
-                <Link href="/sell" className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
+                <Link href="/sell?source=navigation" className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">
                   <Plus className="h-4 w-4" />
                   List Item
                 </Link>

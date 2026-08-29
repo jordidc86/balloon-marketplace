@@ -246,7 +246,7 @@ export async function CatalogExperience({
             <p className="mt-1 max-w-2xl text-muted-foreground">You do not have to wait for another listing. AeroTrade can also sell you a factory-new Pasha or Schroeder balloon and prepare an indicative budget for the configuration you need.</p>
             <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
               <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg bg-foreground px-5 py-2 text-sm font-bold text-background">Record what you need</Link>
-              <Link href="/sell" className="text-primary hover:underline font-medium">Have something to sell?</Link>
+              <Link href="/sell?source=catalog_empty" className="text-primary hover:underline font-medium">Have something to sell?</Link>
               <Link href={newBalloonHref} className="bg-primary px-5 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">
                 Request a new Pasha or Schroeder budget
               </Link>

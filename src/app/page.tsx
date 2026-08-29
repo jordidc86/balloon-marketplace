@@ -223,7 +223,7 @@ export default async function Home() {
                 <Search className="w-12 h-12 text-slate-300 mb-4" />
                 <h3 className="text-lg font-bold text-slate-900">No listings found</h3>
                 <p className="text-slate-500 max-w-lg mt-1 mb-6">There are currently no matching used listings. AeroTrade can still source a factory-new Pasha or Schroeder balloon and prepare an indicative budget.</p>
-                <div className="flex flex-col gap-3 sm:flex-row"><Link href="/new-balloon?source=catalog-empty" className="bg-primary hover:bg-primary/90 text-white font-medium px-6 py-2.5 rounded-full transition-colors shadow-sm">Get a New Balloon Budget</Link><Link href="/sell" className="border border-slate-300 bg-white px-6 py-2.5 rounded-full font-medium text-slate-700 hover:border-primary hover:text-primary">List Your Equipment</Link></div>
+                <div className="flex flex-col gap-3 sm:flex-row"><Link href="/new-balloon?source=catalog-empty" className="bg-primary hover:bg-primary/90 text-white font-medium px-6 py-2.5 rounded-full transition-colors shadow-sm">Get a New Balloon Budget</Link><Link href="/sell?source=home" className="border border-slate-300 bg-white px-6 py-2.5 rounded-full font-medium text-slate-700 hover:border-primary hover:text-primary">List Your Equipment</Link></div>
               </div>
             )}
           </div>

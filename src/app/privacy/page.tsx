@@ -23,7 +23,7 @@ export default function PrivacyPage() {
           <li>To facilitate communication between buyers and sellers via the "Secure Contact Info Reveal" feature.</li>
           <li>To deliver, recover and track buyer enquiries so they are not lost and their commercial outcome can be measured.</li>
           <li>To compare consented wanted-equipment requests with current or future supply and, only when requested, email you about potentially suitable equipment.</li>
-          <li>To measure account-linked seller onboarding stages, such as opening or starting the listing form, submitting a listing, opening or resuming checkout, and publication. This private operational record does not store passwords, card data, IP addresses or form text.</li>
+          <li>To measure account-linked seller onboarding stages, such as opening or starting the listing form, submitting a listing, opening or resuming checkout, and publication. A closed entry-point label may distinguish navigation, seller search content, the dashboard or assisted conversion; it stores no page URL or campaign free text. This private operational record does not store passwords, card data, IP addresses or draft form text.</li>
           <li>To help a consenting owner prepare a normal marketplace listing when photos, documents, description or price are not yet ready.</li>
           <li>To review seller identity or supporting listing evidence when a seller requests an AeroTrade document-checked badge.</li>
           <li>To send you important email alerts regarding new listings or account changes.</li>

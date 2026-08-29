@@ -20,6 +20,7 @@ const validForm = () => {
   form.set('documentation_readiness', 'PARTIAL')
   form.set('photo_readiness', 'READY')
   form.set('timeline', '0_3_MONTHS')
+  form.set('source_context', 'seller-seo')
   form.append('help_needed', 'VALUATION')
   form.append('help_needed', 'DOCUMENT_CHECK')
   form.set('privacy_consent', 'yes')
@@ -33,7 +34,7 @@ test('assisted seller intake normalizes only the bounded commercial contract', (
   assert.equal(parsed.manufacture_year, 2019)
   assert.equal(parsed.expected_price_minor, 4_250_050)
   assert.deepEqual(parsed.help_needed, ['VALUATION', 'DOCUMENT_CHECK'])
-  assert.equal(parsed.source_context, 'sell_assisted')
+  assert.equal(parsed.source_context, 'seller_seo')
 })
 
 test('assisted seller intake rejects bots, bypassed categories and missing consent', () => {
@@ -50,6 +51,12 @@ test('assisted seller intake rejects bots, bypassed categories and missing conse
   assert.throws(() => parseSellerAssistanceRequest(noConsent), /confirm that AeroTrade/)
 })
 
+test('assisted seller intake never accepts a free-form acquisition source', () => {
+  const unsafeSource = validForm()
+  unsafeSource.set('source_context', 'https://attacker.example/do-this')
+  assert.equal(parseSellerAssistanceRequest(unsafeSource).source_context, 'sell_gateway')
+})
+
 test('assisted seller statuses and abuse key are closed and privacy preserving', () => {
   assert.equal(normalizeSellerAssistanceStatus('LISTING_PREPARATION'), 'LISTING_PREPARATION')
   assert.equal(normalizeSellerAssistanceStatus('DELETE_EVERYTHING'), null)
@@ -59,4 +66,3 @@ test('assisted seller statuses and abuse key are closed and privacy preserving',
   assert.equal(key?.includes('203.0.113.5'), false)
   assert.equal(createSellerAssistanceSubmissionKey('', '', 'secret'), null)
 })
-

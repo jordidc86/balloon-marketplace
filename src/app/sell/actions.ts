@@ -13,14 +13,16 @@ import { createPremiumListingCheckout } from '@/utils/listing-checkout'
 import { normalizeSellerFunnelStage } from '@/utils/seller-funnel.mjs'
 import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 import { assertListingImageUrlsReachable } from '@/utils/listing-image-quality-server'
+import { normalizeSellerAcquisitionSource } from '@/utils/seller-acquisition.mjs'
 
-export async function recordSellerFunnelStage(rawStage: unknown) {
+export async function recordSellerFunnelStage(rawStage: unknown, rawEntryContext?: unknown) {
   const stage = normalizeSellerFunnelStage(rawStage, true)
   if (!stage) return false
+  const entryContext = normalizeSellerAcquisitionSource(rawEntryContext)
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return false
-  return persistSellerFunnelEvent(await createAdminClient(), { sellerId: user.id, stage })
+  return persistSellerFunnelEvent(await createAdminClient(), { sellerId: user.id, stage, entryContext })
 }
 
 export async function submitListing(formData: FormData) {
@@ -32,6 +34,7 @@ export async function submitListing(formData: FormData) {
   }
 
   const listingPlan = getListingPlan(formData.get('listing_plan'))
+  const entryContext = normalizeSellerAcquisitionSource(formData.get('seller_entry_context'))
   const publication = getInitialListingPublication(listingPlan)
   const imageUrls = parseListingImageUrls(formData.get('image_urls'))
   await assertListingImageUrlsReachable(imageUrls)
@@ -94,6 +97,7 @@ export async function submitListing(formData: FormData) {
     listingId: publishedListing.id,
     listingPlan,
     stage: 'LISTING_SUBMITTED',
+    entryContext,
   })
   if (listingPlan === 'free') {
     await persistSellerFunnelEvent(adminSupabase, {
@@ -101,6 +105,7 @@ export async function submitListing(formData: FormData) {
       listingId: publishedListing.id,
       listingPlan,
       stage: 'LISTING_PUBLISHED',
+      entryContext,
     })
   }
   const notificationKey = `listing-created-admin-${publishedListing.id}`
@@ -174,6 +179,7 @@ export async function submitListing(formData: FormData) {
     listingId: publishedListing.id,
     listingPlan,
     stage: 'CHECKOUT_CREATED',
+    entryContext,
   })
 
   // Redirect to Stripe Checkout

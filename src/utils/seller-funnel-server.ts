@@ -11,12 +11,14 @@ export async function persistSellerFunnelEvent(
     listingId = null,
     listingPlan = null,
     source = 'web',
+    entryContext = 'system',
   }: {
     sellerId: string
     stage: string
     listingId?: string | null
     listingPlan?: 'free' | 'premium' | null
     source?: 'web' | 'stripe' | 'recovery'
+    entryContext?: string
   },
 ) {
   const eventKey = sellerFunnelEventKey({ sellerId, stage, listingId })
@@ -28,6 +30,7 @@ export async function persistSellerFunnelEvent(
     stage,
     listing_plan: listingPlan,
     source,
+    entry_context: entryContext,
   }, { onConflict: 'event_key', ignoreDuplicates: true })
   if (error) {
     console.error(`Could not record seller funnel stage ${stage}:`, error)

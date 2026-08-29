@@ -105,6 +105,7 @@ type SellerFunnelEvent = {
   stage: string
   listing_plan: string | null
   source: string
+  entry_context: string
   created_at: string
 }
 
@@ -143,6 +144,7 @@ type SellerAssistance = {
   help_needed: string[]
   notes: string | null
   status: string
+  source_context: string
   created_at: string
   last_activity_at: string
 }
@@ -208,10 +210,10 @@ export default async function CommercialPage() {
     supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
     supabase.from('catalog_search_events').select('id,query_text,category,country,result_count,zero_results,utm_source,journey_key,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
-    supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
+    supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,entry_context,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('users').select('id,email').limit(500),
-    supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,status,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
+    supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
@@ -286,6 +288,14 @@ export default async function CommercialPage() {
   const topZeroDemand = [...zeroDemandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
   const uniqueSellerStageCount = (stage: string) => new Set(typedSellerFunnelEvents.filter((event) => event.stage === stage).map((event) => event.seller_id)).size
   const uniqueListingStageCount = (stage: string) => new Set(typedSellerFunnelEvents.filter((event) => event.stage === stage).map((event) => event.listing_id).filter(Boolean)).size
+  const sellerEntryCounts = typedSellerFunnelEvents
+    .filter((event) => event.stage === 'SELL_PAGE_VIEWED' && event.entry_context !== 'system')
+    .reduce<Map<string, Set<string>>>((counts, event) => {
+      const sellers = counts.get(event.entry_context) || new Set<string>()
+      sellers.add(event.seller_id)
+      counts.set(event.entry_context, sellers)
+      return counts
+    }, new Map())
   const pendingPaymentListings = typedSellerPipelineListings.filter((listing) => listing.status === 'PENDING_PAYMENT')
   const latestFormStartBySeller = typedSellerFunnelEvents
     .filter((event) => event.stage === 'FORM_STARTED')
@@ -403,6 +413,9 @@ export default async function CommercialPage() {
               <FunnelStep label="Paid" value={uniqueListingStageCount('PAYMENT_CONFIRMED')} />
               <FunnelStep label="Published" value={uniqueListingStageCount('LISTING_PUBLISHED')} />
             </div>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              {[...sellerEntryCounts.entries()].length === 0 ? <span className="text-muted-foreground">No attributed seller entry has been recorded yet.</span> : [...sellerEntryCounts.entries()].sort((a, b) => b[1].size - a[1].size).map(([source, sellers]) => <span key={source} className="rounded-full border bg-background px-3 py-1 font-semibold">{source.replaceAll('_', ' ')} · {sellers.size} seller(s)</span>)}
+            </div>
             <div className="mt-6 rounded-xl border bg-muted/20">
               <div className="border-b px-4 py-3"><h3 className="font-semibold">Recovery queue</h3><p className="text-xs text-muted-foreground">Only evidence-backed interruptions are shown. Contact remains a manual decision.</p></div>
               {pendingPaymentListings.length === 0 && stalledFormStarts.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No seller activation interruption currently needs review.</p> : (
@@ -433,7 +446,7 @@ export default async function CommercialPage() {
                 : (request.expected_price_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: request.currency })
               return (
                 <div key={request.id} className="grid gap-4 p-6 lg:grid-cols-[1.2fr_1fr_auto] lg:items-start">
-                  <div><p className="font-semibold">{request.name} · {[request.manufacturer, request.model].filter(Boolean).join(' ') || request.category}</p><a href={`mailto:${request.email}`} className="text-sm text-primary hover:underline">{request.email}</a>{request.phone ? <p className="text-sm">{request.phone}</p> : null}<p className="mt-1 text-xs text-muted-foreground">{formatDate(request.created_at)} · {request.location_country || 'Location not specified'} · {expectedPrice}</p>{request.notes ? <p className="mt-3 whitespace-pre-wrap text-sm">{request.notes}</p> : null}</div>
+                  <div><p className="font-semibold">{request.name} · {[request.manufacturer, request.model].filter(Boolean).join(' ') || request.category}</p><a href={`mailto:${request.email}`} className="text-sm text-primary hover:underline">{request.email}</a>{request.phone ? <p className="text-sm">{request.phone}</p> : null}<p className="mt-1 text-xs text-muted-foreground">{formatDate(request.created_at)} · {request.location_country || 'Location not specified'} · {expectedPrice} · source {request.source_context.replaceAll('_', ' ')}</p>{request.notes ? <p className="mt-3 whitespace-pre-wrap text-sm">{request.notes}</p> : null}</div>
                   <div className="space-y-2 text-sm"><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{request.status}</span><p>Documents: {request.documentation_readiness} · photos: {request.photo_readiness}</p><p>Timing: {request.timeline}</p><p className="text-xs text-muted-foreground">Help: {request.help_needed.length ? request.help_needed.join(', ') : 'not specified'}</p>{request.linked_listing_id ? <Link href={`/catalog/${request.linked_listing_id}`} className="block font-semibold text-primary underline">Open completed listing</Link> : null}</div>
                   <form action={updateSellerAssistanceStatus.bind(null, request.id)} className="grid min-w-64 gap-2">
                     <select name="status" defaultValue={request.status} className="rounded-lg border bg-background px-3 py-2 text-sm">{['NEW', 'CONTACTED', 'QUALIFIED', 'LISTING_PREPARATION', 'LISTED', 'CLOSED', 'SPAM'].map((status) => <option value={status} key={status}>{status}</option>)}</select>

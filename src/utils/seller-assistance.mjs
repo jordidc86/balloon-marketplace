@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { normalizeSellerAcquisitionSource } from './seller-acquisition.mjs'
 
 const categories = ['complete', 'envelopes', 'baskets', 'burners', 'bottom-end', 'cylinders', 'other-equipment']
 const currencies = ['EUR', 'GBP', 'USD']
@@ -67,7 +68,7 @@ export function parseSellerAssistanceRequest(formData) {
     timeline: oneOf(text(formData, 'timeline', 30), timelineValues, 'EXPLORING'),
     help_needed: uniqueHelp,
     notes: multiline(formData, 'notes', 2000) || null,
-    source_context: 'sell_assisted',
+    source_context: normalizeSellerAcquisitionSource(text(formData, 'source_context', 40), 'sell_gateway'),
   }
 }
 
@@ -81,4 +82,3 @@ export function createSellerAssistanceSubmissionKey(address, userAgent, secret) 
   if (principal === '|') return null
   return crypto.createHmac('sha256', secret).update(principal).digest('hex')
 }
-
