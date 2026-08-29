@@ -154,6 +154,13 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const publicAtLabel = typedListing.public_at
     ? formatDistanceToNow(new Date(typedListing.public_at))
     : 'soon'
+  const newBalloonParams = new URLSearchParams({
+    source: 'listing',
+    category: typedListing.category,
+    q: typedListing.title,
+    country: typedListing.location_country,
+  })
+  const newBalloonHref = `/new-balloon?${newBalloonParams.toString()}`
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -356,7 +363,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                   <Lock className="w-5 h-5" />
                   Upgrade to Contact Seller
                 </Link>
-                <Link href="/new-balloon?source=listing" className="w-full flex justify-center items-center gap-2 border border-primary/30 bg-primary/5 py-3 rounded-xl font-bold text-primary hover:bg-primary/10 transition-colors">
+                <Link href={newBalloonHref} className="w-full flex justify-center items-center gap-2 border border-primary/30 bg-primary/5 py-3 rounded-xl font-bold text-primary hover:bg-primary/10 transition-colors">
                   Buy a new balloon instead
                 </Link>
               </div>
@@ -408,7 +415,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 </div>
                 <div className="grid gap-2 border-t pt-4 sm:grid-cols-2">
                   <Link href={`/wanted?category=${encodeURIComponent(typedListing.category)}`} className="rounded-lg border px-3 py-2 text-center text-sm font-semibold text-primary">Find another used option</Link>
-                  <Link href="/new-balloon?source=listing" className="rounded-lg bg-primary/10 px-3 py-2 text-center text-sm font-semibold text-primary">Buy a new Pasha or Schroeder</Link>
+                  <Link href={newBalloonHref} className="rounded-lg bg-primary/10 px-3 py-2 text-center text-sm font-semibold text-primary">Buy a new Pasha or Schroeder</Link>
                 </div>
               </div>
             )}

@@ -196,6 +196,17 @@ const checks = [
     required: ['event_key text', 'listing_events_event_key_unique', 'referrer_host', 'utm_source'],
   },
   {
+    name: 'Buyer journeys connect acquisition to all conversion paths without a raw identifier',
+    file: 'supabase/migrations/20260829290000_commercial_journey_attribution.sql',
+    required: ['listing_events_journey_idx', 'catalog_search_events_journey_idx', 'marketplace_inquiries_journey_idx', 'wanted_requests_journey_idx', 'quote_requests_journey_idx', 'Daily server-HMAC journey key', 'contains no raw visitor or user identifier'],
+    forbidden: ['visitor_id', 'ip_address', 'full_referrer'],
+  },
+  {
+    name: 'New-balloon alternatives preserve marketplace demand and source context',
+    file: 'src/app/new-balloon/page.tsx',
+    required: ['normalizeNewBalloonDemandContext', 'We carried your marketplace search into this request.', '<CommercialAttributionFields />', 'Request an indicative budget'],
+  },
+  {
     name: 'Listing submissions are validated again on the server',
     file: 'src/utils/listing-submission.mjs',
     required: ['listingCategories', 'listingConditions', 'listingCurrencies', 'seller_declaration', 'supporting_documents_available', 'Serial number', 'normalizeListingCountry', 'assertStoredListingRequiredFields', 'MISSING_SERIAL'],

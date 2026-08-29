@@ -9,7 +9,7 @@ import { siteUrl } from '@/utils/site'
 import { parseInquiry } from '@/utils/inquiry-safety.mjs'
 import { sendEmail } from '@/utils/resend'
 import { escapeHtml } from '@/utils/html'
-import { commercialEventKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
+import { commercialEventKey, commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 import type { BrowserCommercialContext } from '@/utils/browser-attribution'
 import { assertStoredListingRequiredFields, parseListingSubmission } from '@/utils/listing-submission.mjs'
 import { createPremiumListingCheckout } from '@/utils/listing-checkout'
@@ -35,12 +35,16 @@ export async function logListingView(listingId: string, rawContext?: BrowserComm
   const supabaseAdmin = createAdminClient()
   const { data: listing, error: listingError } = await supabaseAdmin
     .from('listings')
-    .select('id,status')
+    .select('id,seller_id,status')
     .eq('id', listingId)
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
     .maybeSingle()
 
   if (listingError || !listing) return false
+  if (user) {
+    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
+    if (profile?.role === 'admin' || listing.seller_id === user.id) return false
+  }
   const context = normalizeCommercialContext(rawContext)
   const principal = user?.id || context.visitorId
   if (!principal) return false
@@ -54,6 +58,7 @@ export async function logListingView(listingId: string, rawContext?: BrowserComm
     utm_source: context.utm_source,
     utm_medium: context.utm_medium,
     utm_campaign: context.utm_campaign,
+    journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
   }, { onConflict: 'event_key', ignoreDuplicates: true })
   if (error) {
     console.error('Failed to log listing view:', error)
@@ -68,7 +73,7 @@ export async function revealSellerContact(listingId: string, rawContext?: Browse
   const { data: profile } = user
     ? await supabase
       .from('users')
-      .select('is_premium')
+      .select('is_premium,role')
       .eq('id', user.id)
       .single()
     : { data: null }
@@ -103,7 +108,8 @@ export async function revealSellerContact(listingId: string, rawContext?: Browse
   const context = normalizeCommercialContext(rawContext)
   const principal = user?.id || context.visitorId
   const eventKey = commercialEventKey({ listingId, eventType: 'CONTACT_REVEAL', principal })
-  const { error: eventError } = principal ? await supabaseAdmin
+  const shouldMeasureReveal = Boolean(principal && profile?.role !== 'admin' && listing.seller_id !== user?.id)
+  const { error: eventError } = shouldMeasureReveal ? await supabaseAdmin
     .from('listing_events')
     .upsert({
       listing_id: listingId,
@@ -114,6 +120,7 @@ export async function revealSellerContact(listingId: string, rawContext?: Browse
       utm_source: context.utm_source,
       utm_medium: context.utm_medium,
       utm_campaign: context.utm_campaign,
+      journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
     }, { onConflict: 'event_key', ignoreDuplicates: true }) : { error: null }
 
   if (eventError) {
@@ -126,7 +133,7 @@ export async function revealSellerContact(listingId: string, rawContext?: Browse
   }
 }
 
-export async function submitListingInquiry(listingId: string, formData: FormData) {
+export async function submitListingInquiry(listingId: string, formData: FormData, rawContext?: BrowserCommercialContext) {
   let inquiry
   try {
     inquiry = parseInquiry(formData)
@@ -143,6 +150,8 @@ export async function submitListingInquiry(listingId: string, formData: FormData
     ? await supabase.from('users').select('is_premium').eq('id', user.id).maybeSingle()
     : { data: null }
   const supabaseAdmin = createAdminClient()
+  const attribution = normalizeCommercialContext(rawContext)
+  const principal = user?.id || attribution.visitorId
   const { data: listing, error: listingError } = await supabaseAdmin
     .from('listings')
     .select('id,seller_id,title,status,public_at,contact_email')
@@ -189,6 +198,11 @@ export async function submitListingInquiry(listingId: string, formData: FormData
       ...inquiry,
       source: 'listing_form',
       status: 'NEW',
+      journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
+      referrer_host: attribution.referrer_host,
+      utm_source: attribution.utm_source,
+      utm_medium: attribution.utm_medium,
+      utm_campaign: attribution.utm_campaign,
     })
     .select('id')
     .single()

@@ -2,7 +2,7 @@
 
 import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { catalogSearchEventKey, normalizeCatalogSearch } from '@/utils/catalog-search.mjs'
-import { normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
+import { commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 import type { BrowserCommercialContext } from '@/utils/browser-attribution'
 
 export async function logCatalogSearch(rawSearch: unknown, rawContext?: BrowserCommercialContext) {
@@ -17,6 +17,10 @@ export async function logCatalogSearch(rawSearch: unknown, rawContext?: BrowserC
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
+    if (profile?.role === 'admin') return false
+  }
   const context = normalizeCommercialContext(rawContext)
   const principal = user?.id || context.visitorId
   if (!principal) return false
@@ -31,6 +35,7 @@ export async function logCatalogSearch(rawSearch: unknown, rawContext?: BrowserC
     utm_source: context.utm_source,
     utm_medium: context.utm_medium,
     utm_campaign: context.utm_campaign,
+    journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
   }, { onConflict: 'event_key', ignoreDuplicates: true })
 
   if (error) {

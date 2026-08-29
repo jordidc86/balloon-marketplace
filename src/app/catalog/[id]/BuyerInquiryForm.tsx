@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react'
 import { Loader2, Send, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { submitListingInquiry } from './actions'
+import { getBrowserCommercialContext } from '@/utils/browser-attribution'
 
 export default function BuyerInquiryForm({ listingId }: { listingId: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -14,7 +15,7 @@ export default function BuyerInquiryForm({ listingId }: { listingId: string }) {
     setIsSubmitting(true)
     setResult(null)
     const form = event.currentTarget
-    const response = await submitListingInquiry(listingId, new FormData(form))
+    const response = await submitListingInquiry(listingId, new FormData(form), getBrowserCommercialContext())
     setResult({ success: response.success, message: response.message })
     if (response.success) form.reset()
     setIsSubmitting(false)

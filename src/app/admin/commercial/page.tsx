@@ -14,6 +14,7 @@ type Inquiry = {
   seller_notification_status: string
   created_at: string
   last_activity_at: string
+  journey_key: string | null
   listings: { title: string } | null
 }
 
@@ -25,6 +26,7 @@ type Quote = {
   source_context: string
   status: string
   created_at: string
+  journey_key: string | null
 }
 
 type WantedRequest = {
@@ -41,6 +43,7 @@ type WantedRequest = {
   notify_on_match: boolean
   status: string
   created_at: string
+  journey_key: string | null
 }
 
 type MatchableListing = {
@@ -69,6 +72,13 @@ type CatalogSearchEvent = {
   result_count: number
   zero_results: boolean
   utm_source: string | null
+  journey_key: string | null
+  created_at: string
+}
+
+type ListingEvent = {
+  event_type: 'VIEW' | 'CONTACT_REVEAL' | string
+  journey_key: string | null
   created_at: string
 }
 
@@ -135,17 +145,17 @@ export default async function CommercialPage() {
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
   const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
-    supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,listings(title)').order('created_at', { ascending: false }).limit(100),
-    supabase.from('quote_requests').select('id,name,email,equipment_type,source_context,status,created_at').order('created_at', { ascending: false }).limit(100),
-    supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
+    supabase.from('quote_requests').select('id,name,email,equipment_type,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
+    supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
-    supabase.from('catalog_search_events').select('id,query_text,category,country,result_count,zero_results,utm_source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
+    supabase.from('catalog_search_events').select('id,query_text,category,country,result_count,zero_results,utm_source,journey_key,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('users').select('id,email').limit(500),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
-    supabase.from('listing_events').select('event_type,created_at').gte('created_at', thirtyDaysAgo),
+    supabase.from('listing_events').select('event_type,journey_key,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,notes,closed_at').order('closed_at', { ascending: false }).limit(200),
   ])
@@ -160,6 +170,7 @@ export default async function CommercialPage() {
   const typedSellerPipelineListings = (sellerPipelineListings || []) as SellerPipelineListing[]
   const typedSellerUsers = (sellerUsers || []) as SellerUser[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
+  const typedListingEvents = (events || []) as ListingEvent[]
   const wantedDispatchesByRequest = typedWantedMatchDispatches.reduce<Map<string, WantedMatchDispatch[]>>((byRequest, dispatch) => {
     const rows = byRequest.get(dispatch.wanted_request_id) || []
     rows.push(dispatch)
@@ -171,8 +182,26 @@ export default async function CommercialPage() {
     .map((notification) => [notification.entity_id, notification.status]))
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
-  const views = (events || []).filter((event) => event.event_type === 'VIEW').length
-  const reveals = (events || []).filter((event) => event.event_type === 'CONTACT_REVEAL').length
+  const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
+  const reveals = typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL').length
+  const recentInquiries = typedInquiries.filter((inquiry) => inquiry.created_at >= thirtyDaysAgo)
+  const recentQuotes = typedQuotes.filter((quote) => quote.created_at >= thirtyDaysAgo)
+  const recentWanted = typedWantedRequests.filter((request) => request.created_at >= thirtyDaysAgo)
+  const viewJourneyKeys = new Set(typedListingEvents.filter((event) => event.event_type === 'VIEW' && event.journey_key).map((event) => event.journey_key as string))
+  const searchJourneyKeys = new Set(typedSearchEvents.filter((event) => event.journey_key).map((event) => event.journey_key as string))
+  const revealJourneyKeys = new Set(typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL' && event.journey_key).map((event) => event.journey_key as string))
+  const requestJourneyKeys = new Set([
+    ...recentInquiries.map((inquiry) => inquiry.journey_key),
+    ...recentWanted.map((request) => request.journey_key),
+    ...recentQuotes.map((quote) => quote.journey_key),
+  ].filter((key): key is string => Boolean(key)))
+  const attributableJourneyKeys = new Set([
+    ...viewJourneyKeys,
+    ...searchJourneyKeys,
+    ...revealJourneyKeys,
+    ...requestJourneyKeys,
+  ])
+  const unattributedLegacyViews = typedListingEvents.filter((event) => event.event_type === 'VIEW' && !event.journey_key).length
   const openInquiries = typedInquiries.filter((inquiry) => openInquiryStatuses.includes(inquiry.status)).length
   const openWanted = typedWantedRequests.filter((request) => !['CLOSED', 'SPAM'].includes(request.status)).length
   const zeroResultSearches = typedSearchEvents.filter((event) => event.zero_results)
@@ -225,6 +254,19 @@ export default async function CommercialPage() {
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
         <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Seller emails not accepted" warning={failedNotifications > 0} />
       </div>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">Buyer journey evidence (30d)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Daily pseudonymous journey keys connect demand to contact or a request without exposing a browser identifier. Administrator and listing-owner activity is excluded from new buyer measurements.</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <FunnelStep label="Catalog search" value={searchJourneyKeys.size} />
+          <FunnelStep label="Listing viewed" value={viewJourneyKeys.size} />
+          <FunnelStep label="Contact revealed" value={revealJourneyKeys.size} />
+          <FunnelStep label="Request sent" value={requestJourneyKeys.size} />
+        </div>
+        <p className="mt-4 text-sm text-muted-foreground">{attributableJourneyKeys.size} attributable buyer journey(s). Each stage is a distinct journey count, not a claim that every visitor moved through every preceding step.</p>
+        {unattributedLegacyViews > 0 ? <p className="mt-2 text-xs text-amber-700">{unattributedLegacyViews} older or unattributed listing view(s) remain visible but cannot be reconstructed into a journey.</p> : null}
+      </section>
 
       <div className="rounded-2xl border bg-card p-6">
         <h2 className="text-xl font-semibold">Revenue evidence</h2>

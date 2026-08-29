@@ -6,7 +6,7 @@ import { sendEmail } from '@/utils/resend'
 import { escapeHtml } from '@/utils/html'
 import { siteUrl } from '@/utils/site'
 import { headers } from 'next/headers'
-import { normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
+import { commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 import type { BrowserCommercialContext } from '@/utils/browser-attribution'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
@@ -79,6 +79,7 @@ export async function submitWantedRequest(formData: FormData, rawContext?: Brows
       utm_source: attribution.utm_source,
       utm_medium: attribution.utm_medium,
       utm_campaign: attribution.utm_campaign,
+      journey_key: commercialJourneyKey({ principal: user?.id || attribution.visitorId, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
       status: 'NEW',
     })
     .select('id,status')

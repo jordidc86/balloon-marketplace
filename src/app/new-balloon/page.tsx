@@ -6,6 +6,7 @@ import { normalizeNewBalloonLeadSource } from '@/utils/new-balloon-lead.mjs'
 import { buildNewBalloonServiceJsonLd, serializeJsonLd } from '@/utils/marketplace-seo.mjs'
 import { equipmentTypeForCategory, normalizeNewBalloonDemandContext } from '@/utils/new-balloon-request.mjs'
 import { submitNewBalloonQuote } from './actions'
+import CommercialAttributionFields from '@/components/CommercialAttributionFields'
 
 export const metadata: Metadata = {
   title: 'New Balloon Quote | AeroTrade Marketplace',
@@ -101,6 +102,7 @@ export default async function NewBalloonPage({
             )}
 
             <form action={submitNewBalloonQuote} className="space-y-5">
+              <CommercialAttributionFields />
               <input type="hidden" name="source_context" value={sourceContext} />
               <input type="hidden" name="requested_category" value={demandContext.requested_category || ''} />
               <label className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">

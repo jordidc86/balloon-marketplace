@@ -29,3 +29,8 @@ export function commercialEventKey({ listingId, eventType, principal, date = new
   return crypto.createHash('sha256').update(`${listingId}:${eventType}:${principal}:${day}`).digest('hex')
 }
 
+export function commercialJourneyKey({ principal, secret, date = new Date() }) {
+  if (!principal || typeof secret !== 'string' || !secret) return null
+  const day = date.toISOString().slice(0, 10)
+  return crypto.createHmac('sha256', secret).update(`${principal}:${day}`).digest('hex')
+}

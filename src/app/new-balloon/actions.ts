@@ -5,6 +5,7 @@ import { sendEmail } from '@/utils/resend'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { newBalloonQuoteSubmissionKey, parseNewBalloonQuoteRequest } from '@/utils/new-balloon-request.mjs'
+import { commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
@@ -26,6 +27,13 @@ export async function submitNewBalloonQuote(formData: FormData) {
   }
 
   const requestHeaders = await headers()
+  const attribution = normalizeCommercialContext({
+    visitorId: formData.get('attribution_visitor_id'),
+    referrer: formData.get('attribution_referrer'),
+    utmSource: formData.get('attribution_utm_source'),
+    utmMedium: formData.get('attribution_utm_medium'),
+    utmCampaign: formData.get('attribution_utm_campaign'),
+  })
   const clientAddress = requestHeaders.get('x-nf-client-connection-ip')
     || requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim()
     || ''
@@ -68,6 +76,11 @@ export async function submitNewBalloonQuote(formData: FormData) {
         .from('quote_requests')
         .insert({
           ...request,
+          journey_key: commercialJourneyKey({ principal: attribution.visitorId, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
+          referrer_host: attribution.referrer_host,
+          utm_source: attribution.utm_source,
+          utm_medium: attribution.utm_medium,
+          utm_campaign: attribution.utm_campaign,
           privacy_consent_at: new Date().toISOString(),
           submission_key: submissionKey,
           status: 'NEW',
