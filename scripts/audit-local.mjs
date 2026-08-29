@@ -170,6 +170,21 @@ const checks = [
     required: ["recordSellerFunnelStage('SELL_PAGE_VIEWED')", "recordSellerFunnelStage('FORM_STARTED')", 'formStartedRecorded', 'onChangeCapture'],
   },
   {
+    name: 'Unready sellers have one private assisted path into the normal listing workflow',
+    file: 'supabase/migrations/20260829310000_seller_assistance_requests.sql',
+    required: ['seller_assistance_requests', 'privacy_consent_at', 'seller_assistance_closed_state', 'seller_assistance_listed_link', 'seller_assistance_admin_followup', 'enable row level security', 'revoke all on public.seller_assistance_requests from anon, authenticated', 'never published'],
+  },
+  {
+    name: 'Assisted seller intake stores before notifying and remains abuse controlled',
+    file: 'src/app/sell/assisted/actions.ts',
+    required: ['parseSellerAssistanceRequest', 'createSellerAssistanceSubmissionKey', "from('seller_assistance_requests')", 'duplicateCutoff', 'rateCutoff', 'privacy_consent_at', 'seller_assistance_created_admin', 'was stored but its admin notification needs review'],
+  },
+  {
+    name: 'Assisted seller conversion must link to a matching normal listing',
+    file: 'src/app/admin/actions.ts',
+    required: ['updateSellerAssistanceStatus', "status === 'LISTED'", 'The selected listing does not match this seller', 'Could not persist and verify assisted-sale status'],
+  },
+  {
     name: 'Interrupted Premium listing checkout is safely resumable',
     file: 'src/app/dashboard/actions.ts',
     required: ["listing.status !== 'PENDING_PAYMENT'", "getStoredListingPlan(listing.details) !== 'premium'", "stage: 'CHECKOUT_RESUMED'", 'createPremiumListingCheckout', "eq('seller_id', user.id)"],

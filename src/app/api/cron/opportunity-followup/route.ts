@@ -25,6 +25,12 @@ type PremiumListingRecovery = {
   created_at: string
 }
 
+type SellerAssistance = {
+  id: string
+  status: 'NEW'
+  last_activity_at: string
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -43,7 +49,7 @@ export async function GET(request: Request) {
   const commit = new URL(request.url).searchParams.get('commit') === '1'
   const cutoff = getOpportunityFollowupCutoff()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, premiumListingResult] = await Promise.all([
+  const [inquiryResult, quoteResult, premiumListingResult, sellerAssistanceResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -66,18 +72,27 @@ export async function GET(request: Request) {
       .lte('created_at', cutoff)
       .order('created_at', { ascending: true })
       .limit(100),
+    supabase
+      .from('seller_assistance_requests')
+      .select('id,status,last_activity_at')
+      .eq('status', 'NEW')
+      .lte('last_activity_at', cutoff)
+      .order('last_activity_at', { ascending: true })
+      .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error || premiumListingResult.error) {
+  if (inquiryResult.error || quoteResult.error || premiumListingResult.error || sellerAssistanceResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
   const inquiries = (inquiryResult.data || []) as unknown as Inquiry[]
   const quotes = quoteResult.data || []
   const premiumListings = (premiumListingResult.data || []) as PremiumListingRecovery[]
+  const sellerAssistance = (sellerAssistanceResult.data || []) as SellerAssistance[]
   const result = {
     dueSellerEnquiries: inquiries.length,
     dueNewBalloonQuotes: quotes.length,
     duePremiumListingCheckouts: premiumListings.length,
+    dueSellerAssistance: sellerAssistance.length,
     accepted: 0,
     alreadyAccepted: 0,
     failed: 0,
@@ -177,6 +192,33 @@ export async function GET(request: Request) {
       }
     } catch (error) {
       console.error('Premium listing checkout recovery failed:', error)
+      result.failed += 1
+    }
+  }
+
+  for (const request of sellerAssistance) {
+    if (!adminEmail) {
+      result.configurationBlocked += 1
+      continue
+    }
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'seller_assistance_admin_followup',
+        entityType: 'seller_assistance',
+        entityId: request.id,
+        recipientRole: 'admin',
+        to: adminEmail,
+        subject: 'AeroTrade: assisted seller is still awaiting review',
+        html: `<h2>An assisted-sale opportunity still needs attention</h2>
+        <p>A private seller request has remained in NEW status for more than 24 hours.</p>
+        <p><a href="${escapeHtml(`${siteUrl}/admin/commercial`)}">Open the existing commercial pipeline and record the next action</a>.</p>`,
+        idempotencyKey: `seller-assistance-admin-followup-${request.id}`,
+      })
+      if (delivery.duplicate) result.alreadyAccepted += 1
+      else if (delivery.success) result.accepted += 1
+      else result.failed += 1
+    } catch (error) {
+      console.error('Seller-assistance follow-up failed:', error)
       result.failed += 1
     }
   }

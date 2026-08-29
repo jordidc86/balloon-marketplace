@@ -2,7 +2,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { CircleDollarSign, CreditCard, MessageSquare, Plane, Store, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
-import { recordCommercialOutcome, updateAdminInquiryStatus, updateQuoteRequestStatus, updateWantedRequestStatus } from '../actions'
+import { recordCommercialOutcome, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -107,6 +107,30 @@ type SellerUser = {
   email: string
 }
 
+type SellerAssistance = {
+  id: string
+  seller_user_id: string | null
+  linked_listing_id: string | null
+  name: string
+  email: string
+  phone: string | null
+  category: string
+  manufacturer: string | null
+  model: string | null
+  manufacture_year: number | null
+  location_country: string | null
+  expected_price_minor: number | null
+  currency: string
+  documentation_readiness: string
+  photo_readiness: string
+  timeline: string
+  help_needed: string[]
+  notes: string | null
+  status: string
+  created_at: string
+  last_activity_at: string
+}
+
 type CommercialNotification = {
   id: string
   notification_type: string
@@ -155,7 +179,7 @@ export default async function CommercialPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
-  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('quote_requests').select('id,name,email,equipment_type,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
@@ -165,6 +189,7 @@ export default async function CommercialPage() {
     supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('users').select('id,email').limit(500),
+    supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,status,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
@@ -181,6 +206,7 @@ export default async function CommercialPage() {
   const typedSellerFunnelEvents = (sellerFunnelEvents || []) as SellerFunnelEvent[]
   const typedSellerPipelineListings = (sellerPipelineListings || []) as SellerPipelineListing[]
   const typedSellerUsers = (sellerUsers || []) as SellerUser[]
+  const typedSellerAssistance = (sellerAssistance || []) as SellerAssistance[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
   const typedListingEvents = (events || []) as ListingEvent[]
   const wantedDispatchesByRequest = typedWantedMatchDispatches.reduce<Map<string, WantedMatchDispatch[]>>((byRequest, dispatch) => {
@@ -218,6 +244,7 @@ export default async function CommercialPage() {
   const unattributedLegacyViews = typedListingEvents.filter((event) => event.event_type === 'VIEW' && !event.journey_key).length
   const openInquiries = typedInquiries.filter((inquiry) => openInquiryStatuses.includes(inquiry.status)).length
   const openWanted = typedWantedRequests.filter((request) => !['CLOSED', 'SPAM'].includes(request.status)).length
+  const openSellerAssistance = typedSellerAssistance.filter((request) => !['LISTED', 'CLOSED', 'SPAM'].includes(request.status)).length
   const zeroResultSearches = typedSearchEvents.filter((event) => event.zero_results)
   const zeroDemandCounts = zeroResultSearches.reduce<Map<string, number>>((counts, event) => {
     const label = event.query_text || event.category || event.country || 'Unspecified catalog search'
@@ -264,7 +291,7 @@ export default async function CommercialPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${typedSearchEvents.length} catalog searches`} />
-        <Metric title="Open opportunities" value={openInquiries + openWanted + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon`} />
+        <Metric title="Open opportunities" value={openInquiries + openWanted + openSellerAssistance + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon · ${typedSellerAssistance.length} assisted sellers`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
         <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Seller emails not accepted" warning={failedNotifications > 0} />
       </div>
@@ -342,6 +369,34 @@ export default async function CommercialPage() {
               )}
             </div>
           </>
+        )}
+      </section>
+
+      <section className="rounded-2xl border bg-card overflow-hidden">
+        <div className="border-b p-6"><h2 className="text-xl font-semibold">Assisted seller pipeline</h2><p className="mt-1 text-sm text-muted-foreground">Private owner requests that reduce listing abandonment. Nothing here is public; LISTED must point to the completed normal marketplace listing.</p></div>
+        {sellerAssistanceError ? <p className="p-6 text-destructive">Assisted-sale pipeline unavailable: {sellerAssistanceError.message}</p> : typedSellerAssistance.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No assisted-sale requests yet.</p> : (
+          <div className="divide-y">
+            {typedSellerAssistance.map((request) => {
+              const candidates = typedSellerPipelineListings.filter((listing) => (
+                (request.seller_user_id && listing.seller_id === request.seller_user_id)
+                || listing.contact_email.trim().toLowerCase() === request.email.trim().toLowerCase()
+              ))
+              const expectedPrice = request.expected_price_minor === null
+                ? 'Price not specified'
+                : (request.expected_price_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: request.currency })
+              return (
+                <div key={request.id} className="grid gap-4 p-6 lg:grid-cols-[1.2fr_1fr_auto] lg:items-start">
+                  <div><p className="font-semibold">{request.name} · {[request.manufacturer, request.model].filter(Boolean).join(' ') || request.category}</p><a href={`mailto:${request.email}`} className="text-sm text-primary hover:underline">{request.email}</a>{request.phone ? <p className="text-sm">{request.phone}</p> : null}<p className="mt-1 text-xs text-muted-foreground">{formatDate(request.created_at)} · {request.location_country || 'Location not specified'} · {expectedPrice}</p>{request.notes ? <p className="mt-3 whitespace-pre-wrap text-sm">{request.notes}</p> : null}</div>
+                  <div className="space-y-2 text-sm"><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{request.status}</span><p>Documents: {request.documentation_readiness} · photos: {request.photo_readiness}</p><p>Timing: {request.timeline}</p><p className="text-xs text-muted-foreground">Help: {request.help_needed.length ? request.help_needed.join(', ') : 'not specified'}</p>{request.linked_listing_id ? <Link href={`/catalog/${request.linked_listing_id}`} className="block font-semibold text-primary underline">Open completed listing</Link> : null}</div>
+                  <form action={updateSellerAssistanceStatus.bind(null, request.id)} className="grid min-w-64 gap-2">
+                    <select name="status" defaultValue={request.status} className="rounded-lg border bg-background px-3 py-2 text-sm">{['NEW', 'CONTACTED', 'QUALIFIED', 'LISTING_PREPARATION', 'LISTED', 'CLOSED', 'SPAM'].map((status) => <option value={status} key={status}>{status}</option>)}</select>
+                    <select name="linked_listing_id" defaultValue={request.linked_listing_id || ''} className="rounded-lg border bg-background px-3 py-2 text-sm"><option value="">No linked listing</option>{candidates.map((listing) => <option key={listing.id} value={listing.id}>{listing.title} · {listing.status}</option>)}</select>
+                    <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save & verify</button>
+                  </form>
+                </div>
+              )
+            })}
+          </div>
         )}
       </section>
 

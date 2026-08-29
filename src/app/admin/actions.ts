@@ -14,6 +14,7 @@ import { assertListingHasReachableImage, markListingQualityResolved } from '@/ut
 import { assertStoredListingRequiredFields } from '@/utils/listing-submission.mjs'
 import { parseListingVerificationDecision } from '@/utils/listing-verification.mjs'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
+import { normalizeSellerAssistanceStatus } from '@/utils/seller-assistance.mjs'
 
 async function checkAdmin() {
   const supabase = await createClient()
@@ -189,6 +190,57 @@ export async function updateQuoteRequestStatus(requestId: string, formData: Form
     .single()
 
   if (error || !data?.id || data.status !== status) throw new Error('Could not update quote status')
+  revalidatePath('/admin/commercial')
+}
+
+export async function updateSellerAssistanceStatus(requestId: string, formData: FormData) {
+  const { supabase } = await checkAdmin()
+  const status = normalizeSellerAssistanceStatus(formData.get('status'))
+  if (!status) throw new Error('Invalid assisted-sale status')
+  const rawListingId = formData.get('linked_listing_id')
+  const linkedListingId = typeof rawListingId === 'string' && rawListingId.trim() ? rawListingId.trim() : null
+  if (status === 'LISTED' && !linkedListingId) throw new Error('Choose the completed listing before marking this request as listed')
+
+  const { data: request, error: requestError } = await supabase
+    .from('seller_assistance_requests')
+    .select('id,email,seller_user_id')
+    .eq('id', requestId)
+    .single()
+  if (requestError || !request) throw new Error('Assisted-sale request not found')
+
+  if (linkedListingId) {
+    const { data: listing, error: listingError } = await supabase
+      .from('listings')
+      .select('id,seller_id,contact_email')
+      .eq('id', linkedListingId)
+      .single()
+    const sameOwner = Boolean(
+      listing
+      && ((request.seller_user_id && listing.seller_id === request.seller_user_id)
+        || listing.contact_email?.trim().toLowerCase() === request.email.trim().toLowerCase()),
+    )
+    if (listingError || !sameOwner) throw new Error('The selected listing does not match this seller')
+  }
+
+  const now = new Date().toISOString()
+  const closed = ['CLOSED', 'SPAM'].includes(status)
+  const { data, error } = await supabase
+    .from('seller_assistance_requests')
+    .update({
+      status,
+      linked_listing_id: status === 'LISTED' ? linkedListingId : linkedListingId || null,
+      last_activity_at: now,
+      closed_at: closed ? now : null,
+    })
+    .eq('id', requestId)
+    .select('id,status,linked_listing_id,closed_at')
+    .single()
+
+  if (error || data?.id !== requestId || data.status !== status
+    || (status === 'LISTED' && data.linked_listing_id !== linkedListingId)
+    || (closed && !data.closed_at)) {
+    throw new Error('Could not persist and verify assisted-sale status')
+  }
   revalidatePath('/admin/commercial')
 }
 

@@ -1,6 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import SellForm from '@/components/SellForm'
 import { Metadata } from 'next'
+import Link from 'next/link'
+import { Handshake } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Post a Listing | AeroTrade Marketplace',
@@ -35,6 +37,10 @@ export default async function SellPage() {
             Your Premium membership gives you early buyer access. Listing promotion is purchased separately.
           </p>
         )}
+        <div className="mt-5 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="font-semibold">Not ready with the photos, documents or price?</p><p className="mt-1 text-sm text-muted-foreground">Record a short private sale request and AeroTrade can help you prepare this same marketplace listing.</p></div>
+          <Link href="/sell/assisted" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"><Handshake className="h-4 w-4" />Get help selling</Link>
+        </div>
       </div>
 
       <SellForm userId={user?.id || null} defaultContactEmail={user?.email || null} />

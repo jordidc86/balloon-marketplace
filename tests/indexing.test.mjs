@@ -14,6 +14,7 @@ const listings = [
 test('public indexing includes commercial routes and only releasable inventory', () => {
   const urls = buildPublicIndexingUrls({ origin: 'https://aerotrade.app', listings, now })
   assert.ok(urls.includes('https://aerotrade.app/new-balloon'))
+  assert.ok(urls.includes('https://aerotrade.app/sell/assisted'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/category/complete'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/category/burners'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/public-complete'))
