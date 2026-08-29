@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_indexing_discovery_production_verification",
+  "verifiedAt": "2026-08-29T09:40:00Z",
+  "containsPii": false,
+  "production": {
+    "url": "https://aerotrade.app",
+    "deployId": "6a92a83b1311e100075d80e0",
+    "commit": "0b4097c73c9427d2ef7197ab80a721c05fc334ce",
+    "state": "ready"
+  },
+  "externalEvidence": {
+    "searchConsolePropertyAccessible": false,
+    "publicSearchSample": {
+      "homepageSurfaced": true,
+      "listingSurfaced": true,
+      "categoryPageSurfaced": false,
+      "newBalloonPageSurfaced": false
+    },
+    "interpretation": "A public search sample is directional and does not replace Search Console coverage evidence."
+  },
+  "indexNow": {
+    "keyFileHttpStatus": 200,
+    "keyFileMatched": true,
+    "unauthorizedEndpointStatus": 401,
+    "dryRunUrlCount": 24,
+    "providerStatus": 202,
+    "accepted": true,
+    "duplicateRunSuppressed": true,
+    "receiptRows": 1,
+    "acceptedReceiptRows": 1,
+    "attempts": 1,
+    "failures": 0
+  },
+  "database": {
+    "migration": "20260829300000",
+    "migrationRegistered": true,
+    "rowLevelSecurity": true,
+    "publicMutationGrants": 0,
+    "storedUrlLists": 0,
+    "storedQueries": 0
+  },
+  "automation": {
+    "workflow": "Submit Public AeroTrade URLs to IndexNow",
+    "workflowState": "active",
+    "schedule": "daily",
+    "cronSecretConfigured": true
+  },
+  "validation": {
+    "automatedTests": 81,
+    "operationalContracts": 70,
+    "lint": "passed",
+    "productionBuild": "passed",
+    "economicActionsPerformed": 0,
+    "syntheticLeadsCreated": 0
+  }
+}
