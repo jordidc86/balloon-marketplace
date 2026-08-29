@@ -11,6 +11,7 @@
     "audit:local": "node scripts/audit-local.mjs",
     "baseline:commercial": "node scripts/capture-commercial-baseline.mjs",
     "audit:marketplace": "node scripts/capture-marketplace-audit.mjs",
+    "audit:stripe-commercial": "node scripts/capture-stripe-commercial-audit.mjs",
     "test:commercial-instrumentation": "node tests/commercial-instrumentation.test.mjs"
   },
   "dependencies": {

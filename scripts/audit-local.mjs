@@ -27,6 +27,11 @@ const checks = [
     required: ['charge_id text primary key', 'stripe_event_id text not null unique', 'provider_message_id text not null unique', 'enable row level security', 'revoke all'],
   },
   {
+    name: 'Stripe commercial audit is read-only and PII-free',
+    file: 'scripts/capture-stripe-commercial-audit.mjs',
+    required: ['CONFIRM_READ_ONLY_STRIPE', 'containsPii: false', 'webhookEndpoints.list', 'requiredEventCoverage', 'grossMinorByCurrency', 'Historical charges without current metadata are not assigned to a product by inference.'],
+  },
+  {
     name: 'Premium checkout validates current entitlement and uses trusted returns',
     file: 'src/app/pricing/actions.ts',
     required: ["select('is_premium, stripe_customer_id')", 'getApplicationOrigin', "type: 'premium_subscription'"],

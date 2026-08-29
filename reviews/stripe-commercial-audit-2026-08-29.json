@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "projectId": "aerotrade",
+  "readOnly": true,
+  "containsPii": false,
+  "capturedAt": "2026-08-29T07:05:43.904Z",
+  "period": {
+    "rollingDays": 90,
+    "since": "2026-05-31T07:05:43.000Z"
+  },
+  "stripeMode": "live",
+  "webhooks": {
+    "relevantEndpoints": 1,
+    "enabledEndpoints": 1,
+    "requiredEventCoverage": {
+      "checkout.session.completed": true,
+      "charge.succeeded": true,
+      "customer.subscription.updated": true,
+      "customer.subscription.deleted": true,
+      "invoice.payment_failed": true
+    }
+  },
+  "charges": {
+    "total": 1,
+    "successful": 1,
+    "grossMinorByCurrency": {
+      "eur": 999
+    },
+    "refundedMinorByCurrency": {
+      "eur": 0
+    }
+  },
+  "checkouts": {
+    "total": 5,
+    "complete": 1,
+    "paid": 1,
+    "byType": {
+      "listing_fee": 1,
+      "premium_subscription": 4
+    },
+    "byStatus": {
+      "expired": 4,
+      "complete": 1
+    }
+  },
+  "internalEvidence": {
+    "livePaymentReceipts": 0,
+    "processedStripeEvents": 3
+  },
+  "caveat": "Stripe gross charges are not net revenue. Historical charges without current metadata are not assigned to a product by inference."
+}
