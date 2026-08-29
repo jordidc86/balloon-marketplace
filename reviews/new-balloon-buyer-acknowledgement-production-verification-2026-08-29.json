@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "new_balloon_buyer_acknowledgement_production_verification",
+  "verifiedAt": "2026-08-29T14:31:54.917Z",
+  "containsPii": false,
+  "production": {
+    "url": "https://aerotrade.app",
+    "deployId": "6a92ececbcc0eb000896e452",
+    "commit": "a6ab02a0b438b2db877f5527b1b19b971bcc2c79",
+    "state": "ready",
+    "publishedAt": "2026-08-29T14:31:05.193Z",
+    "secretScanMatches": 0
+  },
+  "database": {
+    "migration": "20260829430000_new_balloon_buyer_acknowledgement",
+    "registeredRemotely": true,
+    "closedReceiptType": "new_balloon_buyer_ack"
+  },
+  "validation": {
+    "automatedTests": 114,
+    "operationalContracts": 111,
+    "lint": "passed",
+    "productionBuild": "passed"
+  },
+  "publicRoutes": {
+    "/new-balloon": 200,
+    "/new-balloon/pasha": 200,
+    "/new-balloon/schroeder": 200
+  },
+  "readOnlyProductionEvidence": {
+    "activeListings": 12,
+    "activeSellers": 5,
+    "newBalloonQuoteRequests": 0,
+    "newBalloonProposals": 0,
+    "newBalloonBuyerAcknowledgements": 0,
+    "commercialNotificationReceipts": 2,
+    "commercialNotificationAccepted": 2,
+    "livePaymentReceipts": 0,
+    "syntheticRequestsCreated": 0,
+    "testEmailsSent": 0
+  },
+  "boundary": "The acknowledgement confirms only that a stored request was received. It is not a quotation, factory order, production reservation or payment obligation.",
+  "caveat": "Delivery remains operationally unproven until the first genuine buyer submits a request; the score is therefore unchanged."
+}
