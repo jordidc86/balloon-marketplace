@@ -1,0 +1,30 @@
+{
+  "verifiedAt": "2026-08-29T11:18:00+02:00",
+  "productionUrl": "https://aerotrade.app",
+  "deployId": "6a929e37af6a03b10298da8a",
+  "commit": "c80de97",
+  "database": {
+    "migrationVersion": "20260829270000",
+    "migrationRecorded": true,
+    "dispatchTablePresent": true,
+    "statusIndexPresent": true,
+    "integrityConstraints": 2,
+    "rowLevelSecurity": true,
+    "anonymousOrAuthenticatedGrants": 0,
+    "dispatchesAfterVerification": 0
+  },
+  "runtime": {
+    "unauthorizedStatus": 401,
+    "dryRunStatus": 200,
+    "commitRunStatus": 200,
+    "consentedRequests": 0,
+    "candidatePairs": 0,
+    "dueDigests": 0,
+    "accepted": 0,
+    "failed": 0,
+    "dryRunWasNonMutating": true,
+    "commitRunCreatedNoDispatch": true
+  },
+  "schedule": "30 7 * * *",
+  "realEmailSent": false
+}
