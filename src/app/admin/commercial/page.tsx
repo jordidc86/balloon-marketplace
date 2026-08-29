@@ -129,6 +129,17 @@ type CommercialOutcome = {
   closed_at: string
 }
 
+type IndexingSubmissionReceipt = {
+  id: string
+  provider: 'INDEXNOW'
+  url_count: number
+  status: 'PENDING' | 'ACCEPTED' | 'FAILED'
+  attempts: number
+  provider_status_code: number | null
+  attempted_at: string | null
+  accepted_at: string | null
+}
+
 const formatDate = (value: string) => new Intl.DateTimeFormat('en-GB', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -144,7 +155,7 @@ export default async function CommercialPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
-  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('quote_requests').select('id,name,email,equipment_type,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
@@ -158,6 +169,7 @@ export default async function CommercialPage() {
     supabase.from('listing_events').select('event_type,journey_key,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,notes,closed_at').order('closed_at', { ascending: false }).limit(200),
+    supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
   ])
 
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
@@ -181,6 +193,8 @@ export default async function CommercialPage() {
     .filter((notification) => notification.notification_type === 'premium_listing_checkout_recovery')
     .map((notification) => [notification.entity_id, notification.status]))
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
+  const typedIndexingReceipts = (indexingReceipts || []) as IndexingSubmissionReceipt[]
+  const latestIndexingReceipt = typedIndexingReceipts[0]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
   const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
   const reveals = typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL').length
@@ -282,6 +296,22 @@ export default async function CommercialPage() {
         <h2 className="text-xl font-semibold">Catalog demand gaps (30d)</h2>
         <p className="mt-1 text-sm text-muted-foreground">{typedSearchEvents.length} deduplicated search(es) · {zeroResultSearches.length} with no matching inventory. Likely email, phone and URL searches are not retained.</p>
         {searchEventsError ? <p className="mt-4 text-sm text-destructive">Search-demand evidence unavailable: {searchEventsError.message}</p> : topZeroDemand.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No zero-result demand has been recorded yet.</p> : <div className="mt-4 grid gap-2 sm:grid-cols-2">{topZeroDemand.map(([label, count]) => <div key={label} className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3 text-sm"><span className="font-medium">{label}</span><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{count}</span></div>)}</div>}
+      </section>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div><h2 className="text-xl font-semibold">Search discovery</h2><p className="mt-1 text-sm text-muted-foreground">The public sitemap remains authoritative. IndexNow submits only public commercial URLs and keeps aggregate provider evidence without retaining the submitted URL list.</p></div>
+          <a href="/sitemap.xml" className="text-sm font-semibold text-primary underline">Open sitemap</a>
+        </div>
+        {indexingError ? <p className="mt-4 text-sm text-destructive">Indexing submission evidence is unavailable: {indexingError.message}</p> : !latestIndexingReceipt ? <p className="mt-4 text-sm text-muted-foreground">No public URL submission has run yet.</p> : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <FunnelStep label="Latest URLs" value={latestIndexingReceipt.url_count} />
+            <FunnelStep label="Attempts" value={latestIndexingReceipt.attempts} />
+            <div className="rounded-xl border bg-muted/20 p-4"><p className="text-xs font-medium text-muted-foreground">Provider result</p><p className={`mt-2 text-lg font-bold ${latestIndexingReceipt.status === 'FAILED' ? 'text-destructive' : 'text-foreground'}`}>{latestIndexingReceipt.status}</p></div>
+            <div className="rounded-xl border bg-muted/20 p-4"><p className="text-xs font-medium text-muted-foreground">Last evidence</p><p className="mt-2 text-sm font-bold">{latestIndexingReceipt.accepted_at ? formatDate(latestIndexingReceipt.accepted_at) : latestIndexingReceipt.attempted_at ? formatDate(latestIndexingReceipt.attempted_at) : 'Not attempted'}</p></div>
+          </div>
+        )}
+        <p className="mt-3 text-xs text-muted-foreground">IndexNow supports participating search engines; it does not prove Google indexing. Search Console ownership remains a separate external setup step.</p>
       </section>
 
       <section className="rounded-2xl border bg-card p-6">

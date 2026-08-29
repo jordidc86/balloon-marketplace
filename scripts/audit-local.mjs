@@ -144,6 +144,17 @@ const checks = [
     forbidden: ["'/login'", "'/signup'"],
   },
   {
+    name: 'Public URL discovery is scheduled, deduplicated and auditable without retaining URL lists',
+    file: 'src/app/api/cron/indexing/route.ts',
+    required: ['buildPublicIndexingUrls', 'buildIndexNowSubmission', "from('indexing_submission_receipts')", "status: accepted ? 'ACCEPTED' : 'FAILED'", 'Provider result could not be persisted', 'Retry limit reached'],
+  },
+  {
+    name: 'Indexing receipts are private aggregate evidence',
+    file: 'supabase/migrations/20260829300000_indexing_submission_receipts.sql',
+    required: ['batch_key text not null unique', 'url_fingerprint text not null', 'url_count integer not null', 'enable row level security', 'revoke all on public.indexing_submission_receipts from anon, authenticated', 'stores no URL list, query, credential or personal data'],
+    forbidden: ['url_list', 'search_query', 'credential text'],
+  },
+  {
     name: 'High-intent catalog categories use clean canonical landing pages',
     file: 'src/app/catalog/category/[category]/page.tsx',
     required: ['getCatalogCategory', 'getPublicCategoryInventory', 'isListingPubliclyIndexable', 'alternates: { canonical:', 'publicInventory > 0', '<CatalogExperience'],
