@@ -14,6 +14,7 @@ const nonRuntimePrefixes = Object.freeze([
 const nonRuntimeExact = new Set([
   'README.md',
   'memory.md',
+  'source-index.md',
 ])
 
 export function isNetlifyRuntimeChange(file) {

@@ -6,6 +6,7 @@ test('Netlify build gate skips only known non-runtime evidence changes', () => {
   assert.equal(shouldRunNetlifyBuild(['reviews/latest-summary.md', 'docs/runbook.md', 'tests/unit.test.mjs']), false)
   assert.equal(shouldRunNetlifyBuild(['supabase/migrations/20260829990000_private_table.sql']), false)
   assert.equal(shouldRunNetlifyBuild(['README.md']), false)
+  assert.equal(shouldRunNetlifyBuild(['source-index.md', 'reviews/new-evidence.json']), false)
 })
 
 test('Netlify build gate fails safe for application, configuration and unknown changes', () => {
