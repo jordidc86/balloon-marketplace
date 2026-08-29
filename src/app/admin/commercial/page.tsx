@@ -10,12 +10,25 @@ type Inquiry = {
   id: string
   buyer_name: string
   buyer_email: string
+  currency: string
+  initial_offer_amount_minor: number | null
   status: string
   seller_notification_status: string
   created_at: string
   last_activity_at: string
   journey_key: string | null
   listings: { title: string } | null
+}
+
+type NegotiationEvent = {
+  id: string
+  inquiry_id: string
+  event_type: 'BUYER_OFFERED' | 'SELLER_ACCEPTED_FOR_NEGOTIATION' | 'SELLER_COUNTERED' | 'SELLER_DECLINED'
+  actor_role: 'BUYER' | 'SELLER' | 'ADMIN'
+  amount_minor: number | null
+  currency: string
+  buyer_notification_status: 'pending' | 'accepted' | 'failed' | 'not_required'
+  created_at: string
 }
 
 type Quote = {
@@ -179,8 +192,9 @@ export default async function CommercialPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
-  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }] = await Promise.all([
-    supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
+  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }] = await Promise.all([
+    supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
+    supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('quote_requests').select('id,name,email,equipment_type,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
@@ -198,6 +212,7 @@ export default async function CommercialPage() {
   ])
 
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
+  const typedNegotiationEvents = (negotiationEvents || []) as NegotiationEvent[]
   const typedQuotes = (quotes || []) as Quote[]
   const typedWantedRequests = (wantedRequests || []) as WantedRequest[]
   const typedWantedMatchDispatches = (wantedMatchDispatches || []) as WantedMatchDispatch[]
@@ -209,6 +224,12 @@ export default async function CommercialPage() {
   const typedSellerAssistance = (sellerAssistance || []) as SellerAssistance[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
   const typedListingEvents = (events || []) as ListingEvent[]
+  const negotiationEventsByInquiry = typedNegotiationEvents.reduce<Map<string, NegotiationEvent[]>>((byInquiry, event) => {
+    const inquiryEvents = byInquiry.get(event.inquiry_id) || []
+    inquiryEvents.push(event)
+    byInquiry.set(event.inquiry_id, inquiryEvents)
+    return byInquiry
+  }, new Map())
   const wantedDispatchesByRequest = typedWantedMatchDispatches.reduce<Map<string, WantedMatchDispatch[]>>((byRequest, dispatch) => {
     const rows = byRequest.get(dispatch.wanted_request_id) || []
     rows.push(dispatch)
@@ -267,8 +288,12 @@ export default async function CommercialPage() {
   })
   const sellerEmailById = new Map(typedSellerUsers.map((user) => [user.id, user.email]))
   const won = typedInquiries.filter((inquiry) => inquiry.status === 'WON').length + typedQuotes.filter((quote) => quote.status === 'WON').length
+  const buyerOffers = typedNegotiationEvents.filter((event) => event.event_type === 'BUYER_OFFERED')
+  const sellerNegotiationResponses = typedNegotiationEvents.filter((event) => event.actor_role !== 'BUYER')
+  const failedBuyerResponseNotifications = sellerNegotiationResponses.filter((event) => event.buyer_notification_status === 'failed').length
   const failedNotifications = typedInquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length
     + typedNotifications.filter((notification) => notification.status === 'failed').length
+    + failedBuyerResponseNotifications
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
   const settledRevenueByCurrency = typedOutcomes
@@ -307,6 +332,17 @@ export default async function CommercialPage() {
         </div>
         <p className="mt-4 text-sm text-muted-foreground">{attributableJourneyKeys.size} attributable buyer journey(s). Each stage is a distinct journey count, not a claim that every visitor moved through every preceding step.</p>
         {unattributedLegacyViews > 0 ? <p className="mt-2 text-xs text-amber-700">{unattributedLegacyViews} older or unattributed listing view(s) remain visible but cannot be reconstructed into a journey.</p> : null}
+      </section>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">Negotiation evidence</h2>
+        <p className="mt-1 text-sm text-muted-foreground">A structured price indication is optional. Seller acceptances, counteroffers and declines are stored before notification and remain explicitly non-binding.</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <FunnelStep label="Tracked enquiries" value={typedInquiries.length} />
+          <FunnelStep label="Buyer offers" value={buyerOffers.length} />
+          <FunnelStep label="Seller responses" value={sellerNegotiationResponses.length} />
+          <FunnelStep label="Buyer emails failed" value={failedBuyerResponseNotifications} />
+        </div>
       </section>
 
       <div className="rounded-2xl border bg-card p-6">
@@ -427,19 +463,26 @@ export default async function CommercialPage() {
       </section>
 
       <section className="rounded-2xl border bg-card overflow-hidden">
-        <div className="border-b p-6"><h2 className="text-xl font-semibold">Marketplace enquiries</h2></div>
-        {inquiriesError ? <p className="p-6 text-destructive">Pipeline unavailable: {inquiriesError.message}</p> : typedInquiries.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No tracked enquiries yet.</p> : (
+        <div className="border-b p-6"><h2 className="text-xl font-semibold">Marketplace enquiries</h2><p className="mt-1 text-sm text-muted-foreground">Structured offers and seller responses are non-binding commercial evidence; they never reserve equipment or execute payment.</p></div>
+        {inquiriesError || negotiationEventsError ? <p className="p-6 text-destructive">Pipeline unavailable: {inquiriesError?.message || negotiationEventsError?.message}</p> : typedInquiries.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No tracked enquiries yet.</p> : (
           <div className="divide-y">
-            {typedInquiries.map((inquiry) => (
-              <div key={inquiry.id} className="grid gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
+            {typedInquiries.map((inquiry) => {
+              const inquiryNegotiationEvents = negotiationEventsByInquiry.get(inquiry.id) || []
+              const latestNegotiationEvent = inquiryNegotiationEvents[0]
+              const displayAmount = latestNegotiationEvent?.amount_minor
+                ? (Number(latestNegotiationEvent.amount_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: latestNegotiationEvent.currency })
+                : null
+              return <div key={inquiry.id} className="grid gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
                 <div>
                   <p className="font-semibold">{inquiry.buyer_name} · {inquiry.listings?.title || 'Listing'}</p>
                   <a href={`mailto:${inquiry.buyer_email}`} className="text-sm text-primary hover:underline">{inquiry.buyer_email}</a>
                   <p className="mt-1 text-xs text-muted-foreground">{formatDate(inquiry.created_at)}</p>
+                  {latestNegotiationEvent ? <p className="mt-2 text-sm font-medium">Latest negotiation: {latestNegotiationEvent.event_type.replaceAll('_', ' ').toLowerCase()}{displayAmount ? ` · ${displayAmount}` : ''}</p> : <p className="mt-2 text-xs text-muted-foreground">No structured offer or response yet.</p>}
                 </div>
                 <div className="text-sm">
                   <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{inquiry.status}</span>
                   {inquiry.seller_notification_status === 'failed' ? <p className="mt-2 text-destructive">Seller email not accepted; lead remains visible.</p> : null}
+                  {latestNegotiationEvent && latestNegotiationEvent.actor_role !== 'BUYER' ? <p className={`mt-2 text-xs ${latestNegotiationEvent.buyer_notification_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Buyer response email: {latestNegotiationEvent.buyer_notification_status}</p> : null}
                 </div>
                 <form action={updateAdminInquiryStatus.bind(null, inquiry.id)} className="flex gap-2">
                   <select name="status" defaultValue={inquiry.status} className="rounded-lg border bg-background px-3 py-2 text-sm">
@@ -451,7 +494,7 @@ export default async function CommercialPage() {
                   <OutcomeEditor entityType="marketplace_inquiry" entityId={inquiry.id} outcome={outcomesByEntity.get(`marketplace_inquiry:${inquiry.id}`)} />
                 </div>
               </div>
-            ))}
+            })}
           </div>
         )}
       </section>

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { submitListingInquiry } from './actions'
 import { getBrowserCommercialContext } from '@/utils/browser-attribution'
 
-export default function BuyerInquiryForm({ listingId }: { listingId: string }) {
+export default function BuyerInquiryForm({ listingId, listingCurrency }: { listingId: string; listingCurrency: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
 
@@ -49,6 +49,14 @@ export default function BuyerInquiryForm({ listingId }: { listingId: string }) {
         <input name="buyer_email" type="email" required maxLength={320} placeholder="Email" className="rounded-lg border bg-background px-3 py-2" />
       </div>
       <input name="buyer_phone" maxLength={60} placeholder="Phone (optional)" className="w-full rounded-lg border bg-background px-3 py-2" />
+      <label className="block space-y-1.5 text-sm font-medium">
+        Indicative offer (optional)
+        <div className="flex rounded-lg border bg-background focus-within:ring-2 focus-within:ring-primary">
+          <input name="offer_amount" inputMode="decimal" pattern="[0-9]+([.,][0-9]{1,2})?" placeholder="e.g. 25000" className="min-w-0 flex-1 rounded-l-lg bg-transparent px-3 py-2 outline-none" />
+          <span className="flex items-center border-l px-3 text-sm font-semibold text-muted-foreground">{listingCurrency}</span>
+        </div>
+        <span className="block text-xs font-normal text-muted-foreground">A price indication starts a conversation only. It does not reserve the equipment or form a sale contract.</span>
+      </label>
       <textarea name="message" required minLength={20} maxLength={2000} rows={4} placeholder="Ask about availability, documentation, inspection or collection…" className="w-full resize-y rounded-lg border bg-background px-3 py-2" />
       <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
       <label className="flex items-start gap-2 text-xs text-muted-foreground">

@@ -88,6 +88,17 @@ const checks = [
     required: ['parseInquiry(formData)', "from('marketplace_inquiries')", 'seller_notification_provider_id', 'Provider acceptance was not confirmed.', 'Marketplace enquiry readback failed'],
   },
   {
+    name: 'Marketplace negotiation is private, non-binding and atomically seller-authorized',
+    file: 'supabase/migrations/20260829320000_inquiry_negotiation_events.sql',
+    required: ['marketplace_inquiry_offer_events', 'record_initial_marketplace_offer', 'record_seller_inquiry_response', 'for update of inquiry', "grant execute on function public.record_seller_inquiry_response", 'buyer_notification_status', 'never reserves equipment, executes payment or forms a sale contract'],
+    forbidden: ['charge_id', 'payment_intent', 'reservation_id'],
+  },
+  {
+    name: 'Seller negotiation responses store before notifying and verify both results',
+    file: 'src/app/dashboard/actions.ts',
+    required: ['respondToBuyerInquiry', 'parseSellerInquiryResponse', "rpc('record_seller_inquiry_response'", 'The negotiation response was not confirmed by readback', 'inquiry_buyer_seller_response', 'inquiry-buyer-seller-response-${event.id}', 'The buyer notification result could not be verified'],
+  },
+  {
     name: 'Commercial operational emails have private durable receipts',
     file: 'supabase/migrations/20260829130000_commercial_notification_receipts.sql',
     required: ['commercial_notification_receipts', 'idempotency_key text not null unique', 'enable row level security', 'revoke all on public.commercial_notification_receipts from anon, authenticated'],

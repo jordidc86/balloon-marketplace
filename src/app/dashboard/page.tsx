@@ -5,6 +5,7 @@ import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, Trian
 import { openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
+import SellerInquiryResponseForm from './SellerInquiryResponseForm'
 
 type DashboardListingImage = {
   url: string
@@ -17,10 +18,24 @@ type SellerInquiry = {
   buyer_email: string
   buyer_phone: string | null
   message: string
+  currency: string
+  initial_offer_amount_minor: number | null
   status: string
   seller_notification_status: string
   created_at: string
   listings: { id: string; title: string } | null
+}
+
+type InquiryOfferEvent = {
+  id: string
+  inquiry_id: string
+  event_type: 'BUYER_OFFERED' | 'SELLER_ACCEPTED_FOR_NEGOTIATION' | 'SELLER_COUNTERED' | 'SELLER_DECLINED'
+  actor_role: 'BUYER' | 'SELLER' | 'ADMIN'
+  amount_minor: number | null
+  currency: string
+  note: string | null
+  buyer_notification_status: 'pending' | 'accepted' | 'failed' | 'not_required'
+  created_at: string
 }
 
 type ListingQualityState = {
@@ -71,8 +86,22 @@ export default async function DashboardPage({
 
   const { data: inquiries } = await supabase
     .from('marketplace_inquiries')
-    .select('id,buyer_name,buyer_email,buyer_phone,message,status,seller_notification_status,created_at,listings(id,title)')
+    .select('id,buyer_name,buyer_email,buyer_phone,message,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,listings(id,title)')
     .order('created_at', { ascending: false })
+  const inquiryIds = (inquiries || []).map((inquiry) => inquiry.id)
+  const { data: inquiryOfferEvents } = inquiryIds.length > 0
+    ? await supabase
+      .from('marketplace_inquiry_offer_events')
+      .select('id,inquiry_id,event_type,actor_role,amount_minor,currency,note,buyer_notification_status,created_at')
+      .in('inquiry_id', inquiryIds)
+      .order('created_at', { ascending: false })
+    : { data: [] }
+  const offerEventsByInquiry = ((inquiryOfferEvents as InquiryOfferEvent[] | null) || []).reduce<Map<string, InquiryOfferEvent[]>>((events, event) => {
+    const inquiryEvents = events.get(event.inquiry_id) || []
+    inquiryEvents.push(event)
+    events.set(event.inquiry_id, inquiryEvents)
+    return events
+  }, new Map())
 
   const isPremium = profile?.is_premium || false
   const admin = await createAdminClient()
@@ -262,8 +291,13 @@ export default async function DashboardPage({
             <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No tracked enquiries yet.</p>
           ) : (
             <div className="space-y-4">
-              {(inquiries as unknown as SellerInquiry[]).map((inquiry) => (
-                <article key={inquiry.id} className="rounded-xl border p-4">
+              {(inquiries as unknown as SellerInquiry[]).map((inquiry) => {
+                const negotiationEvents = offerEventsByInquiry.get(inquiry.id) || []
+                const isClosed = ['WON', 'LOST', 'SPAM'].includes(inquiry.status)
+                const formatOffer = (event: InquiryOfferEvent) => event.amount_minor === null
+                  ? null
+                  : (Number(event.amount_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: event.currency })
+                return <article key={inquiry.id} className="rounded-xl border p-4">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
@@ -276,22 +310,39 @@ export default async function DashboardPage({
                         {inquiry.buyer_phone ? <a href={`tel:${inquiry.buyer_phone}`} className="inline-flex items-center gap-1 hover:underline"><Phone className="h-4 w-4" />{inquiry.buyer_phone}</a> : null}
                       </div>
                       <p className="whitespace-pre-wrap text-sm text-muted-foreground">{inquiry.message}</p>
+                      {negotiationEvents.length > 0 ? (
+                        <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Non-binding negotiation history</p>
+                          {negotiationEvents.map((event) => (
+                            <div key={event.id} className="text-sm">
+                              <p><strong>{event.event_type.replaceAll('_', ' ').toLowerCase().replace(/^./, (letter) => letter.toUpperCase())}</strong>{formatOffer(event) ? ` · ${formatOffer(event)}` : ''}</p>
+                              {event.note ? <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{event.note}</p> : null}
+                              <p className="text-xs text-muted-foreground">{new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' }).format(new Date(event.created_at))}{event.actor_role !== 'BUYER' ? ` · buyer email ${event.buyer_notification_status}` : ''}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                       <p className="text-xs text-muted-foreground">Received {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inquiry.created_at))}</p>
                     </div>
-                    <form action={updateSellerInquiryStatus.bind(null, inquiry.id)} className="flex shrink-0 items-center gap-2">
-                      <select name="status" defaultValue={inquiry.status === 'NEW' || inquiry.status === 'SELLER_NOTIFIED' ? 'CONTACTED' : inquiry.status} className="rounded-lg border bg-background px-3 py-2 text-sm">
-                        <option value="CONTACTED">Contacted</option>
-                        <option value="QUALIFIED">Qualified</option>
-                        <option value="NEGOTIATING">Negotiating</option>
-                        <option value="WON">Won</option>
-                        <option value="LOST">Lost</option>
-                        <option value="SPAM">Spam</option>
-                      </select>
-                      <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
-                    </form>
+                    <div className="w-full shrink-0 space-y-3 lg:w-80">
+                      {!isClosed ? (
+                        <SellerInquiryResponseForm inquiryId={inquiry.id} currency={inquiry.currency} />
+                      ) : null}
+                      <form action={updateSellerInquiryStatus.bind(null, inquiry.id)} className="flex items-center gap-2">
+                        <select name="status" defaultValue={inquiry.status === 'NEW' || inquiry.status === 'SELLER_NOTIFIED' ? 'CONTACTED' : inquiry.status} className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2 text-sm">
+                          <option value="CONTACTED">Contacted</option>
+                          <option value="QUALIFIED">Qualified</option>
+                          <option value="NEGOTIATING">Negotiating</option>
+                          <option value="WON">Won</option>
+                          <option value="LOST">Lost</option>
+                          <option value="SPAM">Spam</option>
+                        </select>
+                        <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
+                      </form>
+                    </div>
                   </div>
                 </article>
-              ))}
+              })}
             </div>
           )}
         </div>

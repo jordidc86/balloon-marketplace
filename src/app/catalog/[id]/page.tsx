@@ -408,7 +408,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                </div>
             ) : (
               <div className="space-y-4">
-                <BuyerInquiryForm listingId={typedListing.id} />
+                <BuyerInquiryForm listingId={typedListing.id} listingCurrency={typedListing.currency} />
                 <div className="pt-3 border-t">
                   <p className="mb-3 text-center text-xs text-muted-foreground">Prefer to contact the seller directly?</p>
                   <ContactSeller listingId={typedListing.id} />

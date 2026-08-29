@@ -154,7 +154,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
   const principal = user?.id || attribution.visitorId
   const { data: listing, error: listingError } = await supabaseAdmin
     .from('listings')
-    .select('id,seller_id,title,status,public_at,contact_email')
+    .select('id,seller_id,title,status,public_at,contact_email,currency')
     .eq('id', listingId)
     .maybeSingle()
 
@@ -196,6 +196,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
       listing_id: listing.id,
       buyer_user_id: user?.id || null,
       ...inquiry,
+      currency: listing.currency,
       source: 'listing_form',
       status: 'NEW',
       journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
@@ -213,6 +214,9 @@ export async function submitListingInquiry(listingId: string, formData: FormData
   }
 
   const listingUrl = `${siteUrl}/catalog/${listing.id}`
+  const indicativeOffer = inquiry.initial_offer_amount_minor === null
+    ? null
+    : (inquiry.initial_offer_amount_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: listing.currency })
   const delivery = await sendEmail(
     listing.contact_email,
     `New AeroTrade enquiry: ${listing.title}`,
@@ -221,6 +225,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
     <p><strong>Name:</strong> ${escapeHtml(inquiry.buyer_name)}</p>
     <p><strong>Email:</strong> <a href="mailto:${escapeHtml(inquiry.buyer_email)}">${escapeHtml(inquiry.buyer_email)}</a></p>
     ${inquiry.buyer_phone ? `<p><strong>Phone:</strong> ${escapeHtml(inquiry.buyer_phone)}</p>` : ''}
+    ${indicativeOffer ? `<p><strong>Non-binding indicative offer:</strong> ${escapeHtml(indicativeOffer)}</p><p>This is an invitation to negotiate. It does not reserve the equipment or form a sale contract.</p>` : ''}
     <p><strong>Message:</strong></p>
     <p>${escapeHtml(inquiry.message).replaceAll('\n', '<br />')}</p>
     <p>This enquiry is also recorded in your AeroTrade dashboard so its outcome can be tracked.</p>`,
@@ -273,6 +278,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
       subject: `AeroTrade received your enquiry about ${listing.title}`,
       html: `<h2>Your enquiry is safely recorded</h2>
       <p>We have sent your enquiry about <strong>${escapeHtml(listing.title)}</strong> to the seller.</p>
+      ${indicativeOffer ? `<p>Your non-binding price indication of <strong>${escapeHtml(indicativeOffer)}</strong> was recorded. It does not reserve the equipment or form a sale contract.</p>` : ''}
       <p>The seller now has your contact details and can respond directly. AeroTrade has retained the opportunity so it can be followed up if it remains unattended.</p>
       <p><a href="${escapeHtml(listingUrl)}">Return to the listing</a></p>`,
       idempotencyKey: `inquiry-buyer-ack-${stored.id}`,
