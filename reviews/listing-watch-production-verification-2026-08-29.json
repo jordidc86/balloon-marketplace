@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_listing_watch_production_verification",
+  "completedAt": "2026-08-29T12:26:47.393Z",
+  "containsPii": false,
+  "productionUrl": "https://aerotrade.app",
+  "deployId": "6a92cf99ee6f577815a20405",
+  "codeCommit": "70644e3",
+  "database": {
+    "migration": "20260829410000_listing_watchers.sql",
+    "remoteHistoryUpToDate": true,
+    "listingWatchersReadable": true,
+    "listingWatchDispatchesReadable": true,
+    "realWatchersObserved": 0,
+    "realDispatchesObserved": 0
+  },
+  "validation": {
+    "automatedTestsPassed": 105,
+    "operationalContractsPassed": 94,
+    "eslintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "publicListingPageStatus": 200,
+    "watchFormVisible": true,
+    "newBalloonAlternativeVisible": true,
+    "sharePanelVisible": true,
+    "confirmationPageStatus": 200,
+    "unsubscribePageStatus": 200,
+    "unauthorizedCronStatus": 401,
+    "authorizedDryRunStatus": 200
+  },
+  "dryRun": {
+    "activeWatchers": 0,
+    "changed": 0,
+    "due": 0,
+    "failed": 0,
+    "dryRun": true
+  },
+  "integrity": {
+    "doubleOptIn": true,
+    "explicitPostDecision": true,
+    "materialChangesOnly": true,
+    "sellerAndAdminSignalsExcluded": true,
+    "earlyAccessVisibilityPreserved": true,
+    "providerEvidenceRequired": true,
+    "idempotentDispatch": true,
+    "signedUnsubscribe": true,
+    "privateRlsTables": true,
+    "namedProductionAuditQueries": true
+  },
+  "sideEffects": {
+    "syntheticSubscribersCreated": 0,
+    "emailsSent": 0,
+    "leadsCreated": 0,
+    "paymentsCreated": 0,
+    "listingsChanged": 0
+  }
+}

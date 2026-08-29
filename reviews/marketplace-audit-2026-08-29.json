@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T12:00:41.598Z",
+  "capturedAt": "2026-08-29T12:26:47.393Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T12:00:41.598Z"
+    "since": "2026-07-30T12:26:47.393Z"
   },
   "supply": {
     "listingsTotal": 14,
@@ -96,12 +96,19 @@
     "catalogSearches30d": 0,
     "zeroResultCatalogSearches30d": 0,
     "catalogSearchesByCategory30d": {},
-    "catalogSearchesByUtmSource30d": {}
+    "catalogSearchesByUtmSource30d": {},
+    "listingWatchers": 0,
+    "listingWatchers30d": 0,
+    "listingWatchersByStatus": {},
+    "activeListingWatchers": 0,
+    "watchedListings": 0
   },
   "sellerActivation": {
-    "events30d": 0,
-    "stages30d": {},
-    "distinctSellers30d": 0,
+    "events30d": 1,
+    "stages30d": {
+      "CHECKOUT_RECOVERY_SENT": 1
+    },
+    "distinctSellers30d": 1,
     "checkoutRecoveries30d": 0
   },
   "opportunities": {
@@ -121,6 +128,8 @@
     "wantedRequestsByCategory": {},
     "wantedRequestsByUtmSource": {},
     "wantedRequestsWithMatchConsent": 0,
+    "newBalloonProposals": 0,
+    "newBalloonProposalsByDeliveryStatus": {},
     "failedSellerNotifications": 0,
     "closedMarketplaceTransactionsKnown": 0,
     "commercialOutcomes": 0,
@@ -140,6 +149,8 @@
     "commercialNotificationStatuses": {
       "accepted": 2
     },
+    "listingWatchDispatches": 0,
+    "listingWatchDispatchStatuses": {},
     "runStatuses": {
       "newsletters": {
         "skipped": 6,
@@ -169,6 +180,6 @@
   },
   "integrity": {
     "containsPii": false,
-    "queryProfile": "1b0ae2e589f4308eff9559034ba05076c1b4086d28d79089bb35b30f08c98594"
+    "queryProfile": "c078b3ba5b2eae3ef1eb18f3d7521fac6a516b6ce255dbe4be0f91777333019f"
   }
 }
