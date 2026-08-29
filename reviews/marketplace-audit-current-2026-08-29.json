@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T17:01:46.464Z",
+  "capturedAt": "2026-08-29T17:11:17.219Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T17:01:46.464Z"
+    "since": "2026-07-30T17:11:17.219Z"
   },
   "supply": {
     "listingsTotal": 14,
@@ -115,7 +115,7 @@
     "buyerFunnelComparable": {
       "measurementStartedAt": "2026-08-29T13:37:34.312Z",
       "comparableFrom": "2026-08-29T13:37:34.312Z",
-      "observedDays": 0.14,
+      "observedDays": 0.15,
       "excludedEarlierEvents": 60,
       "views": 0,
       "ctaClicks": 0,
@@ -239,6 +239,11 @@
     "caveat": "WON is an explicit recorded outcome; transaction value, costs, contribution and settlement are never inferred. Missing economics remain null, and negative contribution is valid."
   },
   "communications": {
+    "newsletterConsentProfiles": 16,
+    "newsletterActiveConsents": 0,
+    "newsletterConsentStatuses": {
+      "NOT_DEPLOYED": 16
+    },
     "newsletterRuns": 11,
     "successfulLiveNewsletterRuns": 3,
     "newsletterRecipientsAccepted": 45,
@@ -316,6 +321,10 @@
         "reason": "not_deployed"
       },
       "socialPublicationReceipts": {
+        "available": false,
+        "reason": "not_deployed"
+      },
+      "newsletterConsentProfiles": {
         "available": false,
         "reason": "not_deployed"
       }

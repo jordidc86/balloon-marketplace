@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_newsletter_consent_readiness",
+  "verifiedAt": "2026-08-29T17:11:17.219Z",
+  "containsPii": false,
+  "productionMutation": "github_workflow_paused_only",
+  "netlifyDeployTriggered": false,
+  "emailSent": false,
+  "databaseMutation": false,
+  "workflow": {
+    "name": "Send Bi-Weekly Newsletter Cron",
+    "id": 263077439,
+    "statusBefore": "active",
+    "statusAfter": "disabled_manually",
+    "reason": "Prevent another marketing send before explicit recipient consent and signed unsubscribe are deployed and verified."
+  },
+  "candidate": {
+    "migration": "20260829530000_newsletter_consent.sql",
+    "legacyAccountsDefaultToNotRequested": true,
+    "authenticatedPreference": true,
+    "signedPostOnlyUnsubscribe": true,
+    "liveConsentRecheckBeforeRecovery": true,
+    "historicalRecoveryWithoutControlsBlocked": true,
+    "automaticReenable": false
+  },
+  "interpretation": "The unsafe recurring marketing path is paused without affecting transactional emails. It must remain paused until the migration, runtime and zero-recipient dry run are read back in production."
+}
