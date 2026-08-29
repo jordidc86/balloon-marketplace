@@ -34,8 +34,13 @@ const checks = [
   {
     name: 'Premium listing fee is independent from buyer membership',
     file: 'src/app/sell/actions.ts',
-    required: ['getInitialListingPublication(listingPlan)', "type: 'listing_fee'", 'parseListingImageUrls'],
+    required: ['getInitialListingPublication(listingPlan)', 'createPremiumListingCheckout', 'parseListingImageUrls'],
     forbidden: ['shouldStartPremiumWindow'],
+  },
+  {
+    name: 'Premium listing checkout has trusted metadata and returns',
+    file: 'src/utils/listing-checkout.ts',
+    required: ['premiumListingFeeCents', "type: 'listing_fee'", 'listing_id: listingId', 'success_url: `${origin}/catalog/${listingId}?success=true`', 'cancel_url: `${origin}/dashboard?listing_payment=canceled`'],
   },
   {
     name: 'Seller contact uses active-listing visibility rules',
@@ -86,6 +91,26 @@ const checks = [
     name: 'Catalog search instrumentation cannot block browsing',
     file: 'src/app/catalog/CatalogSearchTracker.tsx',
     required: ['sessionStorage', 'logCatalogSearch(search, getBrowserCommercialContext())', 'Analytics cannot block catalog browsing'],
+  },
+  {
+    name: 'Seller activation funnel is private and evidence-based',
+    file: 'supabase/migrations/20260829180000_seller_activation_funnel.sql',
+    required: ['seller_funnel_events', 'event_key text not null unique', 'CHECKOUT_RESUMED', 'seller_funnel_listing_stage_consistency', 'enable row level security', 'revoke all on public.seller_funnel_events from anon, authenticated', 'No password, payment data, free text, IP address or browser identifier'],
+  },
+  {
+    name: 'Seller intent measurement is authenticated and non-blocking',
+    file: 'src/components/SellForm.tsx',
+    required: ["recordSellerFunnelStage('SELL_PAGE_VIEWED')", "recordSellerFunnelStage('FORM_STARTED')", 'formStartedRecorded', 'onChangeCapture'],
+  },
+  {
+    name: 'Interrupted Premium listing checkout is safely resumable',
+    file: 'src/app/dashboard/actions.ts',
+    required: ["listing.status !== 'PENDING_PAYMENT'", "getStoredListingPlan(listing.details) !== 'premium'", "stage: 'CHECKOUT_RESUMED'", 'createPremiumListingCheckout', "eq('seller_id', user.id)"],
+  },
+  {
+    name: 'Premium listing payment closes the seller activation loop',
+    file: 'src/app/api/webhooks/stripe/route.ts',
+    required: ["stage: 'PAYMENT_CONFIRMED'", "stage: 'LISTING_PUBLISHED'", "source: 'stripe'", 'persistSellerFunnelEvent'],
   },
   {
     name: 'Listing trust badges have an explicit non-airworthiness boundary',

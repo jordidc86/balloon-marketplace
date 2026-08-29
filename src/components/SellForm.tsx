@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Megaphone, UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 
 // Imported Actions
-import { submitListing } from '@/app/sell/actions'
+import { recordSellerFunnelStage, submitListing } from '@/app/sell/actions'
 import { updateListing } from '@/app/catalog/[id]/actions'
 import { maxListingImages } from '@/utils/listing-safety.mjs'
 
@@ -46,6 +46,18 @@ export default function SellForm({ userId, defaultContactEmail, initialData }: {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [listingPlan, setListingPlan] = useState<'free' | 'premium'>('free')
   const [submissionError, setSubmissionError] = useState<string | null>(null)
+  const formStartedRecorded = useRef(false)
+
+  useEffect(() => {
+    if (!userId || isEditing) return
+    void recordSellerFunnelStage('SELL_PAGE_VIEWED')
+  }, [isEditing, userId])
+
+  const recordFormStarted = () => {
+    if (!userId || isEditing || formStartedRecorded.current) return
+    formStartedRecorded.current = true
+    void recordSellerFunnelStage('FORM_STARTED')
+  }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -153,7 +165,7 @@ export default function SellForm({ userId, defaultContactEmail, initialData }: {
   const needsDimensions = ['baskets', 'burners', 'bottom-end'].includes(category)
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 bg-card p-6 sm:p-8 rounded-2xl border shadow-sm">
+    <form onSubmit={handleSubmit} onChangeCapture={recordFormStarted} className="space-y-8 bg-card p-6 sm:p-8 rounded-2xl border shadow-sm">
       
       {/* SECTION 1: Category & Basics */}
       <div className="space-y-4">

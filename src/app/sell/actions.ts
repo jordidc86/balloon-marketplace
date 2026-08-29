@@ -4,11 +4,23 @@ import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { sendEmail } from '@/utils/resend'
 import { escapeHtml } from '@/utils/html'
-import { getListingPlan, premiumListingFeeCents } from '@/utils/listing-plans'
+import { getListingPlan } from '@/utils/listing-plans'
 import { getApplicationOrigin } from '@/utils/navigation.mjs'
 import { getInitialListingPublication, parseListingImageUrls } from '@/utils/listing-safety.mjs'
 import { siteUrl } from '@/utils/site'
 import { parseListingSubmission } from '@/utils/listing-submission.mjs'
+import { createPremiumListingCheckout } from '@/utils/listing-checkout'
+import { normalizeSellerFunnelStage } from '@/utils/seller-funnel.mjs'
+import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
+
+export async function recordSellerFunnelStage(rawStage: unknown) {
+  const stage = normalizeSellerFunnelStage(rawStage, true)
+  if (!stage) return false
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+  return persistSellerFunnelEvent(await createAdminClient(), { sellerId: user.id, stage })
+}
 
 export async function submitListing(formData: FormData) {
   const supabase = await createClient()
@@ -75,6 +87,20 @@ export async function submitListing(formData: FormData) {
 
   const adminEmail = process.env.ADMIN_EMAIL?.trim()
   const adminSupabase = await createAdminClient()
+  await persistSellerFunnelEvent(adminSupabase, {
+    sellerId: user.id,
+    listingId: publishedListing.id,
+    listingPlan,
+    stage: 'LISTING_SUBMITTED',
+  })
+  if (listingPlan === 'free') {
+    await persistSellerFunnelEvent(adminSupabase, {
+      sellerId: user.id,
+      listingId: publishedListing.id,
+      listingPlan,
+      stage: 'LISTING_PUBLISHED',
+    })
+  }
   const notificationKey = `listing-created-admin-${publishedListing.id}`
   const { data: receipt, error: receiptError } = await adminSupabase
     .from('commercial_notification_receipts')
@@ -133,43 +159,21 @@ export async function submitListing(formData: FormData) {
     redirect(`/catalog/${publishedListing.id}?success=true&plan=free`)
   }
 
-  // Use Stripe to charge the 5 EUR Premium listing fee.
-  const { stripe } = await import('@/utils/stripe')
   const headersList = await import('next/headers').then(m => m.headers())
   const origin = getApplicationOrigin(headersList.get('origin'), siteUrl)
-
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price_data: {
-          currency: 'eur',
-          product_data: {
-            name: 'Premium Listing: ' + publishedListing.title,
-            description: '48-hour Premium window, bi-weekly newsletter, social promotion and buyer outreach.',
-          },
-          unit_amount: premiumListingFeeCents,
-        },
-        quantity: 1,
-      },
-    ],
-    metadata: {
-      type: 'listing_fee',
-      listing_plan: 'premium',
-      listing_id: publishedListing.id,
-      user_id: user.id
-    },
-    mode: 'payment',
-    success_url: `${origin}/catalog/${publishedListing.id}?success=true`,
-    cancel_url: `${origin}/catalog/${publishedListing.id}?canceled=true`,
-  }, {
-    idempotencyKey: `listing-fee-${publishedListing.id}-${Math.floor(Date.now() / 600000)}`,
+  const checkoutUrl = await createPremiumListingCheckout({
+    listingId: publishedListing.id,
+    listingTitle: publishedListing.title,
+    userId: user.id,
+    origin,
+  })
+  await persistSellerFunnelEvent(adminSupabase, {
+    sellerId: user.id,
+    listingId: publishedListing.id,
+    listingPlan,
+    stage: 'CHECKOUT_CREATED',
   })
 
   // Redirect to Stripe Checkout
-  if (session.url) {
-    redirect(session.url)
-  } else {
-    throw new Error('Failed to create Stripe session')
-  }
+  redirect(checkoutUrl)
 }

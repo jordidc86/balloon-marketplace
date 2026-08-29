@@ -1,11 +1,14 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { getApplicationOrigin } from '@/utils/navigation.mjs'
 import { siteUrl } from '@/utils/site'
 import { isClosedInquiryStatus, normalizeInquiryStatus } from '@/utils/inquiry-safety.mjs'
 import { revalidatePath } from 'next/cache'
+import { getStoredListingPlan } from '@/utils/listing-plans'
+import { createPremiumListingCheckout } from '@/utils/listing-checkout'
+import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 
 export async function openBillingPortal() {
   const supabase = await createClient()
@@ -35,6 +38,40 @@ export async function openBillingPortal() {
   })
 
   redirect(session.url)
+}
+
+export async function resumePremiumListingCheckout(listingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: listing, error } = await supabase
+    .from('listings')
+    .select('id,seller_id,title,status,details')
+    .eq('id', listingId)
+    .eq('seller_id', user.id)
+    .single()
+
+  if (error || !listing || listing.status !== 'PENDING_PAYMENT' || getStoredListingPlan(listing.details) !== 'premium') {
+    redirect('/dashboard?listing_payment=unavailable')
+  }
+
+  const headersList = await import('next/headers').then((module) => module.headers())
+  const origin = getApplicationOrigin(headersList.get('origin'), siteUrl)
+  const checkoutUrl = await createPremiumListingCheckout({
+    listingId: listing.id,
+    listingTitle: listing.title,
+    userId: user.id,
+    origin,
+  })
+  await persistSellerFunnelEvent(await createAdminClient(), {
+    sellerId: user.id,
+    listingId: listing.id,
+    listingPlan: 'premium',
+    stage: 'CHECKOUT_RESUMED',
+    source: 'recovery',
+  })
+  redirect(checkoutUrl)
 }
 
 export async function updateSellerInquiryStatus(inquiryId: string, formData: FormData) {

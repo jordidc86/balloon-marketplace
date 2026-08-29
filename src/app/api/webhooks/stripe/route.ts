@@ -11,6 +11,7 @@ import {
 } from '@/utils/payment-notification.mjs';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server';
 
 const activeSubscriptionStatuses = new Set<Stripe.Subscription.Status>([
   'active',
@@ -320,6 +321,20 @@ export async function POST(req: Request) {
         if (error) {
           throw new Error(`Failed to update listing post-checkout: ${error.message}`)
         } else if (listingData) {
+          await persistSellerFunnelEvent(supabaseAdmin, {
+            sellerId: listingData.seller_id,
+            listingId: listingData.id,
+            listingPlan: 'premium',
+            stage: 'PAYMENT_CONFIRMED',
+            source: 'stripe',
+          })
+          await persistSellerFunnelEvent(supabaseAdmin, {
+            sellerId: listingData.seller_id,
+            listingId: listingData.id,
+            listingPlan: 'premium',
+            stage: 'LISTING_PUBLISHED',
+            source: 'stripe',
+          })
           // 1. Send Confirmation Email to Seller
           const sellerHtml = `
             <h2>Your Premium listing is live!</h2>

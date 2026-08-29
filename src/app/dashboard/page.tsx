@@ -1,8 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone } from 'lucide-react'
-import { openBillingPortal, updateSellerInquiryStatus } from './actions'
+import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert } from 'lucide-react'
+import { openBillingPortal, resumePremiumListingCheckout, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
 
 type DashboardListingImage = {
@@ -22,7 +22,12 @@ type SellerInquiry = {
   listings: { id: string; title: string } | null
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const params = await searchParams
   const supabase = await createClient()
 
   const {
@@ -57,6 +62,12 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-secondary/30 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {params.listing_payment === 'canceled' ? (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+            <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
+            <div><p className="font-semibold">Premium payment was not completed.</p><p className="text-sm">Your listing is safely stored but not public. Resume payment below whenever you are ready.</p></div>
+          </div>
+        ) : null}
         
         {/* Header / Welcome */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
@@ -141,10 +152,16 @@ export default async function DashboardPage() {
                               {item.status.replace('_', ' ')}
                             </span>
                           </div>
+                          {item.status === 'PENDING_PAYMENT' ? <p className="mt-1 text-xs font-medium text-amber-700">Not public — Premium payment incomplete</p> : null}
                         </div>
-                        <Link href={`/catalog/${item.id}`} className="text-sm font-medium text-primary hover:underline">
-                          View
-                        </Link>
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          {item.status === 'PENDING_PAYMENT' ? (
+                            <form action={resumePremiumListingCheckout.bind(null, item.id)}>
+                              <button className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90">Resume €5 payment</button>
+                            </form>
+                          ) : null}
+                          <Link href={`/catalog/${item.id}`} className="text-sm font-medium text-primary hover:underline">View</Link>
+                        </div>
                       </div>
                     )
                   })}

@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/utils/supabase/server'
-import { CircleDollarSign, MessageSquare, Plane, TriangleAlert } from 'lucide-react'
+import { CircleDollarSign, CreditCard, MessageSquare, Plane, Store, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { listingMatchesWantedRequest } from '@/utils/wanted-request.mjs'
 import { recordCommercialOutcome, updateAdminInquiryStatus, updateQuoteRequestStatus, updateWantedRequestStatus } from '../actions'
@@ -62,6 +62,31 @@ type CatalogSearchEvent = {
   created_at: string
 }
 
+type SellerFunnelEvent = {
+  id: string
+  seller_id: string
+  listing_id: string | null
+  stage: string
+  listing_plan: string | null
+  source: string
+  created_at: string
+}
+
+type SellerPipelineListing = {
+  id: string
+  seller_id: string
+  title: string
+  status: string
+  contact_email: string
+  created_at: string
+  updated_at: string
+}
+
+type SellerUser = {
+  id: string
+  email: string
+}
+
 type CommercialNotification = {
   id: string
   notification_type: string
@@ -96,12 +121,17 @@ export default async function CommercialPage() {
   // This is a force-dynamic server component; the cutoff is intentionally evaluated per request.
   // eslint-disable-next-line react-hooks/purity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
-  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now()
+  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: wantedRequests, error: wantedError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('quote_requests').select('id,name,email,equipment_type,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
     supabase.from('catalog_search_events').select('id,query_text,category,country,result_count,zero_results,utm_source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
+    supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
+    supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
+    supabase.from('users').select('id,email').limit(500),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,status,created_at').order('created_at', { ascending: false }).limit(100),
@@ -113,6 +143,9 @@ export default async function CommercialPage() {
   const typedWantedRequests = (wantedRequests || []) as WantedRequest[]
   const typedMatchableListings = (matchableListings || []) as MatchableListing[]
   const typedSearchEvents = (searchEvents || []) as CatalogSearchEvent[]
+  const typedSellerFunnelEvents = (sellerFunnelEvents || []) as SellerFunnelEvent[]
+  const typedSellerPipelineListings = (sellerPipelineListings || []) as SellerPipelineListing[]
+  const typedSellerUsers = (sellerUsers || []) as SellerUser[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
@@ -127,6 +160,20 @@ export default async function CommercialPage() {
     return counts
   }, new Map())
   const topZeroDemand = [...zeroDemandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
+  const uniqueSellerStageCount = (stage: string) => new Set(typedSellerFunnelEvents.filter((event) => event.stage === stage).map((event) => event.seller_id)).size
+  const uniqueListingStageCount = (stage: string) => new Set(typedSellerFunnelEvents.filter((event) => event.stage === stage).map((event) => event.listing_id).filter(Boolean)).size
+  const pendingPaymentListings = typedSellerPipelineListings.filter((listing) => listing.status === 'PENDING_PAYMENT')
+  const latestFormStartBySeller = typedSellerFunnelEvents
+    .filter((event) => event.stage === 'FORM_STARTED')
+    .reduce<Map<string, SellerFunnelEvent>>((latest, event) => {
+      if (!latest.has(event.seller_id)) latest.set(event.seller_id, event)
+      return latest
+    }, new Map())
+  const stalledFormStarts = [...latestFormStartBySeller.values()].filter((event) => {
+    if (nowMs - new Date(event.created_at).getTime() < 24 * 60 * 60 * 1000) return false
+    return !typedSellerPipelineListings.some((listing) => listing.seller_id === event.seller_id && listing.created_at >= event.created_at)
+  })
+  const sellerEmailById = new Map(typedSellerUsers.map((user) => [user.id, user.email]))
   const won = typedInquiries.filter((inquiry) => inquiry.status === 'WON').length + typedQuotes.filter((quote) => quote.status === 'WON').length
   const failedNotifications = typedInquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length
     + typedNotifications.filter((notification) => notification.status === 'failed').length
@@ -171,6 +218,34 @@ export default async function CommercialPage() {
         <h2 className="text-xl font-semibold">Catalog demand gaps (30d)</h2>
         <p className="mt-1 text-sm text-muted-foreground">{typedSearchEvents.length} deduplicated search(es) · {zeroResultSearches.length} with no matching inventory. Likely email, phone and URL searches are not retained.</p>
         {searchEventsError ? <p className="mt-4 text-sm text-destructive">Search-demand evidence unavailable: {searchEventsError.message}</p> : topZeroDemand.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No zero-result demand has been recorded yet.</p> : <div className="mt-4 grid gap-2 sm:grid-cols-2">{topZeroDemand.map(([label, count]) => <div key={label} className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3 text-sm"><span className="font-medium">{label}</span><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{count}</span></div>)}</div>}
+      </section>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div><h2 className="text-xl font-semibold">Seller activation (30d)</h2><p className="mt-1 text-sm text-muted-foreground">Private, account-linked funnel evidence. It starts collecting from this release and never stores passwords, card data, IP addresses or draft form text.</p></div>
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary"><Store className="h-4 w-4" />No automatic outreach</span>
+        </div>
+        {sellerFunnelError || sellerListingsError || sellerUsersError ? <p className="mt-4 text-sm text-destructive">Seller-activation evidence is incomplete.</p> : (
+          <>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <FunnelStep label="Sell page" value={uniqueSellerStageCount('SELL_PAGE_VIEWED')} />
+              <FunnelStep label="Form started" value={uniqueSellerStageCount('FORM_STARTED')} />
+              <FunnelStep label="Submitted" value={uniqueListingStageCount('LISTING_SUBMITTED')} />
+              <FunnelStep label="Checkout" value={uniqueListingStageCount('CHECKOUT_CREATED')} />
+              <FunnelStep label="Paid" value={uniqueListingStageCount('PAYMENT_CONFIRMED')} />
+              <FunnelStep label="Published" value={uniqueListingStageCount('LISTING_PUBLISHED')} />
+            </div>
+            <div className="mt-6 rounded-xl border bg-muted/20">
+              <div className="border-b px-4 py-3"><h3 className="font-semibold">Recovery queue</h3><p className="text-xs text-muted-foreground">Only evidence-backed interruptions are shown. Contact remains a manual decision.</p></div>
+              {pendingPaymentListings.length === 0 && stalledFormStarts.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No seller activation interruption currently needs review.</p> : (
+                <div className="divide-y">
+                  {pendingPaymentListings.map((listing) => <div key={listing.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">Premium payment incomplete · {listing.title}</p><p className="text-xs text-muted-foreground">Stored {formatDate(listing.created_at)} · seller can now resume securely from their dashboard.</p></div><a href={`mailto:${listing.contact_email}`} className="inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted"><CreditCard className="h-4 w-4" />Contact manually</a></div>)}
+                  {stalledFormStarts.map((event) => <div key={event.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">Listing form started but no later submission</p><p className="text-xs text-muted-foreground">Last start {formatDate(event.created_at)} · no listing created afterwards.</p></div>{sellerEmailById.get(event.seller_id) ? <a href={`mailto:${sellerEmailById.get(event.seller_id)}`} className="rounded-lg border px-3 py-2 text-center text-sm font-semibold hover:bg-muted">Contact manually</a> : null}</div>)}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </section>
 
       <section className="rounded-2xl border bg-card overflow-hidden">
@@ -252,6 +327,10 @@ export default async function CommercialPage() {
 
 function Metric({ title, value, detail, icon, warning = false }: { title: string; value: number; detail: string; icon: React.ReactNode; warning?: boolean }) {
   return <div className={`rounded-2xl border bg-card p-5 ${warning ? 'border-destructive/30' : ''}`}><div className="flex items-center justify-between"><p className="text-sm font-medium text-muted-foreground">{title}</p><span className={warning ? 'text-destructive' : 'text-primary'}>{icon}</span></div><p className="mt-3 text-3xl font-bold">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>
+}
+
+function FunnelStep({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-xl border bg-background p-4"><p className="text-xs font-medium text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-bold">{value}</p></div>
 }
 
 function formatCurrencyTotals(totals: Record<string, number>) {

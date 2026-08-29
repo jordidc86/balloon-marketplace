@@ -40,6 +40,7 @@ const [
   commercialOutcomes,
   wantedRequests,
   catalogSearchEvents,
+  sellerFunnelEvents,
 ] = await Promise.all([
   rows('users', 'id,is_premium,premium_source,created_at'),
   rows('listings', 'id,seller_id,category,status,price,currency,condition,location_country,contact_phone,details,created_at,updated_at,public_at,instagram_posted,facebook_posted'),
@@ -56,6 +57,7 @@ const [
   rows('commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,closed_at'),
   rows('wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'),
   rows('catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'),
+  rows('seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'),
 ])
 
 const countBy = (items, key) => items.reduce((counts, item) => {
@@ -144,6 +146,8 @@ const result = {
       ? Number((sellerConcentration.slice(0, 3).reduce((sum, value) => sum + value, 0) / activeListings.length).toFixed(4))
       : 0,
     staleActiveListings: activeListings.filter((listing) => listing.updated_at < staleListingCutoff).length,
+    pendingPaymentListings: listings.filter((listing) => listing.status === 'PENDING_PAYMENT').length,
+    usersWithoutListings: users.filter((user) => !sellerListingCounts[user.id]).length,
   },
   quality: {
     activeWithoutImages: activeListings.filter((listing) => !imageStats.get(listing.id)?.count).length,
@@ -176,6 +180,12 @@ const result = {
     zeroResultCatalogSearches30d: catalogSearchEvents.filter((event) => event.created_at >= since30d && event.zero_results).length,
     catalogSearchesByCategory30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'category'),
     catalogSearchesByUtmSource30d: countBy(catalogSearchEvents.filter((event) => event.created_at >= since30d), 'utm_source'),
+  },
+  sellerActivation: {
+    events30d: sellerFunnelEvents.filter((event) => event.created_at >= since30d).length,
+    stages30d: countBy(sellerFunnelEvents.filter((event) => event.created_at >= since30d), 'stage'),
+    distinctSellers30d: new Set(sellerFunnelEvents.filter((event) => event.created_at >= since30d).map((event) => event.seller_id)).size,
+    checkoutRecoveries30d: sellerFunnelEvents.filter((event) => event.created_at >= since30d && event.stage === 'CHECKOUT_RESUMED').length,
   },
   opportunities: {
     quoteRequestsTotal: quotes.length,
