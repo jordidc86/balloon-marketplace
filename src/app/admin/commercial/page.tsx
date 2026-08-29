@@ -49,6 +49,7 @@ type Quote = {
 }
 
 type NewBalloonProposal = { id: string; quote_request_id: string; manufacturer: string; currency: string; amount_min_minor: number; amount_max_minor: number; delivery_status: string; valid_until: string; created_at: string }
+type NewBalloonProposalResponse = { id: string; proposal_id: string; quote_request_id: string; response_type: 'INTERESTED' | 'QUESTION' | 'DECLINED'; note: string | null; admin_notification_status: 'pending' | 'accepted' | 'failed'; created_at: string }
 
 type WantedRequest = {
   id: string
@@ -271,11 +272,12 @@ export default async function CommercialPage() {
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now()
   const defaultProposalValidUntil = new Date(nowMs + 30 * 86_400_000).toISOString().slice(0, 10)
-  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }, { data: socialPublicationReceipts, error: socialPublicationError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: proposalResponses, error: proposalResponsesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }, { data: socialPublicationReceipts, error: socialPublicationError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,listing_id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(id,title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('quote_requests').select('id,name,email,equipment_type,manufacturer_preference,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('new_balloon_quote_proposals').select('id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,created_at').order('created_at', { ascending: false }).limit(300),
+    supabase.from('new_balloon_proposal_response_events').select('id,proposal_id,quote_request_id,response_type,note,admin_notification_status,created_at').order('created_at', { ascending: false }).limit(300),
     supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
@@ -298,6 +300,7 @@ export default async function CommercialPage() {
   const typedNegotiationEvents = (negotiationEvents || []) as NegotiationEvent[]
   const typedQuotes = (quotes || []) as Quote[]
   const typedProposals = (proposals || []) as NewBalloonProposal[]
+  const typedProposalResponses = (proposalResponses || []) as NewBalloonProposalResponse[]
   const typedWantedRequests = (wantedRequests || []) as WantedRequest[]
   const typedWantedMatchDispatches = (wantedMatchDispatches || []) as WantedMatchDispatch[]
   const typedMatchableListings = (matchableListings || []) as MatchableListing[]
@@ -368,9 +371,12 @@ export default async function CommercialPage() {
   const withdrawnListings = typedLifecycleEvents.filter((event) => event.event_type === 'WITHDRAWN')
   const latestProposalByQuote = new Map<string, NewBalloonProposal>()
   for (const proposal of typedProposals) if (!latestProposalByQuote.has(proposal.quote_request_id)) latestProposalByQuote.set(proposal.quote_request_id, proposal)
+  const responseByProposal = new Map<string, NewBalloonProposalResponse>()
+  for (const response of typedProposalResponses) if (!responseByProposal.has(response.proposal_id)) responseByProposal.set(response.proposal_id, response)
   const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
     quotes: typedQuotes,
     proposals: typedProposals,
+    responses: typedProposalResponses,
     outcomes: typedOutcomes,
   })
   const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
@@ -686,10 +692,11 @@ export default async function CommercialPage() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold">New-balloon manufacturer funnel</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Preference, operator-priced proposal, provider acceptance and evidence-backed outcome. No sale or revenue is inferred.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Preference, operator-priced proposal, provider acceptance, buyer response and evidence-backed outcome. No sale or revenue is inferred.</p>
           </div>
           <Link href="/new-balloon" className="text-sm font-semibold text-primary underline">Open public request path</Link>
         </div>
+        {proposalResponsesError ? <p className="mt-4 text-sm text-destructive">Buyer proposal responses are unavailable: {proposalResponsesError.message}</p> : null}
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           {newBalloonManufacturers.map((manufacturer) => {
             const manufacturerKey = manufacturer.slug === 'pasha' ? 'pasha' : 'schroeder'
@@ -699,11 +706,13 @@ export default async function CommercialPage() {
                 <div><p className="font-bold">{manufacturer.name}</p><Link href={manufacturer.path} className="text-xs font-semibold text-primary underline">Open acquisition page</Link></div>
                 <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">{funnel.wonOutcomes} won</span>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <FunnelStep label="Preferred" value={funnel.preferredRequests} />
                 <FunnelStep label="Proposals" value={funnel.proposals} />
                 <FunnelStep label="Accepted" value={funnel.acceptedProposals} />
+                <FunnelStep label="Responses" value={funnel.buyerResponses} />
               </div>
+              <p className="mt-3 text-xs text-muted-foreground">Interested {funnel.interestedResponses} · questions {funnel.questionResponses} · declined {funnel.declinedResponses}</p>
               <p className="mt-3 text-xs text-muted-foreground">Settled AeroTrade revenue: {formatCurrencyTotals(funnel.settledRevenueMinorByCurrency)}</p>
             </div>
           })}
@@ -810,9 +819,10 @@ export default async function CommercialPage() {
           <div className="divide-y">
             {typedQuotes.map((quote) => {
               const latestProposal = latestProposalByQuote.get(quote.id)
+              const proposalResponse = latestProposal ? responseByProposal.get(latestProposal.id) : undefined
               return <div key={quote.id} className="grid gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
                 <div><p className="font-semibold">{quote.name} · {quote.equipment_type}</p><a href={`mailto:${quote.email}`} className="text-sm text-primary hover:underline">{quote.email}</a><p className="mt-1 text-xs text-muted-foreground">Source: {quote.source_context} · {formatDate(quote.created_at)}</p></div>
-                <div><span className="text-sm font-bold">{quote.status}</span>{latestProposal ? <p className={`mt-1 text-xs font-semibold ${latestProposal.delivery_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Latest proposal: {latestProposal.delivery_status} · {(Number(latestProposal.amount_min_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: latestProposal.currency })}–{(Number(latestProposal.amount_max_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: latestProposal.currency })}</p> : null}</div>
+                <div><span className="text-sm font-bold">{quote.status}</span>{latestProposal ? <p className={`mt-1 text-xs font-semibold ${latestProposal.delivery_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Latest proposal: {latestProposal.delivery_status} · {(Number(latestProposal.amount_min_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: latestProposal.currency })}–{(Number(latestProposal.amount_max_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: latestProposal.currency })}</p> : null}{proposalResponse ? <><p className={`mt-1 text-xs font-bold ${proposalResponse.response_type === 'DECLINED' ? 'text-destructive' : 'text-emerald-700'}`}>Buyer response: {proposalResponse.response_type.toLowerCase()}</p>{proposalResponse.note ? <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{proposalResponse.note}</p> : null}<p className={`mt-1 text-xs ${proposalResponse.admin_notification_status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>Internal email: {proposalResponse.admin_notification_status}</p></> : null}</div>
                 {quote.status === 'WON' ? <p className="text-sm font-semibold text-emerald-700">Won · managed through the outcome evidence below</p> : <form action={updateQuoteRequestStatus.bind(null, quote.id)} className="flex gap-2">
                   <select name="status" defaultValue={quote.status} className="rounded-lg border bg-background px-3 py-2 text-sm">
                     {['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'LOST'].map((status) => <option value={status} key={status}>{status}</option>)}

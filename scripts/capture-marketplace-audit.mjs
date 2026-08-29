@@ -45,6 +45,7 @@ const querySpecs = {
   commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_recorded_at,closed_at,settled_at'],
   commercialUnitEconomicsEvents: ['commercial_unit_economics_events', 'id,outcome_id,event_type,currency,aerotrade_revenue_minor,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,evidence_level,evidence_source,created_at'],
   newBalloonProposals: ['new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'],
+  newBalloonProposalResponses: ['new_balloon_proposal_response_events', 'id,proposal_id,quote_request_id,response_type,admin_notification_status,created_at'],
   wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'],
   catalogSearchEvents: ['catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'],
   sellerFunnelEvents: ['seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'],
@@ -73,6 +74,7 @@ const {
   commercialOutcomes,
   commercialUnitEconomicsEvents,
   newBalloonProposals,
+  newBalloonProposalResponses,
   wantedRequests,
   catalogSearchEvents,
   sellerFunnelEvents,
@@ -163,6 +165,7 @@ const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filte
 const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   quotes,
   proposals: newBalloonProposals,
+  responses: newBalloonProposalResponses,
   outcomes: commercialOutcomes,
 })
 const recentListingWatchers = listingWatchers.filter((watcher) => watcher.created_at >= since30d)
@@ -290,6 +293,9 @@ const result = {
     wantedRequestsWithMatchConsent: wantedRequests.filter((request) => request.notify_on_match).length,
     newBalloonProposals: newBalloonProposals.length,
     newBalloonProposalsByDeliveryStatus: countBy(newBalloonProposals, 'delivery_status'),
+    newBalloonProposalResponses: newBalloonProposalResponses.length,
+    newBalloonProposalResponsesByType: countBy(newBalloonProposalResponses, 'response_type'),
+    newBalloonProposalResponseNotifications: countBy(newBalloonProposalResponses, 'admin_notification_status'),
     failedSellerNotifications: inquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length,
     closedMarketplaceTransactionsKnown: inquiries.filter((inquiry) => inquiry.status === 'WON').length,
     commercialOutcomes: commercialOutcomes.length,

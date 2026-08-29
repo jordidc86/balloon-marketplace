@@ -259,7 +259,29 @@ const checks = [
   {
     name: 'New-balloon proposal stores before sending and advances only after provider acceptance',
     file: 'src/app/admin/actions.ts',
-    required: ['sendNewBalloonProposal', 'parseNewBalloonProposal', "from('new_balloon_quote_proposals').insert", 'new_balloon_proposal_buyer', "rpc('accept_new_balloon_proposal_delivery'", 'Provider accepted the proposal, but its commercial transition was not verified'],
+    required: ['sendNewBalloonProposal', 'parseNewBalloonProposal', "from('new_balloon_quote_proposals').insert", 'new_balloon_proposal_buyer', "rpc('accept_new_balloon_proposal_delivery'", 'Provider accepted the proposal, but its commercial transition was not verified', 'signNewBalloonProposalCapability', '/new-balloon/proposal', 'Respond securely to this proposal'],
+  },
+  {
+    name: 'New-balloon buyer responses are immutable, idempotent and non-binding',
+    file: 'supabase/migrations/20260829510000_new_balloon_proposal_responses.sql',
+    required: ['new_balloon_proposal_response_events', "response_type in ('INTERESTED', 'QUESTION', 'DECLINED')", 'proposal_id uuid not null unique', 'record_new_balloon_proposal_response', 'A different response is already recorded', 'grant execute on function public.record_new_balloon_proposal_response(uuid,text,text,text) to service_role', 'never creates an order, reservation, payment or contract'],
+    forbidden: ["set status = 'WON'", "set status = 'LOST'", 'insert into public.commercial_outcomes'],
+  },
+  {
+    name: 'New-balloon response capability binds proposal, quote, buyer and expiry',
+    file: 'src/utils/new-balloon-proposal-capability.mjs',
+    required: ['new-balloon-proposal-response|v1', 'proposalId', 'quoteRequestId', 'buyerEmail', 'expiresAt', 'timingSafeEqual', 'maximumFutureLifetimeMs'],
+  },
+  {
+    name: 'Public new-balloon response action re-reads trusted data and verifies persistence',
+    file: 'src/app/new-balloon/proposal/actions.ts',
+    required: ['verifyNewBalloonProposalCapability', 'parseNewBalloonProposalResponse', "rpc('record_new_balloon_proposal_response'", "from('new_balloon_proposal_response_events')", 'Your response was processed, but AeroTrade could not verify its complete state.', 'new_balloon_proposal_response_admin'],
+    forbidden: ['quote.email =', 'commercial_outcomes', 'payment_intent'],
+  },
+  {
+    name: 'Private proposal response page is non-indexable and makes the legal boundary explicit',
+    file: 'src/app/new-balloon/proposal/page.tsx',
+    required: ["robots: { index: false, follow: false, noarchive: true }", "referrer: 'no-referrer'", 'verifyNewBalloonProposalCapability', 'not a binding factory quotation, reservation, order or sale contract'],
   },
   {
     name: 'Stored new-balloon requests acknowledge the buyer independently with durable evidence',

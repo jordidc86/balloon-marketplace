@@ -25,8 +25,11 @@ test('manufacturer funnel attributes outcomes to the latest operator proposal', 
       { id: 'quote-2', manufacturer_preference: 'pasha' },
     ],
     proposals: [
-      { quote_request_id: 'quote-1', manufacturer: 'schroeder', delivery_status: 'accepted', created_at: '2026-08-29T12:00:00Z' },
-      { quote_request_id: 'quote-1', manufacturer: 'pasha', delivery_status: 'failed', created_at: '2026-08-28T12:00:00Z' },
+      { id: 'proposal-1', quote_request_id: 'quote-1', manufacturer: 'schroeder', delivery_status: 'accepted', created_at: '2026-08-29T12:00:00Z' },
+      { id: 'proposal-2', quote_request_id: 'quote-1', manufacturer: 'pasha', delivery_status: 'failed', created_at: '2026-08-28T12:00:00Z' },
+    ],
+    responses: [
+      { proposal_id: 'proposal-1', response_type: 'INTERESTED' },
     ],
     outcomes: [
       { entity_type: 'quote_request', entity_id: 'quote-1', evidence_level: 'settled', currency: 'eur', aerotrade_revenue_minor: 250000 },
@@ -39,6 +42,9 @@ test('manufacturer funnel attributes outcomes to the latest operator proposal', 
   assert.equal(funnel.pasha.proposals, 1)
   assert.equal(funnel.schroeder.proposals, 1)
   assert.equal(funnel.schroeder.acceptedProposals, 1)
+  assert.equal(funnel.schroeder.buyerResponses, 1)
+  assert.equal(funnel.schroeder.interestedResponses, 1)
+  assert.equal(funnel.schroeder.declinedResponses, 0)
   assert.equal(funnel.schroeder.wonOutcomes, 1)
   assert.deepEqual(funnel.schroeder.settledRevenueMinorByCurrency, { EUR: 250000 })
 })

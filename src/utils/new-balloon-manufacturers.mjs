@@ -43,6 +43,10 @@ const blankFunnel = () => ({
   preferredRequests: 0,
   proposals: 0,
   acceptedProposals: 0,
+  buyerResponses: 0,
+  interestedResponses: 0,
+  questionResponses: 0,
+  declinedResponses: 0,
   wonOutcomes: 0,
   settledRevenueMinorByCurrency: {},
 })
@@ -57,10 +61,11 @@ const manufacturerBucket = (value) => {
  * @param {{
  *   quotes?: Array<Record<string, any>>,
  *   proposals?: Array<Record<string, any>>,
+ *   responses?: Array<Record<string, any>>,
  *   outcomes?: Array<Record<string, any>>,
  * }} input
  */
-export const buildNewBalloonManufacturerFunnel = ({ quotes = [], proposals = [], outcomes = [] } = {}) => {
+export const buildNewBalloonManufacturerFunnel = ({ quotes = [], proposals = [], responses = [], outcomes = [] } = {}) => {
   const funnel = {
     pasha: blankFunnel(),
     schroeder: blankFunnel(),
@@ -81,6 +86,16 @@ export const buildNewBalloonManufacturerFunnel = ({ quotes = [], proposals = [],
     if (!latestProposalByQuote.has(String(proposal.quote_request_id))) {
       latestProposalByQuote.set(String(proposal.quote_request_id), proposal)
     }
+  }
+
+  const proposalById = new Map(proposals.map((proposal) => [String(proposal.id), proposal]))
+  for (const response of responses) {
+    const proposal = proposalById.get(String(response.proposal_id))
+    const bucket = manufacturerBucket(proposal?.manufacturer)
+    funnel[bucket].buyerResponses += 1
+    if (response.response_type === 'INTERESTED') funnel[bucket].interestedResponses += 1
+    if (response.response_type === 'QUESTION') funnel[bucket].questionResponses += 1
+    if (response.response_type === 'DECLINED') funnel[bucket].declinedResponses += 1
   }
 
   for (const outcome of outcomes) {
