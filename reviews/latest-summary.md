@@ -1,21 +1,22 @@
 # AeroTrade Latest Summary
 
 Date: 2026-08-29
-Status: `Production deployed, reconciled and measurable; buyer demand and unready seller supply now remain recoverable, real liquidity remains unproven`
+Status: `Production deployed, reconciled and measurable; buyer demand can enter a traceable non-binding negotiation, real liquidity remains unproven`
 
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829310000`.
-- Validation: 84 automated tests, 73 operational contracts, ESLint and a full Next.js production build.
-- Current evidence-based score: **90.0%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92ab978e4a2000087b18b1` is live from commit `2921ba8`.
+- Database migrations are registered and read back through `20260829320000`.
+- Validation: 85 automated tests, 75 operational contracts, ESLint and a full Next.js production build.
+- Current evidence-based score: **90.2%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92afddd730da00085e0f0f` is live from commit `592a1ef`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
 ## Material capabilities now live
 
 - Used-equipment listings, Premium windows, seller contact and private buyer enquiries.
+- A buyer may attach a structured indicative offer to a listing enquiry. The listing owner can continue negotiating, counter or decline through an owner-only atomic workflow; every event is stored before notification and read back. It is explicitly non-binding and performs no reservation, payment or contract action.
 - Private wanted-equipment requests with opt-in matching and zero-result catalog demand measurement.
 - Daily, opt-in wanted-equipment matching now sends at most five compatible active listings per digest, never repeats an accepted advert and retries failed or stale provider attempts through a private dispatch ledger.
 - First-class new Pasha/Schroeder balloon route with indicative-budget requests, bounded source and demand context, explicit consent, server-side revalidation, duplicate/rate control and a one-time 24-hour operational follow-up.
@@ -37,7 +38,7 @@ Status: `Production deployed, reconciled and measurable; buyer demand and unread
 
 ## Principal remaining constraints
 
-1. Real marketplace liquidity: no tracked enquiry, wanted request or new-balloon quote has yet produced a validated live opportunity; the new matching and factory-new paths are healthy but have no real consented request to exercise them.
+1. Real marketplace liquidity: production still has 0 marketplace enquiries and 0 negotiation events. The enquiry, indicative-offer and seller-response paths are healthy, but no real buyer/seller exchange has exercised response time or conversion.
 2. Checkout economics: the first real recovery is live and verified but has not yet improved the historical 20% completion rate; its eventual payment or free publication remains to be observed.
 3. Supply quality: five sellers currently have active listings, no assisted-sale request or listing-verification request has yet exercised either controlled workflow, and two historical flight records still lack a serial number that cannot be inferred.
 4. Acquisition: public inventory is discoverable, daily IndexNow delivery is accepted and future journeys are attributable, but the 60 legacy views cannot be reconstructed. The accessible Google account has no `aerotrade.app` Search Console property, and a public search sample surfaced only the homepage plus one listing, so Google coverage/performance and seller recruitment remain absent.

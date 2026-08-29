@@ -1,0 +1,60 @@
+{
+  "capturedAt": "2026-08-29T12:12:32+02:00",
+  "environment": "production",
+  "baseUrl": "https://aerotrade.app",
+  "commit": "592a1ef2a07941f74da36e775c5ecd6a0d6d5545",
+  "deploy": {
+    "provider": "netlify",
+    "id": "6a92afddd730da00085e0f0f",
+    "state": "ready",
+    "error": null,
+    "secretScanMatches": 0
+  },
+  "database": {
+    "migration": "20260829320000",
+    "migrationRegistered": true,
+    "offerEventTablePresent": true,
+    "rowLevelSecurityEnabled": true,
+    "publicMutationGrants": 0,
+    "sellerResponseFunctionPresent": true,
+    "sellerResponseFunctionPublicExecute": false,
+    "sellerResponseFunctionAuthenticatedExecute": true,
+    "notificationTypeAllowed": true,
+    "marketplaceInquiryCount": 0,
+    "offerEventCount": 0
+  },
+  "publicRoutes": {
+    "/catalog": {
+      "status": 200
+    },
+    "/catalog/4e2be39d-6390-409a-8304-ae16b1239fc1": {
+      "status": 200,
+      "indicativeOfferVisible": true,
+      "nonBindingBoundaryVisible": true
+    },
+    "/privacy": {
+      "status": 200,
+      "negotiationDisclosureVisible": true
+    }
+  },
+  "protectedRoutes": {
+    "/dashboard": {
+      "unauthenticatedDestination": "https://aerotrade.app/login",
+      "protected": true
+    },
+    "/admin/commercial": {
+      "unauthenticatedDestination": "https://aerotrade.app/login",
+      "protected": true
+    }
+  },
+  "validation": {
+    "automatedTestsPassed": 85,
+    "operationalContractsPassed": 75,
+    "lintPassed": true,
+    "productionBuildPassed": true
+  },
+  "noSyntheticInquiries": true,
+  "noSyntheticOffers": true,
+  "economicActionsPerformed": 0,
+  "interpretation": "The production capability is deployed, private and safely bounded. No real inquiry or offer exists yet, so buyer response, seller response time and conversion are not commercially proven."
+}
