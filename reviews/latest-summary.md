@@ -6,10 +6,11 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 ## Current evidence
 
 - Production: `https://aerotrade.app`, deployed from `main`.
-- Database migrations are registered and read back through `20260829410000`; four previously remote-only historical versions are also consolidated in source control.
-- Validation: 105 automated tests, 94 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Database migrations are registered and read back through `20260829420000`; four previously remote-only historical versions are also consolidated in source control.
+- Validation: 107 automated tests, 98 operational contracts, ESLint, TypeScript and a full Next.js production build.
 - Current evidence-based score: **92.8%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
 - Production deploy `6a92cf99ee6f577815a20405` is live from code commit `70644e3`.
+- Buyer-to-seller negotiation reply code is validated and consolidated in commit `fddd61f`, and its additive private migration is live. Netlify skipped deploy `6a92d372f0cc6700084631e1` before build because account credit usage was exceeded, so this route is deliberately not counted as live and the score remains unchanged.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -55,6 +56,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 3. Supply quality: five sellers currently have active listings, eleven accounts have no active listing, no assisted-sale request, seller-share visit or listing-verification request has yet exercised those controlled workflows, and two historical flight records still lack a serial number that cannot be inferred.
 4. Acquisition: public inventory is discoverable, daily IndexNow delivery is accepted and future journeys are attributable, but the 60 legacy views cannot be reconstructed. The accessible Google account has no `aerotrade.app` Search Console property, and a public search sample surfaced only the homepage plus one listing, so Google coverage/performance and seller recruitment remain absent.
 5. Revenue proof: there is no settled marketplace intermediation outcome and no current internal receipt for the historical charge.
+6. Deployment capacity: Netlify is currently skipping new production builds because account credit usage is exceeded. The latest live version remains healthy, but commit `fddd61f` cannot become active until that account-level limit is restored.
 
 ## Next highest-value work
 

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_buyer_negotiation_release_readiness",
+  "capturedAt": "2026-08-29T12:43:11.255Z",
+  "containsPii": false,
+  "code": {
+    "commit": "fddd61fb46a4e43a90ff06c9530e99db4e470344",
+    "branchPushed": true,
+    "mainPushed": true,
+    "testsPassed": 107,
+    "operationalContractsPassed": 98,
+    "lintPassed": true,
+    "productionBuildPassed": true
+  },
+  "database": {
+    "migration": "20260829420000_buyer_negotiation_loop.sql",
+    "applied": true,
+    "schemaReadbackPassed": true,
+    "anonymousRpcDenied": true,
+    "anonymousRpcCode": "42501",
+    "buyerResponsesCreated": 0,
+    "mutationsPerformedDuringVerification": 0
+  },
+  "application": {
+    "buyerCapabilityLifetimeDays": 30,
+    "oneBuyerResponsePerSellerEvent": true,
+    "nonBinding": true,
+    "reservationActions": 0,
+    "paymentActions": 0,
+    "customerEmailsSentDuringVerification": 0
+  },
+  "deployment": {
+    "attempted": true,
+    "netlifyDeployId": "6a92d372f0cc6700084631e1",
+    "state": "blocked",
+    "reasonCode": "account_credit_usage_exceeded",
+    "productionRouteStatusBeforeRelease": 404,
+    "productionCodeLive": false
+  },
+  "scoreChanged": false
+}
