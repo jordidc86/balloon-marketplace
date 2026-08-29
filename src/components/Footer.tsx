@@ -14,7 +14,7 @@ export default function Footer() {
               <span className="font-bold text-xl tracking-tight">AeroTrade</span>
             </div>
             <p className="text-sm text-slate-400">
-              The premium global exchange for used hot air balloon equipment. Buy, sell, and fly with confidence.
+              The European marketplace for used hot air balloon equipment. Buy, sell, and fly with confidence.
             </p>
           </div>
 
@@ -33,7 +33,7 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold text-white mb-4">Members</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/pricing" className="hover:text-primary transition-colors">Premium Access</Link></li>
+              <li><Link href="/pricing" className="hover:text-primary transition-colors">Buyer Early Access</Link></li>
               <li><Link href="/sell-hot-air-balloon" className="hover:text-primary transition-colors">Sell a Balloon</Link></li>
               <li><Link href="/dashboard" className="hover:text-primary transition-colors">Pilot Dashboard</Link></li>
             </ul>

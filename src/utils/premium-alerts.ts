@@ -83,7 +83,7 @@ const generatePremiumAlertHtml = (listing: PremiumAlertListing) => {
               <h2 style="margin: 0 0 8px; color: #0f172a; font-size: 22px;">${escapeHtml(listing.title)}</h2>
               <p style="margin: 0 0 6px; color: #475569; font-size: 14px;">Category: ${escapeHtml(listing.category)}</p>
               <p style="margin: 0 0 16px; color: #0f172a; font-size: 20px; font-weight: 700;">${escapeHtml(formatPrice(listing))}</p>
-              <a href="${escapeHtml(listingUrl)}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 12px 18px; border-radius: 6px; font-weight: 700;">View premium listing</a>
+              <a href="${escapeHtml(listingUrl)}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 12px 18px; border-radius: 6px; font-weight: 700;">View early-access listing</a>
             </div>
           </div>
           <p style="margin: 30px 0 0; color: #94a3b8; font-size: 13px; line-height: 1.5;">

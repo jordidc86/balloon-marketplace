@@ -60,19 +60,19 @@ test('successful AeroTrade payments create one safe, useful admin notification',
     createdAt: '2026-08-09T18:11:25.000Z',
     customerEmail: 'buyer@example.com',
     paymentType: 'premium_subscription',
-    product: 'AeroTrade Premium Club',
+    product: 'AeroTrade Buyer Early Access',
     dashboardUrl: 'https://dashboard.stripe.com/payments/ch_safe',
   })
 
   assert.equal(formatPaymentAmount(999, 'eur'), '9,99 €')
   assert.match(notification.subject, /9,99/)
-  assert.match(notification.subject, /suscripción Premium Club/)
-  assert.match(notification.html, /AeroTrade Premium Club/)
+  assert.match(notification.subject, /acceso anticipado anual para compradores/)
+  assert.match(notification.html, /AeroTrade Buyer Early Access/)
   assert.match(notification.html, /buyer@example\.com/)
   assert.match(notification.html, /evento firmado de Stripe/)
   assert.equal(notification.idempotencyKey, 'aerotrade-payment-ch_payment_123')
   assert.equal(notification.paymentType, 'premium_subscription')
-  assert.equal(notification.productLabel, 'AeroTrade Premium Club')
+  assert.equal(notification.productLabel, 'AeroTrade Buyer Early Access')
   assert.equal(paymentNotificationIdempotencyKey('ch_payment_123'), notification.idempotencyKey)
   assert.throws(() => paymentNotificationIdempotencyKey('not-a-charge'), /valid Stripe charge id/i)
   assert.equal(buildPaymentNotification({
@@ -96,7 +96,7 @@ test('accepted payment notifications produce a private durable receipt', () => {
     amount: 999,
     currency: 'EUR',
     paymentType: 'premium_subscription',
-    product: 'AeroTrade Premium Club',
+    product: 'AeroTrade Buyer Early Access',
     providerMessageId: 'resend-message-123',
     livemode: true,
     acceptedAt: '2026-08-09T18:11:26.000Z',
@@ -111,7 +111,7 @@ test('accepted payment notifications produce a private durable receipt', () => {
     amount_minor: 999,
     currency: 'eur',
     payment_type: 'premium_subscription',
-    product_label: 'AeroTrade Premium Club',
+    product_label: 'AeroTrade Buyer Early Access',
     livemode: true,
     provider_message_id: 'resend-message-123',
     accepted_at: '2026-08-09T18:11:26.000Z',

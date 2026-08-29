@@ -1,5 +1,6 @@
 import { stripe } from '@/utils/stripe'
 import { premiumListingFeeCents } from '@/utils/listing-plans'
+import { sellerLaunchPromotionProduct } from '@/utils/paid-product-labels.mjs'
 
 export async function createPremiumListingCheckout({
   listingId,
@@ -19,8 +20,8 @@ export async function createPremiumListingCheckout({
         price_data: {
           currency: 'eur',
           product_data: {
-            name: `Premium Listing: ${listingTitle}`,
-            description: '48-hour Premium window, bi-weekly newsletter, social promotion and buyer outreach.',
+            name: `${sellerLaunchPromotionProduct.publicName}: ${listingTitle}`,
+            description: 'One-time seller promotion: 48-hour buyer early access, alerts, newsletter, rotating social promotion and eligible wanted-buyer matching.',
           },
           unit_amount: premiumListingFeeCents,
         },

@@ -81,19 +81,19 @@ export async function sendPremiumPaymentLink(userId: string) {
     stripeCustomerId: user.stripe_customer_id,
     origin: siteUrl,
     source: 'admin',
-    successPath: '/login?message=Payment%20successful.%20Please%20log%20in%20to%20access%20your%20Premium%20Dashboard.',
+    successPath: '/login?message=Payment%20successful.%20Please%20log%20in%20to%20access%20Buyer%20Early%20Access.',
     cancelPath: '/pricing?canceled=true',
   })
 
   const displayName = user.name || 'there'
   await sendEmail(
     user.email,
-    'Complete your AeroTrade Premium subscription',
+    'Complete your AeroTrade Buyer Early Access subscription',
     `<p>Hi ${escapeHtml(displayName)},</p>
-    <p>Thanks for your interest in AeroTrade Premium.</p>
-    <p>You can complete your Premium subscription securely through Stripe here:</p>
-    <p><a href="${escapeHtml(checkout.url)}">Complete AeroTrade Premium payment</a></p>
-    <p>Premium gives you early access to Premium listings and instant alerts for new gear.</p>
+    <p>Thanks for your interest in AeroTrade Buyer Early Access.</p>
+    <p>You can complete the annual buyer subscription securely through Stripe here:</p>
+    <p><a href="${escapeHtml(checkout.url)}">Complete Buyer Early Access payment</a></p>
+    <p>Buyer Early Access gives you a 48-hour head start on promoted listings and instant alerts for new equipment.</p>
     <p>If you did not request this, you can ignore this email.</p>`
   )
 

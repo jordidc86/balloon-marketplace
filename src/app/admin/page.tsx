@@ -70,7 +70,7 @@ export default async function AdminPage() {
         {/* Premium Users */}
         <div className="bg-card border rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-muted-foreground">Premium Pilots</h3>
+            <h3 className="font-medium text-muted-foreground">Buyer Early Access Members</h3>
             <div className="bg-accent/10 p-2 rounded-lg"><DollarSign className="w-5 h-5 text-accent" /></div>
           </div>
           <p className="text-3xl font-bold text-accent">{premiumCount || 0}</p>
@@ -84,7 +84,7 @@ export default async function AdminPage() {
             <div className="bg-secondary/20 p-2 rounded-lg"><Tag className="w-5 h-5 text-secondary-foreground" /></div>
           </div>
           <p className="text-3xl font-bold">{activeListings || 0}</p>
-          <p className="text-xs text-muted-foreground mt-2">Public & Premium Windows</p>
+          <p className="text-xs text-muted-foreground mt-2">Public & Early-Access Windows</p>
         </div>
 
         {/* Draft/Pending Listings */}

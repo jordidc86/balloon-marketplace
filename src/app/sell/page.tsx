@@ -61,18 +61,18 @@ export default async function SellPage({
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="mb-8 border-b pb-6">
         <h1 className="text-3xl font-bold tracking-tight mb-2">Create a Listing</h1>
-        <p className="text-muted-foreground">List your equipment on the global exchange. Publish for free, or upgrade the listing to Premium promotion at the end.</p>
+        <p className="text-muted-foreground">List your equipment on the global exchange. Publish for free, or add the separate one-time Seller Launch Promotion at the end.</p>
         
         <div className="mt-6 bg-accent/10 border border-accent/20 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="bg-accent/20 text-accent-foreground w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold">€5</div>
           <div>
-            <h3 className="font-semibold text-foreground">Free or Premium listing</h3>
-            <p className="text-sm text-muted-foreground">Free listings publish directly. Premium listings cost 5 EUR and include the 48-hour Premium window, newsletter, social promotion and personal buyer outreach.</p>
+            <h3 className="font-semibold text-foreground">Free listing or Seller Launch Promotion</h3>
+            <p className="text-sm text-muted-foreground">Free listings publish directly. The separate one-time 5 EUR Seller Launch Promotion adds a 48-hour buyer early-access window, member alerts, the bi-weekly newsletter, rotating social promotion and eligible wanted-buyer matching.</p>
           </div>
         </div>
         {isPremium && (
           <p className="mt-3 text-sm text-muted-foreground">
-            Your Premium membership gives you early buyer access. Listing promotion is purchased separately.
+            Your Buyer Early Access membership is for buying. Seller Launch Promotion is purchased separately for each listing.
           </p>
         )}
         <div className="mt-5 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">

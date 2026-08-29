@@ -103,10 +103,10 @@ export default async function SignupPage({
               />
               <div>
                 <label htmlFor="premium" className="text-sm font-medium text-foreground">
-                  Join AeroTrade Premium Club (€9.99/year)
+                  Add Buyer Early Access (€9.99/year)
                 </label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Get 48-hour early access and alerts. Upgrade during registration!
+                  Annual buyer product: 48-hour early access and instant listing alerts.
                 </p>
               </div>
             </div>
@@ -159,7 +159,7 @@ export default async function SignupPage({
             <div className="flex items-start gap-4">
               <div className="bg-primary/20 p-3 rounded-full text-primary shrink-0"><AlertCircle className="w-6 h-6 border-none" /></div>
               <div>
-                <h3 className="font-semibold text-lg">Premium Market Access</h3>
+                <h3 className="font-semibold text-lg">Buyer Early Access</h3>
                 <p className="text-slate-400 text-sm">Get 48-hour early access to rare and highly sought-after equipment.</p>
               </div>
             </div>

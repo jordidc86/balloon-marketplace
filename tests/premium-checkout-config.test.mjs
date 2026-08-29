@@ -12,6 +12,7 @@ test('Premium checkout configuration is bound to AeroTrade product, price and tr
     cancelPath: '/dashboard?premium_payment=canceled',
   })
   assert.equal(params.line_items[0].price_data.unit_amount, 999)
+  assert.equal(params.line_items[0].price_data.product_data.name, 'AeroTrade Buyer Early Access')
   assert.equal(params.line_items[0].price_data.recurring.interval, 'year')
   assert.equal(params.metadata.type, 'premium_subscription')
   assert.equal(params.metadata.intent_version, '1')
@@ -32,7 +33,7 @@ test('Premium checkout configuration rejects unknown sources and external return
   assert.equal(params.cancel_url, 'https://aerotrade.app/dashboard?premium_payment=canceled')
 })
 
-test('admin-created Premium checkout uses the same durable metadata contract', () => {
+test('admin-created buyer early-access checkout uses the same durable metadata contract', () => {
   const params = buildPremiumCheckoutParams({ userId: 'test-user', userEmail: 'test@example.invalid', origin: 'https://aerotrade.app', source: 'admin' })
   assert.equal(params.metadata.checkout_source, 'admin')
   assert.equal(params.metadata.intent_version, '1')

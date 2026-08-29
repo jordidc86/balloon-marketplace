@@ -128,7 +128,7 @@ export default async function LoginPage({
             <div className="flex items-start gap-4">
               <div className="bg-primary/20 p-3 rounded-full text-primary shrink-0"><CheckCircle className="w-6 h-6" /></div>
               <div>
-                <h3 className="font-semibold text-lg">Premium Market Access</h3>
+                <h3 className="font-semibold text-lg">Buyer Early Access</h3>
                 <p className="text-slate-400 text-sm">Get 48-hour early access to rare and highly sought-after equipment.</p>
               </div>
             </div>

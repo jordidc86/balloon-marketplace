@@ -135,17 +135,17 @@ export default async function DashboardPage({
         {params.listing_payment === 'canceled' ? (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
-            <div><p className="font-semibold">Premium payment was not completed.</p><p className="text-sm">Your listing is safely stored but not public. Resume payment below whenever you are ready.</p></div>
+            <div><p className="font-semibold">Seller Launch Promotion payment was not completed.</p><p className="text-sm">Your listing is safely stored but not public. Resume the one-time payment below whenever you are ready.</p></div>
           </div>
         ) : null}
         {params.premium_payment === 'canceled' ? (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
-            <div><p className="font-semibold">Premium membership payment was not completed.</p><p className="text-sm">Your account is active and the checkout can be resumed safely from Account Status.</p></div>
+            <div><p className="font-semibold">Buyer Early Access payment was not completed.</p><p className="text-sm">Your account is active and the annual checkout can be resumed safely from Account Status.</p></div>
           </div>
         ) : null}
         {params.premium_payment === 'processing' || params.upgraded === 'true' ? (
-          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Stripe accepted the checkout. Premium access will appear here after the signed webhook is verified.</div>
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Stripe accepted the checkout. Buyer Early Access will appear here after the signed webhook is verified.</div>
         ) : null}
         
         {/* Header / Welcome */}
@@ -170,22 +170,22 @@ export default async function DashboardPage({
                   {isPremium ? <CheckCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" /> }
                 </div>
                 <div>
-                  <p className="font-bold">{isPremium ? 'Premium Pilot' : 'Standard Member'}</p>
+                  <p className="font-bold">{isPremium ? 'Buyer Early Access' : 'Standard Member'}</p>
                   <p className="text-xs opacity-80">{isPremium ? '48h early access active' : '48h delay on new listings'}</p>
                 </div>
               </div>
               {!isPremium && (
                 hasRecoverablePremiumIntent ? (
                   <form action={resumePremiumMembershipCheckout}>
-                    <button className="mt-4 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Continue Premium checkout</button>
+                    <button className="mt-4 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Continue Buyer Early Access checkout</button>
                   </form>
                 ) : (
                   <Link href="/pricing" className="block mt-4 text-center bg-primary text-primary-foreground text-sm font-medium py-2 rounded-lg hover:bg-primary/90 transition-colors">
-                    Upgrade to Premium
+                    Get Buyer Early Access
                   </Link>
                 )
               )}
-              {!isPremium && hasRecoverablePremiumIntent ? <p className="mt-2 text-center text-xs text-muted-foreground">Your earlier Premium choice was retained; no new account is needed.</p> : null}
+              {!isPremium && hasRecoverablePremiumIntent ? <p className="mt-2 text-center text-xs text-muted-foreground">Your earlier Buyer Early Access choice was retained; no new account is needed.</p> : null}
               {isPremium && profile?.premium_source === 'stripe' && profile?.stripe_customer_id && (
                 <form action={openBillingPortal}>
                   <button className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-background text-foreground text-sm font-medium py-2 rounded-lg border hover:bg-muted transition-colors">
@@ -196,7 +196,7 @@ export default async function DashboardPage({
               )}
               {isPremium && profile?.premium_source !== 'stripe' && (
                 <p className="mt-4 text-xs text-muted-foreground">
-                  Premium access is managed by AeroTrade admin.
+                  Buyer Early Access is managed by AeroTrade admin.
                 </p>
               )}
             </div>
@@ -248,7 +248,7 @@ export default async function DashboardPage({
                               {item.status.replace('_', ' ')}
                             </span>
                           </div>
-                          {item.status === 'PENDING_PAYMENT' ? <p className="mt-1 text-xs font-medium text-amber-700">Not public — Premium payment incomplete</p> : null}
+                          {item.status === 'PENDING_PAYMENT' ? <p className="mt-1 text-xs font-medium text-amber-700">Not public — Seller Launch Promotion payment incomplete</p> : null}
                           {isQualityRecovery ? <p className="mt-1 text-xs font-medium text-amber-700">Paused — upload a working photo, then republish</p> : null}
                           {publicationIssues.length > 0 ? <p className="mt-1 text-xs font-medium text-amber-700">Aircraft data incomplete — {publicationIssues.join(', ')}</p> : null}
                           {verification?.status === 'VERIFIED' ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />AeroTrade evidence review complete</p> : null}

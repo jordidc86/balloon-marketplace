@@ -427,15 +427,15 @@ export default function SellForm({ userId, defaultContactEmail, initialData, sel
                 <span>
                   <span className="flex items-center gap-2 font-bold text-foreground">
                     <Megaphone className="h-4 w-4 text-accent" />
-                    Premium listing - 5 EUR
+                    Seller Launch Promotion — 5 EUR one time
                   </span>
-                  <span className="block text-sm text-muted-foreground">48-hour Premium window, bi-weekly newsletter, social promotion until sold, and personal WhatsApp outreach.</span>
+                  <span className="block text-sm text-muted-foreground">48-hour buyer early-access window, immediate alerts to eligible members, the bi-weekly newsletter, rotating social promotion while active, and matching to eligible opted-in wanted requests.</span>
                 </span>
               </label>
             </div>
             <label className="flex items-start gap-3 text-sm text-muted-foreground p-4 bg-muted/40 rounded-lg border">
               <input type="checkbox" required className="mt-1" />
-              <span>I understand that AeroTrade does not intermediate this transaction. If I choose Premium, payment is required before the Premium promotion starts.</span>
+              <span>I understand that AeroTrade does not intermediate this transaction. If I choose Seller Launch Promotion, its one-time payment is required before promotion starts. It does not include buyer membership.</span>
             </label>
           </div>
         )}
@@ -452,7 +452,7 @@ export default function SellForm({ userId, defaultContactEmail, initialData, sel
             </>
           ) : (
             <>
-              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : (listingPlan === 'premium' ? 'Pay 5 EUR & Publish Premium' : 'Publish Free Listing'))}
+              {!userId ? 'Login to Publish Listing' : (isEditing ? 'Save Changes' : (listingPlan === 'premium' ? 'Pay 5 EUR & Start Seller Promotion' : 'Publish Free Listing'))}
               <CheckCircle2 className="w-5 h-5" />
             </>
           )}

@@ -26,7 +26,7 @@ export default function SellHotAirBalloonPage() {
           <div>
             <p className="text-sm font-bold uppercase tracking-wider text-primary">European balloon marketplace</p>
             <h1 className="mt-3 max-w-3xl text-4xl font-extrabold tracking-tight sm:text-6xl">Sell your hot air balloon without losing the opportunity to an unfinished advert.</h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">Reach buyers looking for complete balloons, envelopes, baskets, burners, bottom ends and cylinders. Publish a normal listing for free, choose optional 5 EUR Premium promotion, or ask AeroTrade to help prepare the information privately.</p>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">Reach buyers looking for complete balloons, envelopes, baskets, burners, bottom ends and cylinders. Publish a normal listing for free, choose the optional 5 EUR one-time Seller Launch Promotion, or ask AeroTrade to help prepare the information privately.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href={fullListingHref} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground">Create a free listing <ArrowRight className="h-4 w-4" /></Link>
               <Link href={assistedHref} className="inline-flex items-center justify-center gap-2 rounded-xl border px-6 py-3 font-bold">Get help preparing the sale</Link>
@@ -36,7 +36,7 @@ export default function SellHotAirBalloonPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <article className="rounded-2xl border bg-card p-5"><Globe2 className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">International reach</h2><p className="mt-1 text-sm text-muted-foreground">One structured advert for buyers across borders.</p></article>
-            <article className="rounded-2xl border bg-card p-5"><BadgeEuro className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">Transparent entry</h2><p className="mt-1 text-sm text-muted-foreground">Public listing free; Premium promotion is optional and costs 5 EUR.</p></article>
+            <article className="rounded-2xl border bg-card p-5"><BadgeEuro className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">Transparent entry</h2><p className="mt-1 text-sm text-muted-foreground">Public listing free; Seller Launch Promotion is optional and costs 5 EUR once per listing.</p></article>
             <article className="rounded-2xl border bg-card p-5"><Camera className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">Not ready yet?</h2><p className="mt-1 text-sm text-muted-foreground">Record what exists now and identify missing photos, documents or price.</p></article>
             <article className="rounded-2xl border bg-card p-5"><ShieldCheck className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">Owner-controlled</h2><p className="mt-1 text-sm text-muted-foreground">You approve the advert and remain responsible for the transaction.</p></article>
           </div>

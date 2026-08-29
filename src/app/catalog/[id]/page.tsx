@@ -204,7 +204,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <div className="bg-primary/10 text-primary border border-primary/20 p-4 rounded-xl mb-8 flex items-center gap-3">
           <CheckCircle2 className="w-5 h-5 shrink-0" />
           <p className="font-medium text-sm">
-            You are viewing this listing securely within the 48-hour Premium window.
+            You are viewing this promoted listing securely within its 48-hour Buyer Early Access window.
           </p>
         </div>
       )}
@@ -213,7 +213,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <div className="bg-accent/10 text-accent-foreground border border-accent/20 p-4 rounded-xl mb-8 flex items-center gap-3">
           <Lock className="w-5 h-5 shrink-0" />
           <p className="font-medium text-sm">
-            Premium payment is pending. Complete payment to start promotion, or publish this listing for free.
+            Seller Launch Promotion payment is pending. Complete the one-time payment to start promotion, or publish this listing for free.
           </p>
         </div>
       )}
@@ -379,7 +379,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                        await payListingFee(typedListing.id)
                      }}>
                        <button className="w-full flex justify-center items-center gap-2 bg-accent text-accent-foreground py-4 rounded-xl font-bold text-base hover:opacity-90 transition-opacity">
-                         Complete Premium Payment
+                         Complete Seller Promotion Payment
                        </button>
                      </form>
                      <form action={async () => {

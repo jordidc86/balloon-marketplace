@@ -7,6 +7,17 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8')
 
 const checks = [
   {
+    name: 'Buyer membership and seller promotion have distinct public product names',
+    file: 'src/utils/paid-product-labels.mjs',
+    required: ['AeroTrade Buyer Early Access', 'AeroTrade Seller Launch Promotion', 'premium_subscription', 'listing_fee'],
+  },
+  {
+    name: 'Seller promotion promises only implemented distribution channels',
+    file: 'src/components/SellForm.tsx',
+    required: ['eligible opted-in wanted requests', 'rotating social promotion while active', 'It does not include buyer membership'],
+    forbidden: ['personal WhatsApp outreach', 'personal buyer outreach'],
+  },
+  {
     name: 'Runtime dependencies are pinned to the audited release line',
     file: 'package.json',
     required: ['"next": "16.3.3"', '"eslint-config-next": "16.3.3"', '"resend": "6.25.0"'],
@@ -75,7 +86,7 @@ const checks = [
   {
     name: 'Seller contact uses active-listing visibility rules',
     file: 'src/app/catalog/[id]/actions.ts',
-    required: ['canRevealSellerContact', 'Premium access is required to reveal this contact', "event_type: 'CONTACT_REVEAL'", 'user_id: user?.id || null'],
+    required: ['canRevealSellerContact', 'Buyer Early Access is required to reveal this contact', "event_type: 'CONTACT_REVEAL'", 'user_id: user?.id || null'],
   },
   {
     name: 'Marketplace enquiries are private, durable and seller-manageable',

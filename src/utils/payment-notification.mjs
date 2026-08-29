@@ -6,8 +6,8 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll("'", '&#39;')
 
 const paymentTypeLabels = {
-  listing_fee: 'anuncio Premium',
-  premium_subscription: 'suscripción Premium Club',
+  listing_fee: sellerLaunchPromotionProduct.paymentLabelEs,
+  premium_subscription: buyerEarlyAccessProduct.paymentLabelEs,
   other: 'otro cobro de AeroTrade',
 }
 
@@ -163,3 +163,4 @@ export function matchesPaymentNotificationReceipt(stored, expected) {
     && normalizePaymentType(stored.payment_type) === normalizePaymentType(expected.payment_type)
     && String(stored.provider_message_id || '') === String(expected.provider_message_id || '')
 }
+import { buyerEarlyAccessProduct, sellerLaunchPromotionProduct } from './paid-product-labels.mjs'

@@ -337,14 +337,14 @@ export async function POST(req: Request) {
           })
           // 1. Send Confirmation Email to Seller
           const sellerHtml = `
-            <h2>Your Premium listing is live!</h2>
+            <h2>Your Seller Launch Promotion is live!</h2>
             <p>Hi,</p>
-            <p>Great news! Your listing "<strong>${escapeHtml(listingData.title)}</strong>" has been published on AeroTrade as a Premium listing.</p>
-            <p>It is currently in the <strong>48-hour Premium Exclusive Window</strong>. It will become visible to the general public on ${escapeHtml(new Date(publicAt).toLocaleString())}.</p>
-            <p>Premium promotion includes the bi-weekly newsletter, social promotion while the listing is active, and personal buyer outreach where relevant.</p>
+            <p>Great news! Your listing "<strong>${escapeHtml(listingData.title)}</strong>" has been published on AeroTrade with Seller Launch Promotion.</p>
+            <p>It is currently in the <strong>48-hour Buyer Early Access window</strong>. It will become visible to the general public on ${escapeHtml(new Date(publicAt).toLocaleString())}.</p>
+            <p>The promotion includes an immediate alert to eligible Buyer Early Access members, the bi-weekly newsletter, rotating social promotion while the listing is active, and matching to eligible opted-in wanted requests.</p>
             <p>Good luck!</p>
           `;
-          await sendEmail(listingData.contact_email, 'AeroTrade: Your Premium Listing is Live!', sellerHtml);
+          await sendEmail(listingData.contact_email, 'AeroTrade: Your Seller Launch Promotion is live', sellerHtml);
 
           try {
             const alertResult = await sendPremiumListingAlert(supabaseAdmin, listingData.id);

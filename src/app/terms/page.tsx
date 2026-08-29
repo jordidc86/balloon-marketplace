@@ -27,8 +27,8 @@ export default function TermsPage() {
           <li>If you record wanted equipment, you must provide a genuine buying requirement. A recorded request does not guarantee that suitable equipment will be found or that a seller will respond.</li>
         </ul>
         
-        <h2>4. Fees and Premium Limits</h2>
-        <p>AeroTrade may offer free listings, paid Premium listing promotion for sellers, and an optional subscription fee ("Premium") for buyers. These fees are non-refundable unless otherwise required by law. The 48-Hour Premium window is provided "as is" and subject to system availability.</p>
+        <h2>4. Fees and Paid Product Limits</h2>
+        <p>AeroTrade offers free listings, an optional one-time Seller Launch Promotion for an individual listing, and a separate optional annual Buyer Early Access subscription. Seller Launch Promotion does not include Buyer Early Access, and Buyer Early Access does not promote a seller listing. These fees are non-refundable unless otherwise required by law. The 48-hour buyer early-access window is provided "as is" and subject to system availability. Neither paid product makes AeroTrade a broker or creates a commission on the equipment transaction.</p>
         
         <h2>5. Limitation of Liability</h2>
         <p>AeroTrade makes no warranties regarding the condition, airworthiness, safety, or legality of any equipment listed. All transactions are at your own risk. AeroTrade shall not be liable for any indirect, incidental, or consequential damages arising from the use of the Platform.</p>

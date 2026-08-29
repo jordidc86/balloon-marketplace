@@ -102,7 +102,7 @@ export async function revealSellerContact(listingId: string, rawContext?: Browse
   )
 
   if (!canReveal) {
-    throw new Error('Premium access is required to reveal this contact')
+    throw new Error('Buyer Early Access is required to reveal this contact')
   }
 
   const context = normalizeCommercialContext(rawContext)
@@ -167,7 +167,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
     { userId: user?.id || null, isPremium: profile?.is_premium || false },
   )
   if (!canContact) {
-    return { success: false, message: 'Premium access is required during the exclusive window.' }
+    return { success: false, message: 'Buyer Early Access is required during the 48-hour early-access window.' }
   }
 
   const duplicateCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()

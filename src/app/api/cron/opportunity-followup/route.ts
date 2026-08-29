@@ -170,10 +170,10 @@ export async function GET(request: Request) {
         entityId: listing.id,
         recipientRole: 'seller',
         to: listing.contact_email,
-        subject: 'AeroTrade: your Premium listing is saved but not public',
-        html: `<h2>Your Premium listing is safely stored</h2>
-        <p><strong>${escapeHtml(listing.title)}</strong> is still not public because its Premium publication has not completed.</p>
-        <p><a href="${escapeHtml(`${siteUrl}/dashboard`)}">Open your AeroTrade dashboard</a> to continue the Premium checkout or publish the listing using the free option.</p>
+        subject: 'AeroTrade: your Seller Launch Promotion checkout is incomplete',
+        html: `<h2>Your listing is safely stored</h2>
+        <p><strong>${escapeHtml(listing.title)}</strong> is still not public because its one-time Seller Launch Promotion checkout has not completed.</p>
+        <p><a href="${escapeHtml(`${siteUrl}/dashboard`)}">Open your AeroTrade dashboard</a> to continue the 5 EUR promotion checkout or publish the listing using the free option.</p>
         <p>No new account or duplicate listing is required. This is a single operational reminder.</p>`,
         idempotencyKey: `premium-listing-checkout-recovery-${listing.id}`,
       })

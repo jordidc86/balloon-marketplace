@@ -36,7 +36,7 @@ export default function ContactPage() {
               <MessageCircle className="text-primary w-5 h-5" /> Premium Support
             </h2>
             <p className="text-muted-foreground mb-4">
-              AeroTrade Premium members receive priority response times. Please email us from the address associated with your premium account.
+              For account or billing questions, email us from the address associated with your AeroTrade account so we can identify the correct record safely.
             </p>
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground bg-muted w-fit px-3 py-1.5 rounded-full">
               <Clock className="w-4 h-4" /> Average response: &lt; 24h

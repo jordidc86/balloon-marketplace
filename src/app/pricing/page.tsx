@@ -5,8 +5,8 @@ import { redirect } from 'next/navigation'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Pricing | AeroTrade Marketplace',
-  description: 'Join AeroTrade Premium to get a 48-hour head start on every single hot air balloon equipment listing worldwide.',
+  title: 'Buyer Early Access | AeroTrade Marketplace',
+  description: 'Get 48-hour early buyer access and instant alerts for new hot air balloon equipment listings for 9.99 EUR per year.',
 }
 
 export default async function PricingPage() {
@@ -22,9 +22,10 @@ export default async function PricingPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-20">
       <div className="text-center mb-16">
-        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">The unfair advantage.</h1>
+        <p className="mb-3 text-sm font-bold uppercase tracking-wider text-primary">Annual buyer product</p>
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">See new equipment 48 hours earlier.</h1>
         <p className="text-xl text-muted-foreground text-balance max-w-2xl mx-auto">
-          The best equipment often moves before everyone sees it. Join AeroTrade Premium to get a 48-hour head start on Premium listings worldwide.
+          AeroTrade Buyer Early Access gives buyers a 48-hour head start on promoted listings and immediate email alerts when new equipment appears.
         </p>
       </div>
 
@@ -38,8 +39,8 @@ export default async function PricingPage() {
           <ul className="space-y-4 mb-8 text-muted-foreground">
             <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-foreground" /> <span>Browse public listings</span></li>
             <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-foreground" /> <span>Publish free listings</span></li>
-            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-foreground" /> <span>Optional 5 EUR Premium listing promotion</span></li>
-            <li className="flex items-start gap-3 opacity-50"><Lock className="w-5 h-5 shrink-0" /> <span>No access to active premium listings</span></li>
+            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-foreground" /> <span>Optional 5 EUR one-time Seller Launch Promotion</span></li>
+            <li className="flex items-start gap-3 opacity-50"><Lock className="w-5 h-5 shrink-0" /> <span>No access during the 48-hour buyer window</span></li>
             <li className="flex items-start gap-3 opacity-50"><Lock className="w-5 h-5 shrink-0" /> <span>No instant email alerts</span></li>
           </ul>
 
@@ -53,14 +54,14 @@ export default async function PricingPage() {
           <div className="absolute top-0 right-8 -translate-y-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
             <Star className="w-4 h-4" /> Recommended
           </div>
-          <h2 className="text-2xl font-bold mb-2 text-foreground">Premium Club</h2>
+          <h2 className="text-2xl font-bold mb-2 text-foreground">Buyer Early Access</h2>
           <div className="text-5xl font-black mb-6 text-foreground">€ 9.99 <span className="text-lg text-muted-foreground font-medium">/ year</span></div>
           
           <ul className="space-y-4 mb-8 text-foreground font-medium">
-            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>48-Hour Early Access to Premium listings</span></li>
+            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>48-hour early access to promoted listings</span></li>
             <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>Instant Email Alerts for new gear</span></li>
             <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>Secure contact info reveal</span></li>
-            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>Premium badge on your profile</span></li>
+            <li className="flex items-start gap-3"><Check className="w-5 h-5 shrink-0 text-primary" /> <span>Self-service subscription management</span></li>
           </ul>
 
           <div className="mt-auto">
@@ -72,18 +73,18 @@ export default async function PricingPage() {
                </form>
             ) : isPremium ? (
               <button disabled className="w-full bg-primary/20 text-primary py-4 rounded-xl font-bold text-lg cursor-not-allowed">
-                 You are already Premium
+                 Buyer Early Access is active
               </button>
             ) : (
               <form action={createPremiumCheckout}>
                 <button className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-4 rounded-xl font-bold text-lg transition-all shadow-md hover:shadow-xl hover:-translate-y-1 flex items-center justify-center gap-2">
                   <Plane className="w-5 h-5" /> 
-                  Subscribe Now
+                  Get Buyer Early Access
                 </button>
               </form>
             )}
           </div>
-          <p className="text-xs text-center text-muted-foreground mt-4">Billed annually. Cancel anytime.</p>
+          <p className="text-xs text-center text-muted-foreground mt-4">9.99 EUR billed annually. Cancel anytime. This is separate from the one-time seller promotion.</p>
         </div>
 
       </div>
@@ -93,19 +94,19 @@ export default async function PricingPage() {
         <div className="space-y-6">
           <div>
             <h4 className="font-semibold text-lg text-foreground">How does the 48-Hour Early Access work?</h4>
-            <p className="text-muted-foreground mt-1">Premium listings are locked in a "Premium Window" for the first 48 hours. Only Premium members can view the listing details, photos, and seller contact information during this time. After 48 hours, the listing becomes visible to the general public.</p>
+            <p className="text-muted-foreground mt-1">Listings using Seller Launch Promotion are reserved for Buyer Early Access members for the first 48 hours. After that, they become visible to the general public.</p>
           </div>
           <div>
             <h4 className="font-semibold text-lg text-foreground">What is "Secure Contact Info Reveal"?</h4>
-            <p className="text-muted-foreground mt-1">Seller contact information is hidden behind a reveal action to reduce casual scraping. Public listings can be contacted directly, while active Premium-window listings require Premium access until the window expires.</p>
+            <p className="text-muted-foreground mt-1">Seller contact information is hidden behind a reveal action to reduce casual scraping. Public listings can be contacted directly, while listings in their 48-hour early-access window require Buyer Early Access.</p>
           </div>
           <div>
             <h4 className="font-semibold text-lg text-foreground">Do you charge commissions on sales?</h4>
-            <p className="text-muted-foreground mt-1">No. AeroTrade is an open marketplace directory, not a broker. Sellers can publish free listings or choose a paid Premium listing promotion, but we never take a percentage of your equipment sale.</p>
+            <p className="text-muted-foreground mt-1">No. AeroTrade is an open marketplace directory, not a broker. Sellers can publish free listings or choose the separate 5 EUR one-time Seller Launch Promotion, but we never take a percentage of an equipment sale.</p>
           </div>
           <div>
             <h4 className="font-semibold text-lg text-foreground">How do I cancel my subscription?</h4>
-            <p className="text-muted-foreground mt-1">You can cancel your subscription at any time directly from your Pilot Dashboard. Your premium access will remain active until the end of your current billing period, and you won't be charged again.</p>
+            <p className="text-muted-foreground mt-1">You can cancel your subscription at any time directly from your Pilot Dashboard. Buyer Early Access remains active until the end of the current billing period, and you will not be charged again.</p>
           </div>
         </div>
       </div>

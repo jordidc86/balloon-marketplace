@@ -77,7 +77,7 @@ export function getPublicTeaserTitle(category: string) {
     'other-equipment': 'Equipment listing',
   }
 
-  return labels[category] || 'Premium listing'
+  return labels[category] || 'Promoted equipment listing'
 }
 
 export function formatListingPrice(price: number, currency: string) {

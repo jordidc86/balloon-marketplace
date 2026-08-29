@@ -1,3 +1,5 @@
+import { buyerEarlyAccessProduct } from './paid-product-labels.mjs'
+
 const premiumCheckoutSources = ['signup', 'pricing', 'dashboard', 'admin']
 
 function trustedPath(value, fallback) {
@@ -25,8 +27,8 @@ export function buildPremiumCheckoutParams({
       price_data: {
         currency: 'eur',
         product_data: {
-          name: 'AeroTrade Premium Club',
-          description: '48-hour Early Access & Instant Alerts',
+          name: buyerEarlyAccessProduct.publicName,
+          description: 'Annual buyer access: 48-hour early access and instant listing alerts.',
         },
         unit_amount: 999,
         recurring: { interval: 'year' },
