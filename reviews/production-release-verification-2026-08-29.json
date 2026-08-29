@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_production_release_verification",
+  "capturedAt": "2026-08-29T13:41:04.000Z",
+  "containsPii": false,
+  "deployment": {
+    "site": "https://aerotrade.app",
+    "deployId": "6a92e0792536cb512ad0bb20",
+    "state": "ready",
+    "publishedAt": "2026-08-29T13:37:34.312Z",
+    "sourceCommit": "07f29adc966bef934f060015434732ecb44f13dd"
+  },
+  "publicReadback": {
+    "homeStatus": 200,
+    "catalogStatus": 200,
+    "newBalloonStatus": 200,
+    "listingStatus": 200,
+    "buyerResponseRouteStatus": 200,
+    "buyerResponseRouteNoindex": true,
+    "listingEnquiryCtaPresent": true,
+    "listingEnquiryFormPresent": true,
+    "factoryNewAlternativePresent": true,
+    "adminRedirectsToLogin": true,
+    "dashboardRedirectsToLogin": true
+  },
+  "securityReadback": {
+    "anonymousBuyerResponseRpcDenied": true,
+    "anonymousBuyerResponseRpcCode": "42501"
+  },
+  "validation": {
+    "testsPassed": 110,
+    "operationalContractsPassed": 103,
+    "lintPassed": true,
+    "productionBuildPassed": true
+  },
+  "productionData": {
+    "readOnlyAuditPassed": true,
+    "syntheticLeadsCreated": 0,
+    "syntheticNegotiationResponsesCreated": 0,
+    "customerEmailsSent": 0,
+    "paymentActions": 0
+  }
+}

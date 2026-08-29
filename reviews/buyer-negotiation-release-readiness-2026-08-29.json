@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "kind": "aerotrade_buyer_negotiation_release_readiness",
-  "capturedAt": "2026-08-29T12:43:11.255Z",
+  "capturedAt": "2026-08-29T13:41:04.000Z",
   "containsPii": false,
   "code": {
-    "commit": "fddd61fb46a4e43a90ff06c9530e99db4e470344",
+    "commit": "07f29adc966bef934f060015434732ecb44f13dd",
     "branchPushed": true,
     "mainPushed": true,
-    "testsPassed": 107,
-    "operationalContractsPassed": 98,
+    "testsPassed": 110,
+    "operationalContractsPassed": 103,
     "lintPassed": true,
     "productionBuildPassed": true
   },
@@ -31,11 +31,14 @@
   },
   "deployment": {
     "attempted": true,
-    "netlifyDeployId": "6a92d372f0cc6700084631e1",
-    "state": "blocked",
-    "reasonCode": "account_credit_usage_exceeded",
-    "productionRouteStatusBeforeRelease": 404,
-    "productionCodeLive": false
+    "netlifyDeployId": "6a92e0792536cb512ad0bb20",
+    "state": "ready",
+    "reasonCode": null,
+    "publishedAt": "2026-08-29T13:37:34.312Z",
+    "productionRouteStatus": 200,
+    "productionRouteNoindex": true,
+    "listingEnquiryCtaPresent": true,
+    "productionCodeLive": true
   },
   "scoreChanged": false
 }
