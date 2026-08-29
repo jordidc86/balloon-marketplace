@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   createSellerAssistanceSubmissionKey,
+  normalizeExistingListingUrl,
   normalizeSellerAssistanceStatus,
   parseSellerAssistanceRequest,
 } from '../src/utils/seller-assistance.mjs'
@@ -65,4 +66,15 @@ test('assisted seller statuses and abuse key are closed and privacy preserving',
   assert.equal(key?.length, 64)
   assert.equal(key?.includes('203.0.113.5'), false)
   assert.equal(createSellerAssistanceSubmissionKey('', '', 'secret'), null)
+})
+
+test('assisted seller may provide a safe public advert for manual transfer', () => {
+  const form = validForm()
+  form.set('existing_listing_url', 'https://www.balloons4sale.eu/example?id=12#gallery')
+  form.append('help_needed', 'LISTING_TRANSFER')
+  const parsed = parseSellerAssistanceRequest(form)
+  assert.equal(parsed.existing_listing_url, 'https://www.balloons4sale.eu/example?id=12')
+  assert.ok(parsed.help_needed.includes('LISTING_TRANSFER'))
+  assert.throws(() => normalizeExistingListingUrl('javascript:alert(1)'))
+  assert.throws(() => normalizeExistingListingUrl('https://aerotrade.app/catalog/example'))
 })

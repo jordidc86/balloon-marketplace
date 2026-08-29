@@ -96,6 +96,7 @@ export async function submitSellerAssistanceRequest(formData: FormData, rawConte
         <p><strong>Email:</strong> <a href="mailto:${escapeHtml(request.email)}">${escapeHtml(request.email)}</a></p>
         <p><strong>Equipment:</strong> ${escapeHtml([request.manufacturer, request.model].filter(Boolean).join(' ') || request.category)}</p>
         <p><strong>Expected price:</strong> ${escapeHtml(price)}</p>
+        ${request.existing_listing_url ? '<p><strong>Existing public advert:</strong> <a href="' + escapeHtml(request.existing_listing_url) + '">Open source advert for manual review</a></p>' : ''}
         <p><strong>Documentation:</strong> ${escapeHtml(request.documentation_readiness)} · <strong>Photos:</strong> ${escapeHtml(request.photo_readiness)}</p>
         <p><a href="${escapeHtml(`${siteUrl}/admin/commercial`)}">Open the existing AeroTrade commercial pipeline</a>.</p>`,
         idempotencyKey: `seller-assistance-created-${stored.id}`,
@@ -107,4 +108,3 @@ export async function submitSellerAssistanceRequest(formData: FormData, rawConte
 
   return { success: true, message: 'Your request is safely recorded. AeroTrade will review the equipment and help you prepare the normal marketplace listing.' }
 }
-

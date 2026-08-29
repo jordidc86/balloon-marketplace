@@ -6,6 +6,8 @@ import { openBillingPortal, requestListingVerification, resumePremiumListingChec
 import SafeListingImage from '@/components/SafeListingImage'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 import SellerInquiryResponseForm from './SellerInquiryResponseForm'
+import ListingShare from '@/components/ListingShare'
+import { siteUrl } from '@/utils/site'
 
 type DashboardListingImage = {
   url: string
@@ -232,8 +234,8 @@ export default async function DashboardPage({
                       item.images?.[0]?.url ||
                       'https://images.unsplash.com/photo-1506521781263-d8422e8dbf27?q=80&w=600'
                     return (
-                      <div key={item.id} className="flex items-center gap-4 p-4 border rounded-xl hover:bg-secondary/20 transition-colors">
-                        <div className="w-16 h-16 rounded-lg overflow-hidden relative border bg-muted shrink-0">
+                      <div key={item.id} className="flex flex-col items-stretch gap-4 rounded-xl border p-4 transition-colors hover:bg-secondary/20 sm:flex-row sm:items-center">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-muted">
                           <SafeListingImage src={primaryImage} alt={item.title} sizes="64px" className="object-cover" compact />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -255,7 +257,7 @@ export default async function DashboardPage({
                           {verification?.status === 'IN_REVIEW' ? <p className="mt-1 text-xs font-semibold text-amber-700">Verification requested — queued for review</p> : null}
                           {verification?.status === 'REJECTED' ? <p className="mt-1 text-xs font-semibold text-red-700">Review incomplete — {verification.decision_reason ? formatClosedCode(verification.decision_reason) : 'evidence needs attention'}</p> : null}
                         </div>
-                        <div className="flex shrink-0 flex-col items-end gap-2">
+                        <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:items-end">
                           {item.status === 'PENDING_PAYMENT' ? (
                             <form action={resumePremiumListingCheckout.bind(null, item.id)}>
                               <button className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90">Resume €5 payment</button>
@@ -269,6 +271,7 @@ export default async function DashboardPage({
                             </form>
                           ) : null}
                           {!supportingEvidenceAvailable && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) ? <Link href={`/catalog/${item.id}/edit`} className="max-w-40 text-right text-xs font-semibold text-amber-700 hover:underline">Mark supporting evidence available to request review</Link> : null}
+                          {['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) ? <ListingShare baseUrl={siteUrl} listingId={item.id} title={item.title} source="seller_share" compact /> : null}
                         </div>
                       </div>
                     )

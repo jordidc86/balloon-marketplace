@@ -95,6 +95,7 @@ type CatalogSearchEvent = {
 type ListingEvent = {
   event_type: 'VIEW' | 'CONTACT_REVEAL' | string
   journey_key: string | null
+  utm_source: string | null
   created_at: string
 }
 
@@ -138,6 +139,7 @@ type SellerAssistance = {
   location_country: string | null
   expected_price_minor: number | null
   currency: string
+  existing_listing_url: string | null
   documentation_readiness: string
   photo_readiness: string
   timeline: string
@@ -213,9 +215,9 @@ export default async function CommercialPage() {
     supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,entry_context,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('users').select('id,email').limit(500),
-    supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
+    supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,existing_listing_url,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
-    supabase.from('listing_events').select('event_type,journey_key,created_at').gte('created_at', thirtyDaysAgo),
+    supabase.from('listing_events').select('event_type,journey_key,utm_source,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
     supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
@@ -258,6 +260,7 @@ export default async function CommercialPage() {
   for (const proposal of typedProposals) if (!latestProposalByQuote.has(proposal.quote_request_id)) latestProposalByQuote.set(proposal.quote_request_id, proposal)
   const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
   const reveals = typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL').length
+  const sharedLinkViews = typedListingEvents.filter((event) => event.event_type === 'VIEW' && ['seller_share', 'listing_share'].includes(event.utm_source || '')).length
   const recentInquiries = typedInquiries.filter((inquiry) => inquiry.created_at >= thirtyDaysAgo)
   const recentQuotes = typedQuotes.filter((quote) => quote.created_at >= thirtyDaysAgo)
   const recentWanted = typedWantedRequests.filter((request) => request.created_at >= thirtyDaysAgo)
@@ -336,7 +339,7 @@ export default async function CommercialPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${typedSearchEvents.length} catalog searches`} />
+        <Metric title="Views (30d)" value={views} icon={<Plane className="h-5 w-5" />} detail={`${reveals} contact reveals · ${typedSearchEvents.length} catalog searches · ${sharedLinkViews} from shared links`} />
         <Metric title="Open opportunities" value={openInquiries + openWanted + openSellerAssistance + typedQuotes.filter((quote) => !['WON', 'LOST'].includes(quote.status)).length} icon={<MessageSquare className="h-5 w-5" />} detail={`${typedInquiries.length} enquiries · ${typedWantedRequests.length} wanted · ${typedQuotes.length} new balloon · ${typedSellerAssistance.length} assisted sellers`} />
         <Metric title="Won outcomes" value={won} icon={<CircleDollarSign className="h-5 w-5" />} detail="Recorded outcomes, not assumed sales" />
         <Metric title="Needs attention" value={failedNotifications} icon={<TriangleAlert className="h-5 w-5" />} detail="Seller emails not accepted" warning={failedNotifications > 0} />
@@ -446,7 +449,7 @@ export default async function CommercialPage() {
                 : (request.expected_price_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: request.currency })
               return (
                 <div key={request.id} className="grid gap-4 p-6 lg:grid-cols-[1.2fr_1fr_auto] lg:items-start">
-                  <div><p className="font-semibold">{request.name} · {[request.manufacturer, request.model].filter(Boolean).join(' ') || request.category}</p><a href={`mailto:${request.email}`} className="text-sm text-primary hover:underline">{request.email}</a>{request.phone ? <p className="text-sm">{request.phone}</p> : null}<p className="mt-1 text-xs text-muted-foreground">{formatDate(request.created_at)} · {request.location_country || 'Location not specified'} · {expectedPrice} · source {request.source_context.replaceAll('_', ' ')}</p>{request.notes ? <p className="mt-3 whitespace-pre-wrap text-sm">{request.notes}</p> : null}</div>
+                  <div><p className="font-semibold">{request.name} · {[request.manufacturer, request.model].filter(Boolean).join(' ') || request.category}</p><a href={`mailto:${request.email}`} className="text-sm text-primary hover:underline">{request.email}</a>{request.phone ? <p className="text-sm">{request.phone}</p> : null}<p className="mt-1 text-xs text-muted-foreground">{formatDate(request.created_at)} · {request.location_country || 'Location not specified'} · {expectedPrice} · source {request.source_context.replaceAll('_', ' ')}</p>{request.existing_listing_url ? <a href={request.existing_listing_url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-sm font-semibold text-primary underline">Open existing public advert</a> : null}{request.notes ? <p className="mt-3 whitespace-pre-wrap text-sm">{request.notes}</p> : null}</div>
                   <div className="space-y-2 text-sm"><span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{request.status}</span><p>Documents: {request.documentation_readiness} · photos: {request.photo_readiness}</p><p>Timing: {request.timeline}</p><p className="text-xs text-muted-foreground">Help: {request.help_needed.length ? request.help_needed.join(', ') : 'not specified'}</p>{request.linked_listing_id ? <Link href={`/catalog/${request.linked_listing_id}`} className="block font-semibold text-primary underline">Open completed listing</Link> : null}</div>
                   <form action={updateSellerAssistanceStatus.bind(null, request.id)} className="grid min-w-64 gap-2">
                     <select name="status" defaultValue={request.status} className="rounded-lg border bg-background px-3 py-2 text-sm">{['NEW', 'CONTACTED', 'QUALIFIED', 'LISTING_PREPARATION', 'LISTED', 'CLOSED', 'SPAM'].map((status) => <option value={status} key={status}>{status}</option>)}</select>

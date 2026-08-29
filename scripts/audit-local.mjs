@@ -252,6 +252,17 @@ const checks = [
     required: ['parseSellerAssistanceRequest', 'createSellerAssistanceSubmissionKey', "from('seller_assistance_requests')", 'duplicateCutoff', 'rateCutoff', 'privacy_consent_at', 'seller_assistance_created_admin', 'was stored but its admin notification needs review'],
   },
   {
+    name: 'Existing adverts enter assisted sale only as safe private transfer references',
+    file: 'supabase/migrations/20260829400000_assisted_listing_transfer.sql',
+    required: ['existing_listing_url text', "existing_listing_url ~* '^https?://'", 'never fetched or published automatically'],
+  },
+  {
+    name: 'Listing distribution creates measurable channel links without automatic messaging',
+    file: 'src/components/ListingShare.tsx',
+    required: ["source = 'listing_share'", "urlFor('whatsapp')", "urlFor('email')", "urlFor('copy')", 'navigator.share', 'navigator.clipboard.writeText'],
+    forbidden: ['sendEmail(', 'fetch(', 'SUPABASE_SERVICE_ROLE_KEY'],
+  },
+  {
     name: 'Assisted seller conversion must link to a matching normal listing',
     file: 'src/app/admin/actions.ts',
     required: ['updateSellerAssistanceStatus', "status === 'LISTED'", 'The selected listing does not match this seller', 'Could not persist and verify assisted-sale status'],

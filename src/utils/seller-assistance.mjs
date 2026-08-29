@@ -5,7 +5,7 @@ const categories = ['complete', 'envelopes', 'baskets', 'burners', 'bottom-end',
 const currencies = ['EUR', 'GBP', 'USD']
 const readinessValues = ['READY', 'PARTIAL', 'NOT_READY', 'UNKNOWN']
 const timelineValues = ['NOW', '0_3_MONTHS', '3_6_MONTHS', 'EXPLORING']
-const helpValues = ['VALUATION', 'LISTING_PREPARATION', 'PHOTO_GUIDANCE', 'DOCUMENT_CHECK']
+const helpValues = ['VALUATION', 'LISTING_PREPARATION', 'PHOTO_GUIDANCE', 'DOCUMENT_CHECK', 'LISTING_TRANSFER']
 export const sellerAssistanceStatuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'LISTING_PREPARATION', 'LISTED', 'CLOSED', 'SPAM']
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -37,6 +37,20 @@ const optionalMoneyMinor = (value) => {
   return minor
 }
 
+export function normalizeExistingListingUrl(value) {
+  if (!value) return null
+  if (typeof value !== 'string' || value.length > 1000) throw new Error('Please enter a valid public advert URL.')
+  try {
+    const url = new URL(value.trim())
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Unsafe URL')
+    if (['aerotrade.app', 'www.aerotrade.app'].includes(url.hostname.toLowerCase())) throw new Error('Existing AeroTrade listing')
+    url.hash = ''
+    return url.toString()
+  } catch {
+    throw new Error('Please enter a valid public advert URL from another website.')
+  }
+}
+
 export function parseSellerAssistanceRequest(formData) {
   if (text(formData, 'company_website', 200)) throw new Error('Unable to submit this request.')
 
@@ -66,6 +80,7 @@ export function parseSellerAssistanceRequest(formData) {
     documentation_readiness: oneOf(text(formData, 'documentation_readiness', 20), readinessValues, 'UNKNOWN'),
     photo_readiness: oneOf(text(formData, 'photo_readiness', 20), readinessValues, 'UNKNOWN'),
     timeline: oneOf(text(formData, 'timeline', 30), timelineValues, 'EXPLORING'),
+    existing_listing_url: normalizeExistingListingUrl(text(formData, 'existing_listing_url', 1001)),
     help_needed: uniqueHelp,
     notes: multiline(formData, 'notes', 2000) || null,
     source_context: normalizeSellerAcquisitionSource(text(formData, 'source_context', 40), 'sell_gateway'),

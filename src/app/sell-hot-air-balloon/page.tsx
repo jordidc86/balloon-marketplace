@@ -37,7 +37,7 @@ export default function SellHotAirBalloonPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <article className="rounded-2xl border bg-card p-5"><Globe2 className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">International reach</h2><p className="mt-1 text-sm text-muted-foreground">One structured advert for buyers across borders.</p></article>
             <article className="rounded-2xl border bg-card p-5"><BadgeEuro className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">Transparent entry</h2><p className="mt-1 text-sm text-muted-foreground">Public listing free; Seller Launch Promotion is optional and costs 5 EUR once per listing.</p></article>
-            <article className="rounded-2xl border bg-card p-5"><Camera className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">Not ready yet?</h2><p className="mt-1 text-sm text-muted-foreground">Record what exists now and identify missing photos, documents or price.</p></article>
+            <article className="rounded-2xl border bg-card p-5"><Camera className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">Already advertised?</h2><p className="mt-1 text-sm text-muted-foreground">Paste the public advert URL so AeroTrade can help transfer the information instead of making you start again.</p></article>
             <article className="rounded-2xl border bg-card p-5"><ShieldCheck className="h-6 w-6 text-primary" /><h2 className="mt-4 font-bold">Owner-controlled</h2><p className="mt-1 text-sm text-muted-foreground">You approve the advert and remain responsible for the transaction.</p></article>
           </div>
         </div>

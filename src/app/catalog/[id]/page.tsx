@@ -11,6 +11,7 @@ import { payListingFee, publishListingFree, republishQuarantinedListing } from '
 import ListingViewTracker from './ListingViewTracker'
 import BuyerInquiryForm from './BuyerInquiryForm'
 import SafeListingImage from '@/components/SafeListingImage'
+import ListingShare from '@/components/ListingShare'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 import {
   buildListingBreadcrumbJsonLd,
@@ -268,6 +269,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 </Link>
               </div>
             )}
+            {canViewFully && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(typedListing.status) ? <div className="mt-4"><ListingShare baseUrl={siteUrl} listingId={typedListing.id} title={typedListing.title} source={isOwner ? 'seller_share' : 'listing_share'} /></div> : null}
           </div>
 
           {/* Thumbnails */}
