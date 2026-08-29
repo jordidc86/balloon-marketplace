@@ -12,6 +12,7 @@ Last updated: 2026-08-29.
 | `package.json` | Scripts and dependencies | Yes |
 | `reviews/latest-summary.md` | Current improvement-loop summary | Yes |
 | `docs/production-audit-runbook.md` | Post-deploy verification and rollback gate | Yes, after an approved deploy |
+| `docs/grouped-release-social-economics-20260829.md` | Exact migration, one-deploy, verification and non-destructive rollback plan for the current release candidate | Yes, before approving this release |
 | `scripts/audit-local.mjs` | Static operational contract checks | Yes, before every release |
 
 ## Product Areas
