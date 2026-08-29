@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "transactional_email_recovery_production_verification",
+  "verifiedAt": "2026-08-29T14:42:33.788Z",
+  "containsPii": false,
+  "production": {
+    "url": "https://aerotrade.app",
+    "deployId": "6a92ef6f014f8b000824daca",
+    "commit": "762432093143d742fa35a2d40c63b132a8679cd5",
+    "state": "ready",
+    "publishedAt": "2026-08-29T14:41:50.269Z"
+  },
+  "database": {
+    "migration": "20260829440000_commercial_notification_retry_budget",
+    "registeredRemotely": true,
+    "maximumProviderAttempts": 2,
+    "retryDelayHours": 6,
+    "optimisticClaim": true
+  },
+  "validation": {
+    "automatedTests": 118,
+    "operationalContracts": 114,
+    "lint": "passed",
+    "productionBuild": "passed"
+  },
+  "productionDryRun": {
+    "dryRun": true,
+    "dueSellerEnquiries": 0,
+    "dueNewBalloonQuotes": 0,
+    "duePremiumListingCheckouts": 1,
+    "dueSellerAssistance": 0,
+    "dueNewBalloonBuyerAcknowledgementRetries": 0,
+    "failed": 0,
+    "configurationBlocked": 0,
+    "messagesSent": 0
+  },
+  "readOnlyProductionEvidence": {
+    "commercialNotificationReceipts": 2,
+    "acceptedReceipts": 2,
+    "newBalloonBuyerAcknowledgements": 0,
+    "exhaustedNewBalloonBuyerAcknowledgements": 0,
+    "newBalloonQuoteRequests": 0,
+    "marketplaceInquiries": 0,
+    "livePaymentReceipts": 0,
+    "syntheticRecordsCreated": 0
+  },
+  "safetyBoundary": "A transactional email may be attempted at most twice. Accepted provider evidence suppresses every repeat; a failed or interrupted attempt waits for the retry window and keeps the same provider idempotency key."
+}
