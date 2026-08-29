@@ -4,7 +4,7 @@ Status: release candidate only. Production is unchanged.
 
 ## Purpose
 
-Ship eleven material, additive capabilities in one Netlify production deploy:
+Ship twelve material, additive capabilities in one Netlify production deploy:
 
 1. Per-content, network and placement social-publication receipts with provider-ID acceptance, bounded retry and attributable links.
 2. Complete, evidence-backed unit economics on the existing commercial outcome, with unknown costs kept null and every measurement snapshotted immutably.
@@ -17,6 +17,7 @@ Ship eleven material, additive capabilities in one Netlify production deploy:
 9. Four high-intent European buyer entries in English, German, French and Spanish that display only current public inventory and route demand into the existing catalogue, wanted-request and new-balloon quotation funnels while preserving external acquisition attribution.
 10. Privacy-minimized measurement of those four localized entries inside the existing catalogue-demand ledger, separating genuine landing visits, listing openings and downstream high-intent journeys from ordinary catalogue searches and zero-result demand.
 11. One internal recovery escalation for a marketplace enquiry that remains untouched 48 hours after provider acceptance of its single seller reminder, surfaced in Control Tower without re-contacting the buyer or repeating the seller reminder.
+12. A direct bridge from successful owner availability confirmation to voluntary, attributable seller sharing of those same confirmed adverts, reusing the existing share links and sending nothing automatically.
 
 The release also activates a deployment-cost guard: future production builds require an explicit change to `release/netlify-production.json`. Ordinary runtime commits may be staged on `main` but cannot independently consume a production-deploy charge.
 
@@ -25,8 +26,8 @@ The release does not change prices, publish a post, send a message by itself, cr
 ## Exact source
 
 - Production base: `9880e56df0b1f47089c0ea176d57a613c25847a5`.
-- Runtime release candidate: `5cddd94094dd3f19a177a5acc661e3287109470f`.
-- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3`, `8abde69`, `255f37e`, `c0589ea` and `5cddd94`.
+- Runtime release candidate: `611c9df66ca7920c1d16d2aa9364a9b8ffd3117a`.
+- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3`, `8abde69`, `255f37e`, `c0589ea`, `5cddd94` and `611c9df`.
 - Required migrations, in order:
   1. `20260829490000_social_publication_receipts.sql`
   2. `20260829500000_commercial_unit_economics.sql`
@@ -47,14 +48,14 @@ Do not apply any production migration, merge/push to `main`, trigger a deploy or
 
 Exact approval wording:
 
-> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000, 20260829540000, 20260829550000, 20260829560000, 20260829570000, 20260829580000 y 20260829590000, publicar las cuatro entradas europeas de captación, su medición privada y la escalación interna de consultas sin respuesta incluidas en el candidato 5cddd94094dd3f19a177a5acc661e3287109470f, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros, el dry run de newsletter sin enviar emails y el dry run de oportunidades sin enviar emails. No autorizo enviar solicitudes de disponibilidad a vendedores durante esta liberación.
+> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000, 20260829540000, 20260829550000, 20260829560000, 20260829570000, 20260829580000 y 20260829590000, publicar las cuatro entradas europeas de captación, su medición privada, la escalación interna de consultas sin respuesta y el paso voluntario de confirmación a distribución incluidos en el candidato 611c9df66ca7920c1d16d2aa9364a9b8ffd3117a, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros, el dry run de newsletter sin enviar emails y el dry run de oportunidades sin enviar emails. No autorizo enviar solicitudes de disponibilidad a vendedores durante esta liberación.
 
 ## Pre-release gate
 
 1. Confirm the feature branch and `origin/main` still resolve to the exact commits above or recalculate this plan.
 2. Confirm the worktree is clean and no secret or generated directory is tracked.
 3. Run `npm test`, `npm run audit:local`, `npm run lint`, `npx tsc --noEmit`, `git diff --check` and `npm run build`.
-4. Confirm the expected result remains 161/161 tests and 166/166 operational contracts.
+4. Confirm the expected result remains 161/161 tests and 169/169 operational contracts.
 5. Capture read-only counts of existing commercial outcomes and current Supabase migration versions without including personal data.
 6. Confirm GitHub Actions workflow `Send Bi-Weekly Newsletter Cron` remains `disabled_manually`; it was paused before the 1 September schedule so the old runtime cannot send another registration-based marketing batch.
 
@@ -103,6 +104,7 @@ After database readback succeeds:
 10. Confirm all four European buyer entries return HTTP 200, expose reciprocal canonical/hreflang metadata, show only publicly released inventory and remain present in the sitemap and IndexNow public URL set.
 11. Confirm a genuine non-admin landing visit can be recorded at most once per route/day and that Control Tower separates localized entry, later listing opening and high-intent journey from ordinary search gaps. Do not generate synthetic production visits merely to satisfy this check.
 12. Run the opportunity endpoint without `commit=1`; confirm it reports `dueSellerEnquiryEscalations` but sends no seller, buyer or administrator email. A due escalation must appear in Control Tower as attention, and a progressed enquiry must not remain eligible.
+13. Confirm the seller availability page exposes no share action before database-confirmed success, then offers only the exact confirmed public listings through canonical `seller_share` links. Opening the page or confirming availability must not send or publish a share automatically.
 
 ## Safe post-deploy checks
 
@@ -137,4 +139,4 @@ The production auditor is release-version aware: the currently deployed schema r
 
 ## Score gate
 
-This release alone does not authorize a commercial-proof score increase. Social acquisition needs a genuine provider-accepted placement and attributable visit; unit economics needs a genuine commercial outcome with complete evidence; proposal conversion needs a genuine buyer response; checkout recovery needs a genuine accepted reminder followed by a verified annual payment; newsletter acquisition needs an explicit consent followed by an attributable visit or conversion; availability needs a genuine owner action, and seller-digest delivery needs explicit outreach approval plus provider evidence. Until then, all eleven remain implemented release candidates rather than commercially proven capabilities. The multilingual pages and their measurement are an acquisition hypothesis until genuine visits and a downstream action are observed; seller-response escalation needs a genuine stalled enquiry before it proves recovery value.
+This release alone does not authorize a commercial-proof score increase. Social acquisition needs a genuine provider-accepted placement and attributable visit; unit economics needs a genuine commercial outcome with complete evidence; proposal conversion needs a genuine buyer response; checkout recovery needs a genuine accepted reminder followed by a verified annual payment; newsletter acquisition needs an explicit consent followed by an attributable visit or conversion; availability needs a genuine owner action, and seller-digest delivery needs explicit outreach approval plus provider evidence. Until then, all twelve remain implemented release candidates rather than commercially proven capabilities. The multilingual pages and their measurement are an acquisition hypothesis until genuine visits and a downstream action are observed; seller-response escalation needs a genuine stalled enquiry before it proves recovery value, and seller distribution needs a genuine shared-link visit before it proves acquisition value.
