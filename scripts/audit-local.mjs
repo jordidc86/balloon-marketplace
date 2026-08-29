@@ -193,6 +193,28 @@ const checks = [
     required: ['commercial_outcome_events', 'record_commercial_outcome', 'for update', 'enforce_commercial_outcome_status', 'WON status requires an atomic commercial outcome', 'Outcome evidence cannot be downgraded', "p_evidence_source not in ('bank_transfer', 'stripe_payment')", 'grant execute on function public.record_commercial_outcome', 'enable row level security', 'revoke all on public.commercial_outcome_events from anon, authenticated'],
   },
   {
+    name: 'Listing closure is atomic, owner-authorized and cannot invent revenue',
+    file: 'supabase/migrations/20260829470000_listing_lifecycle_closure.sql',
+    required: ['listing_lifecycle_events', 'listing_id uuid not null references public.listings(id) on delete restrict unique', 'close_listing_by_actor', 'for update', "v_listing.seller_id <> v_actor and not v_is_admin", "event_type in ('SOLD', 'WITHDRAWN')", "sale_channel in ('AEROTRADE', 'OTHER_CHANNEL', 'NOT_DISCLOSED')", 'A seller report never creates revenue or changes an enquiry outcome.'],
+    forbidden: ['insert into public.commercial_outcomes', 'update public.marketplace_inquiries', 'payment_intent'],
+  },
+  {
+    name: 'Seller listing closure validates intent and verifies the immutable write',
+    file: 'src/app/dashboard/actions.ts',
+    required: ['closeListingBySeller', 'parseListingClosure', "rpc('close_listing_by_actor'", "from('listing_lifecycle_events')", 'Listing closure was not verified by readback'],
+    forbidden: ["update({ status: 'SOLD' })"],
+  },
+  {
+    name: 'Seller listing closure UI makes the AeroTrade evidence choice explicit',
+    file: 'src/app/dashboard/SellerListingClosureForm.tsx',
+    required: ["saleChannel === 'AEROTRADE'", 'Which AeroTrade enquiry led to the sale?', 'This records your report for review.', 'window.confirm', 'router.refresh()'],
+  },
+  {
+    name: 'Administrative sold actions use the same audited lifecycle boundary',
+    file: 'src/app/admin/actions.ts',
+    required: ['markListingSold', "sessionSupabase.rpc('close_listing_by_actor'", "p_sale_channel: 'NOT_DISCLOSED'", 'Administrative listing closure was not verified by readback'],
+  },
+  {
     name: 'New-balloon requests can become traceable operator-priced proposals',
     file: 'supabase/migrations/20260829340000_new_balloon_proposals.sql',
     required: ['new_balloon_quote_proposals', 'proposal_fingerprint text not null unique', 'accept_new_balloon_proposal_delivery', "status='QUOTE_SENT'", 'new_balloon_proposal_buyer', 'enable row level security', 'revoke all on public.new_balloon_quote_proposals from anon, authenticated'],

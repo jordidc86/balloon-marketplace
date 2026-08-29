@@ -15,6 +15,7 @@ import { assertStoredListingRequiredFields } from '@/utils/listing-submission.mj
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { escapeHtml } from '@/utils/html'
 import { inquiryBuyerCapabilityLifetimeMs, inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerCapability, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
+import { parseListingClosure } from '@/utils/listing-closure.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
@@ -170,6 +171,69 @@ export async function confirmListingAvailability(listingId: string) {
   revalidatePath('/dashboard')
   revalidatePath(`/catalog/${listingId}`)
   revalidatePath('/catalog')
+}
+
+export async function closeListingBySeller(listingId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('id,seller_id,status,currency')
+    .eq('id', listingId)
+    .eq('seller_id', user.id)
+    .single()
+  if (listingError || !listing) throw new Error('Listing not found')
+
+  const closure = parseListingClosure(formData, listing.currency)
+  const { data, error } = await supabase.rpc('close_listing_by_actor', {
+    p_listing_id: listing.id,
+    p_action: closure.action,
+    p_sale_channel: closure.sale_channel,
+    p_marketplace_inquiry_id: closure.marketplace_inquiry_id,
+    p_gross_amount_minor: closure.gross_amount_minor,
+    p_currency: closure.currency,
+  })
+  const result = Array.isArray(data) ? data[0] : data
+  if (error || !result?.event_id || !result?.listing_status) {
+    throw new Error(error?.message || 'Listing closure could not be stored')
+  }
+
+  const admin = await createAdminClient()
+  const [{ data: event, error: eventError }, { data: storedListing, error: readbackError }] = await Promise.all([
+    admin
+      .from('listing_lifecycle_events')
+      .select('id,listing_id,seller_id,recorded_by,actor_role,event_type,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,new_status')
+      .eq('id', result.event_id)
+      .eq('listing_id', listing.id)
+      .eq('seller_id', user.id)
+      .single(),
+    admin.from('listings').select('id,status').eq('id', listing.id).single(),
+  ])
+  const expectedStatus = closure.action === 'SOLD' ? 'SOLD' : 'ARCHIVED'
+  if (
+    eventError
+    || readbackError
+    || !event?.id
+    || event.recorded_by !== user.id
+    || event.event_type !== closure.action
+    || event.sale_channel !== closure.sale_channel
+    || event.marketplace_inquiry_id !== closure.marketplace_inquiry_id
+    || (event.gross_amount_minor === null ? null : Number(event.gross_amount_minor)) !== closure.gross_amount_minor
+    || event.currency !== closure.currency
+    || event.new_status !== expectedStatus
+    || storedListing?.status !== expectedStatus
+    || result.listing_status !== expectedStatus
+  ) {
+    throw new Error('Listing closure was not verified by readback')
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/catalog')
+  revalidatePath(`/catalog/${listing.id}`)
+  revalidatePath('/admin/listings')
+  revalidatePath('/admin/commercial')
 }
 
 export async function updateSellerInquiryStatus(inquiryId: string, formData: FormData) {

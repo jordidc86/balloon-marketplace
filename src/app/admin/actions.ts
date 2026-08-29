@@ -133,10 +133,30 @@ export async function deleteListing(listingId: string) {
 }
 
 export async function markListingSold(listingId: string) {
-  const { supabase } = await checkAdmin()
-  const { error } = await supabase.from('listings').update({ status: 'SOLD' }).eq('id', listingId)
-  if (error) throw new Error('Failed to mark as sold')
+  const { supabase, sessionSupabase, adminUserId } = await checkAdmin()
+  const { data, error } = await sessionSupabase.rpc('close_listing_by_actor', {
+    p_listing_id: listingId,
+    p_action: 'SOLD',
+    p_sale_channel: 'NOT_DISCLOSED',
+    p_marketplace_inquiry_id: null,
+    p_gross_amount_minor: null,
+    p_currency: null,
+  })
+  const result = Array.isArray(data) ? data[0] : data
+  if (error || !result?.event_id || result.listing_status !== 'SOLD') {
+    throw new Error(error?.message || 'Failed to mark as sold')
+  }
+  const [{ data: event, error: eventError }, { data: listing, error: listingError }] = await Promise.all([
+    supabase.from('listing_lifecycle_events').select('id,recorded_by,actor_role,event_type,sale_channel,new_status').eq('id', result.event_id).eq('listing_id', listingId).single(),
+    supabase.from('listings').select('id,status').eq('id', listingId).single(),
+  ])
+  if (eventError || listingError || event?.recorded_by !== adminUserId || event?.actor_role !== 'ADMIN' || event?.event_type !== 'SOLD' || event?.sale_channel !== 'NOT_DISCLOSED' || event?.new_status !== 'SOLD' || listing?.status !== 'SOLD') {
+    throw new Error('Administrative listing closure was not verified by readback')
+  }
   revalidatePath('/admin/listings')
+  revalidatePath('/admin/commercial')
+  revalidatePath('/catalog')
+  revalidatePath(`/catalog/${listingId}`)
 }
 
 export async function promoteListing(listingId: string) {

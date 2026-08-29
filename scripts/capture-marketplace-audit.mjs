@@ -49,6 +49,7 @@ const querySpecs = {
   listingWatchers: ['listing_watchers', 'id,listing_id,status,journey_key,created_at,confirmed_at,last_notified_at'],
   listingWatchDispatches: ['listing_watch_dispatches', 'id,watcher_id,listing_id,status,created_at,accepted_at'],
   listingAvailabilityConfirmations: ['listing_availability_confirmations', 'id,listing_id,seller_id,listing_status,source,confirmed_on,confirmed_at'],
+  listingLifecycleEvents: ['listing_lifecycle_events', 'id,listing_id,actor_role,event_type,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,previous_status,new_status,created_at'],
 }
 
 const auditData = Object.fromEntries(await Promise.all(Object.entries(querySpecs).map(async ([name, [table, columns]]) => [name, await rows(table, columns)])))
@@ -74,6 +75,7 @@ const {
   listingWatchers,
   listingWatchDispatches,
   listingAvailabilityConfirmations,
+  listingLifecycleEvents,
 } = auditData
 
 const countBy = (items, key) => items.reduce((counts, item) => {
@@ -159,6 +161,9 @@ const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
   outcomes: commercialOutcomes,
 })
 const recentListingWatchers = listingWatchers.filter((watcher) => watcher.created_at >= since30d)
+const outcomeInquiryIds = new Set(commercialOutcomes.filter((outcome) => outcome.entity_type === 'marketplace_inquiry').map((outcome) => outcome.entity_id))
+const reportedAeroTradeListingSales = listingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE')
+const pendingReportedSaleReview = reportedAeroTradeListingSales.filter((event) => event.marketplace_inquiry_id && !outcomeInquiryIds.has(event.marketplace_inquiry_id))
 const successfulNewsletterRuns = newsletterRuns.filter((run) => !run.dry_run && run.status === 'sent')
 const successfulPremiumAlerts = premiumAlertRuns.filter((run) => run.status === 'sent')
 const liveReceipts = paymentReceipts.filter((receipt) => receipt.livemode)
@@ -193,6 +198,15 @@ const result = {
       never: activeListings.filter((listing) => availabilityStateByListing.get(listing.id)?.status === 'never').length,
       invalid: activeListings.filter((listing) => availabilityStateByListing.get(listing.id)?.status === 'invalid').length,
       eventsTotal: listingAvailabilityConfirmations.length,
+    },
+    listingClosures: {
+      eventsTotal: listingLifecycleEvents.length,
+      soldAeroTradeReported: reportedAeroTradeListingSales.length,
+      soldOtherChannel: listingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'OTHER_CHANNEL').length,
+      soldNotDisclosed: listingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED').length,
+      withdrawn: listingLifecycleEvents.filter((event) => event.event_type === 'WITHDRAWN').length,
+      pendingOutcomeReview: pendingReportedSaleReview.length,
+      caveat: 'A seller-reported AeroTrade sale is a review signal, not settled revenue or a completed commercial outcome.',
     },
   },
   quality: {

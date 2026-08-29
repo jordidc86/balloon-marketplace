@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic'
 
 type Inquiry = {
   id: string
+  listing_id: string
   buyer_name: string
   buyer_email: string
   currency: string
@@ -19,7 +20,7 @@ type Inquiry = {
   created_at: string
   last_activity_at: string
   journey_key: string | null
-  listings: { title: string } | null
+  listings: { id: string; title: string } | null
 }
 
 type NegotiationEvent = {
@@ -187,6 +188,19 @@ type ListingAvailabilityConfirmation = {
   confirmed_at: string
 }
 
+type ListingLifecycleEvent = {
+  id: string
+  listing_id: string
+  actor_role: 'SELLER' | 'ADMIN'
+  event_type: 'SOLD' | 'WITHDRAWN'
+  sale_channel: 'AEROTRADE' | 'OTHER_CHANNEL' | 'NOT_DISCLOSED' | null
+  marketplace_inquiry_id: string | null
+  gross_amount_minor: number | null
+  currency: string | null
+  created_at: string
+  listings: { title: string } | null
+}
+
 type CommercialOutcome = {
   id: string
   entity_type: 'marketplace_inquiry' | 'quote_request'
@@ -231,7 +245,7 @@ export default async function CommercialPage() {
   const nowMs = Date.now()
   const defaultProposalValidUntil = new Date(nowMs + 30 * 86_400_000).toISOString().slice(0, 10)
   const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }] = await Promise.all([
-    supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(title)').order('created_at', { ascending: false }).limit(100),
+    supabase.from('marketplace_inquiries').select('id,listing_id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(id,title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('quote_requests').select('id,name,email,equipment_type,manufacturer_preference,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('new_balloon_quote_proposals').select('id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,created_at').order('created_at', { ascending: false }).limit(300),
@@ -273,6 +287,11 @@ export default async function CommercialPage() {
     .select('listing_id,confirmed_at')
     .order('confirmed_at', { ascending: false })
     .limit(2000)
+  const { data: lifecycleEvents, error: lifecycleEventsError } = await supabase
+    .from('listing_lifecycle_events')
+    .select('id,listing_id,actor_role,event_type,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,created_at,listings(title)')
+    .order('created_at', { ascending: false })
+    .limit(500)
   const latestAvailabilityByListing = ((listingAvailabilityConfirmations as ListingAvailabilityConfirmation[] | null) || []).reduce<Map<string, string>>((latest, confirmation) => {
     if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation.confirmed_at)
     return latest
@@ -297,9 +316,20 @@ export default async function CommercialPage() {
     if (!availabilityRequestByListing.has(notification.entity_id)) availabilityRequestByListing.set(notification.entity_id, notification)
   }
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
+  const typedLifecycleEvents = (lifecycleEvents || []) as unknown as ListingLifecycleEvent[]
   const typedIndexingReceipts = (indexingReceipts || []) as IndexingSubmissionReceipt[]
   const latestIndexingReceipt = typedIndexingReceipts[0]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
+  const pendingReportedSaleReview = typedLifecycleEvents.filter((event) => (
+    event.event_type === 'SOLD'
+    && event.sale_channel === 'AEROTRADE'
+    && event.marketplace_inquiry_id
+    && !outcomesByEntity.has(`marketplace_inquiry:${event.marketplace_inquiry_id}`)
+  ))
+  const sellerReportedAeroTradeSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE')
+  const sellerReportedOtherSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'OTHER_CHANNEL')
+  const sellerReportedUndisclosedSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED')
+  const withdrawnListings = typedLifecycleEvents.filter((event) => event.event_type === 'WITHDRAWN')
   const latestProposalByQuote = new Map<string, NewBalloonProposal>()
   for (const proposal of typedProposals) if (!latestProposalByQuote.has(proposal.quote_request_id)) latestProposalByQuote.set(proposal.quote_request_id, proposal)
   const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
@@ -477,6 +507,28 @@ export default async function CommercialPage() {
         <p className="mt-2 text-xs text-muted-foreground">Reported and documented outcomes are not counted as settled revenue. Stripe receipts and marketplace outcomes remain separate evidence sources.</p>
       </div>
 
+      <section className="rounded-2xl border bg-card overflow-hidden">
+        <div className="border-b p-6"><h2 className="text-xl font-semibold">Listing closure evidence</h2><p className="mt-1 text-sm text-muted-foreground">Seller and administrator closures are immutable and attributed. Seller-reported sales remain unverified until the normal commercial-outcome evidence is recorded.</p></div>
+        {lifecycleEventsError ? <p className="p-6 text-destructive">Listing closure evidence unavailable: {lifecycleEventsError.message}</p> : (
+          <>
+            <div className="grid gap-3 border-b p-6 sm:grid-cols-2 lg:grid-cols-5">
+              <FunnelStep label="AeroTrade reported" value={sellerReportedAeroTradeSales.length} />
+              <FunnelStep label="Other channel" value={sellerReportedOtherSales.length} />
+              <FunnelStep label="Not disclosed" value={sellerReportedUndisclosedSales.length} />
+              <FunnelStep label="Withdrawn" value={withdrawnListings.length} />
+              <FunnelStep label="Outcome review" value={pendingReportedSaleReview.length} />
+            </div>
+            {typedLifecycleEvents.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No listing has been closed through the audited workflow yet.</p> : <div className="divide-y">{typedLifecycleEvents.map((event) => {
+              const reportedAmount = event.gross_amount_minor !== null && event.currency
+                ? (Number(event.gross_amount_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: event.currency })
+                : null
+              const pendingReview = pendingReportedSaleReview.some((candidate) => candidate.id === event.id)
+              return <div key={event.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">{event.listings?.title || 'Listing'} · {event.event_type === 'WITHDRAWN' ? 'withdrawn' : `sold · ${(event.sale_channel || '').replaceAll('_', ' ').toLowerCase()}`}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(event.created_at)} · recorded by {event.actor_role.toLowerCase()}{reportedAmount ? ` · seller-reported gross ${reportedAmount}` : ''}</p></div>{pendingReview && event.marketplace_inquiry_id ? <a href={`#inquiry-${event.marketplace_inquiry_id}`} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-center text-sm font-semibold text-amber-900">Review reported AeroTrade sale</a> : <span className="text-xs text-muted-foreground">{event.sale_channel === 'AEROTRADE' ? 'Outcome evidence recorded' : 'No AeroTrade revenue claim'}</span>}</div>
+            })}</div>}
+          </>
+        )}
+      </section>
+
       {notificationsError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial notification evidence unavailable: {notificationsError.message}</p> : null}
       {outcomesError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial outcome evidence unavailable: {outcomesError.message}</p> : null}
 
@@ -630,7 +682,7 @@ export default async function CommercialPage() {
               const displayAmount = latestNegotiationEvent?.amount_minor
                 ? (Number(latestNegotiationEvent.amount_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: latestNegotiationEvent.currency })
                 : null
-              return <div key={inquiry.id} className="grid gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
+              return <div id={`inquiry-${inquiry.id}`} key={inquiry.id} className="grid scroll-mt-24 gap-4 p-6 lg:grid-cols-[1.3fr_1fr_auto] lg:items-center">
                 <div>
                   <p className="font-semibold">{inquiry.buyer_name} · {inquiry.listings?.title || 'Listing'}</p>
                   <a href={`mailto:${inquiry.buyer_email}`} className="text-sm text-primary hover:underline">{inquiry.buyer_email}</a>
