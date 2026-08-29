@@ -4,7 +4,7 @@ Status: release candidate only. Production is unchanged.
 
 ## Purpose
 
-Ship ten material, additive capabilities in one Netlify production deploy:
+Ship eleven material, additive capabilities in one Netlify production deploy:
 
 1. Per-content, network and placement social-publication receipts with provider-ID acceptance, bounded retry and attributable links.
 2. Complete, evidence-backed unit economics on the existing commercial outcome, with unknown costs kept null and every measurement snapshotted immutably.
@@ -16,6 +16,7 @@ Ship ten material, additive capabilities in one Netlify production deploy:
 8. A private 14-day seller capability that turns that accepted digest into an explicit, scanner-safe review and confirmation step without requiring a remembered password, while binding the action to the exact current inventory-evidence cycle.
 9. Four high-intent European buyer entries in English, German, French and Spanish that display only current public inventory and route demand into the existing catalogue, wanted-request and new-balloon quotation funnels while preserving external acquisition attribution.
 10. Privacy-minimized measurement of those four localized entries inside the existing catalogue-demand ledger, separating genuine landing visits, listing openings and downstream high-intent journeys from ordinary catalogue searches and zero-result demand.
+11. One internal recovery escalation for a marketplace enquiry that remains untouched 48 hours after provider acceptance of its single seller reminder, surfaced in Control Tower without re-contacting the buyer or repeating the seller reminder.
 
 The release also activates a deployment-cost guard: future production builds require an explicit change to `release/netlify-production.json`. Ordinary runtime commits may be staged on `main` but cannot independently consume a production-deploy charge.
 
@@ -24,8 +25,8 @@ The release does not change prices, publish a post, send a message by itself, cr
 ## Exact source
 
 - Production base: `9880e56df0b1f47089c0ea176d57a613c25847a5`.
-- Runtime release candidate: `255f37ec081a3619d304822e46dba1e6545c680a`.
-- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3`, `8abde69` and `255f37e`.
+- Runtime release candidate: `c0589ea989875366576e4ccc5bd38657af369465`.
+- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3`, `8abde69`, `255f37e` and `c0589ea`.
 - Required migrations, in order:
   1. `20260829490000_social_publication_receipts.sql`
   2. `20260829500000_commercial_unit_economics.sql`
@@ -36,28 +37,29 @@ The release does not change prices, publish a post, send a message by itself, cr
   7. `20260829550000_seller_availability_digest.sql`
   8. `20260829560000_seller_availability_email_capability.sql`
   9. `20260829570000_catalog_demand_entry_context.sql`
+  10. `20260829580000_inquiry_seller_escalation.sql`
 - Explicit production release marker: `release/netlify-production.json` with release ID `2026-08-29-grouped-commercial-release`.
 
 ## Authorization gate
 
-Do not apply any production migration, merge/push to `main`, trigger a deploy or call a production dry run until Jordi explicitly approves this grouped release. One approval should name all nine migrations, the one grouped deploy and the post-deploy read-only verification.
+Do not apply any production migration, merge/push to `main`, trigger a deploy or call a production dry run until Jordi explicitly approves this grouped release. One approval should name all ten migrations, the one grouped deploy and the post-deploy read-only verification.
 
 Exact approval wording:
 
-> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000, 20260829540000, 20260829550000, 20260829560000 y 20260829570000, publicar las cuatro entradas europeas de captación y su medición privada incluidas en el candidato 255f37ec081a3619d304822e46dba1e6545c680a, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros y el dry run de newsletter sin enviar emails. No autorizo enviar solicitudes de disponibilidad a vendedores durante esta liberación.
+> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000, 20260829540000, 20260829550000, 20260829560000, 20260829570000 y 20260829580000, publicar las cuatro entradas europeas de captación, su medición privada y la escalación interna de consultas sin respuesta incluidas en el candidato c0589ea989875366576e4ccc5bd38657af369465, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros, el dry run de newsletter sin enviar emails y el dry run de oportunidades sin enviar emails. No autorizo enviar solicitudes de disponibilidad a vendedores durante esta liberación.
 
 ## Pre-release gate
 
 1. Confirm the feature branch and `origin/main` still resolve to the exact commits above or recalculate this plan.
 2. Confirm the worktree is clean and no secret or generated directory is tracked.
 3. Run `npm test`, `npm run audit:local`, `npm run lint`, `npx tsc --noEmit`, `git diff --check` and `npm run build`.
-4. Confirm the expected result remains 160/160 tests and 162/162 operational contracts.
+4. Confirm the expected result remains 161/161 tests and 165/165 operational contracts.
 5. Capture read-only counts of existing commercial outcomes and current Supabase migration versions without including personal data.
 6. Confirm GitHub Actions workflow `Send Bi-Weekly Newsletter Cron` remains `disabled_manually`; it was paused before the 1 September schedule so the old runtime cannot send another registration-based marketing batch.
 
 ## Database order and readback
 
-Apply all nine additive migrations before deploying the runtime. Immediately verify, without inserting synthetic rows:
+Apply all ten additive migrations before deploying the runtime. Immediately verify, without inserting synthetic rows:
 
 - `social_publication_receipts` exists, has RLS enabled and exposes no anonymous/authenticated write privilege.
 - `commercial_unit_economics_events` exists, has RLS enabled and exposes no anonymous/authenticated write privilege.
@@ -77,6 +79,7 @@ Apply all nine additive migrations before deploying the runtime. Immediately ver
 - `confirm_listing_availability_from_seller_digest` is executable only by `service_role`, requires a provider-accepted digest no older than 15 days and writes only the exact bounded active listing IDs after the public action verifies a seller/email/digest/expiry HMAC capability.
 - Opening `/seller/availability` performs no write. The route is private/no-store/no-referrer/noindex, inventory drift invalidates the link, the seller must check an explicit declaration and submit a POST, and every returned per-listing confirmation must pass database readback.
 - `catalog_search_events.entry_context` exists with the closed values `catalog_search`, `buyer_landing_en`, `buyer_landing_de`, `buyer_landing_fr` and `buyer_landing_es`; existing rows read back as `catalog_search` and the indexed field contains no URL, query, raw visitor identifier or personal data.
+- The private notification vocabulary accepts `inquiry_seller_escalation` without removing any prior notification type. It creates no row by migration, and runtime eligibility requires an open `NEW`/`SELLER_NOTIFIED` enquiry plus an `accepted` seller-reminder receipt at least 48 hours old.
 - Existing commercial-outcome row counts are unchanged and pre-existing rows have null economics fields.
 - No social receipt, economics event, proposal response, post, message, charge or other economic action was created by migration verification.
 
@@ -97,6 +100,7 @@ After database readback succeeds:
 9. Confirm the deployed build gate skips a subsequent non-release commit and that the skip is not a successful production deploy. Do not create a production commit solely for this test; verify it on the next genuine documentation-only change.
 10. Confirm all four European buyer entries return HTTP 200, expose reciprocal canonical/hreflang metadata, show only publicly released inventory and remain present in the sitemap and IndexNow public URL set.
 11. Confirm a genuine non-admin landing visit can be recorded at most once per route/day and that Control Tower separates localized entry, later listing opening and high-intent journey from ordinary search gaps. Do not generate synthetic production visits merely to satisfy this check.
+12. Run the opportunity endpoint without `commit=1`; confirm it reports `dueSellerEnquiryEscalations` but sends no seller, buyer or administrator email. A due escalation must appear in Control Tower as attention, and a progressed enquiry must not remain eligible.
 
 ## Safe post-deploy checks
 
@@ -115,7 +119,7 @@ After database readback succeeds:
 The safe rollback is runtime-first and non-destructive:
 
 1. Roll Netlify back to production base `9880e56df0b1f47089c0ea176d57a613c25847a5` or its known-good deploy `6a92ffe4dbebcf0008be7dd7`.
-2. Leave all nine additive private tables/functions, constraint extensions and nullable columns in Supabase. The previous runtime does not query them, so retaining them preserves audit evidence and avoids destructive rollback.
+2. Leave all ten additive private tables/functions, constraint extensions and nullable columns in Supabase. The previous runtime does not query them, so retaining them preserves audit evidence and avoids destructive rollback.
 3. Pause the scheduled social function only if the reverted runtime or credential state cannot be proven safe; do not repeat any pending or ambiguous provider operation.
 4. Keep the newsletter workflow disabled if runtime is rolled back below the consent-safe release.
 5. Do not drop tables, columns, functions or events during incident response. Any later schema removal requires a separate migration, backup and explicit approval.
@@ -127,8 +131,8 @@ The safe rollback is runtime-first and non-destructive:
 - Never increment `release/netlify-production.json` for documentation, evidence or an isolated incremental change.
 - If more than one production deploy is created, stop the release and investigate before any further push.
 
-The production auditor is release-version aware: the currently deployed schema remains fully auditable while these nine candidate migrations are pending. Candidate-only datasets are reported as `not_deployed`; authentication, permission and network failures still fail the audit closed.
+The production auditor is release-version aware: the currently deployed schema remains fully auditable while these ten candidate migrations are pending. Candidate-only datasets are reported as `not_deployed`; authentication, permission and network failures still fail the audit closed.
 
 ## Score gate
 
-This release alone does not authorize a commercial-proof score increase. Social acquisition needs a genuine provider-accepted placement and attributable visit; unit economics needs a genuine commercial outcome with complete evidence; proposal conversion needs a genuine buyer response; checkout recovery needs a genuine accepted reminder followed by a verified annual payment; newsletter acquisition needs an explicit consent followed by an attributable visit or conversion; availability needs a genuine owner action, and seller-digest delivery needs explicit outreach approval plus provider evidence. Until then, all ten remain implemented release candidates rather than commercially proven capabilities. The multilingual pages and their measurement are an acquisition hypothesis until genuine visits and a downstream action are observed.
+This release alone does not authorize a commercial-proof score increase. Social acquisition needs a genuine provider-accepted placement and attributable visit; unit economics needs a genuine commercial outcome with complete evidence; proposal conversion needs a genuine buyer response; checkout recovery needs a genuine accepted reminder followed by a verified annual payment; newsletter acquisition needs an explicit consent followed by an attributable visit or conversion; availability needs a genuine owner action, and seller-digest delivery needs explicit outreach approval plus provider evidence. Until then, all eleven remain implemented release candidates rather than commercially proven capabilities. The multilingual pages and their measurement are an acquisition hypothesis until genuine visits and a downstream action are observed; seller-response escalation needs a genuine stalled enquiry before it proves recovery value.
