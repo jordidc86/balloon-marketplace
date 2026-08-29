@@ -7,6 +7,7 @@ import { ResendButton } from './ResendButton'
 export const metadata: Metadata = {
   title: 'Log In | AeroTrade Marketplace',
   description: 'Log in to your AeroTrade pilot account to buy and sell hot air balloon equipment.',
+  robots: { index: false, follow: true },
 }
 
 export default async function LoginPage({

@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import "./globals.css";
 import { siteUrl } from '@/utils/site'
+import { buildMarketplaceIdentityJsonLd, serializeJsonLd } from '@/utils/marketplace-seo.mjs'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildMarketplaceIdentityJsonLd(siteUrl)) }}
+        />
         <Navbar />
         <main className="flex-1">
           {children}

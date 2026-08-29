@@ -6,6 +6,7 @@ import { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Sign Up | AeroTrade Marketplace',
   description: 'Create an AeroTrade pilot account to buy and sell hot air balloon equipment worldwide.',
+  robots: { index: false, follow: true },
 }
 
 export default async function SignupPage({

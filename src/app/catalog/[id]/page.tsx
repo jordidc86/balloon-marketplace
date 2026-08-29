@@ -12,38 +12,60 @@ import ListingViewTracker from './ListingViewTracker'
 import BuyerInquiryForm from './BuyerInquiryForm'
 import SafeListingImage from '@/components/SafeListingImage'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
+import {
+  buildListingBreadcrumbJsonLd,
+  buildListingProductJsonLd,
+  getPublicListingSeoData,
+  isListingPubliclyIndexable,
+  serializeJsonLd,
+} from '@/utils/marketplace-seo.mjs'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const supabaseAdmin = await createAdminClient()
   const { data: listing } = await supabaseAdmin
     .from('listings')
-    .select('title, description, category, status, public_at')
+    .select('id, title, description, category, price, currency, condition, location_country, details, status, public_at, images(url, is_primary)')
     .eq('id', id)
     .single()
 
-  if (!listing) {
-    return { title: 'Listing Not Found | AeroTrade' }
-  }
-
-  const isPremiumExclusive =
-    listing.status === 'ACTIVE_PREMIUM' &&
-    listing.public_at &&
-    new Date() < new Date(listing.public_at)
-
-  if (isPremiumExclusive) {
+  const seo = listing ? getPublicListingSeoData(listing, siteUrl) : null
+  if (!seo) {
     return {
-      title: `${getPublicTeaserTitle(listing.category)} | AeroTrade Marketplace`,
-      description: 'This AeroTrade listing is currently in the 48-hour Premium Exclusive window.',
+      title: 'Private or unavailable listing | AeroTrade',
+      description: 'This listing is not currently available in the public AeroTrade marketplace.',
       robots: { index: false, follow: true },
-      alternates: { canonical: `/catalog/${id}` },
     }
   }
 
   return {
-    title: `${listing.title} | AeroTrade Marketplace`,
-    description: listing.description?.substring(0, 160) || `Buy ${listing.title} on AeroTrade.`,
+    title: `${seo.title} | AeroTrade Marketplace`,
+    description: seo.description,
     alternates: { canonical: `/catalog/${id}` },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
+    openGraph: {
+      type: 'website',
+      siteName: 'AeroTrade',
+      title: seo.title,
+      description: seo.description,
+      url: seo.url,
+      ...(seo.images[0] ? { images: [{ url: seo.images[0], alt: seo.title }] } : {}),
+    },
+    twitter: {
+      card: seo.images[0] ? 'summary_large_image' : 'summary',
+      title: seo.title,
+      description: seo.description,
+      ...(seo.images[0] ? { images: [seo.images[0]] } : {}),
+    },
   }
 }
 
@@ -111,6 +133,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     && ['QUARANTINED', 'RESOLVED'].includes(qualityState.status)
     && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(qualityState.previous_listing_status || '')
   const publicationIssues = getStoredListingPublicationIssues(typedListing)
+  const isPubliclyIndexable = isListingPubliclyIndexable(typedListing)
+  const productJsonLd = buildListingProductJsonLd(typedListing, siteUrl)
+  const breadcrumbJsonLd = buildListingBreadcrumbJsonLd(typedListing, siteUrl)
+  const structuredData = [productJsonLd, breadcrumbJsonLd].filter(Boolean)
 
   if (!isActiveListing && !isOwner) {
     notFound()
@@ -132,26 +158,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <ListingViewTracker listingId={typedListing.id} />
-      {/* Schema.org Product Data */}
-      {canViewFully && (
+      {/* Public-only structured data. Premium previews and owner-only drafts never leak into it. */}
+      {isPubliclyIndexable && canViewFully && structuredData.length > 0 && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org/",
-                "@type": "Product",
-              "name": typedListing.title,
-              "image": images,
-              "description": typedListing.description,
-              "offers": {
-                "@type": "Offer",
-                "url": `${siteUrl}/catalog/${typedListing.id}`,
-                "priceCurrency": typedListing.currency || "EUR",
-                "price": typedListing.price,
-                "itemCondition": "https://schema.org/UsedCondition",
-                "availability": "https://schema.org/InStock"
-              }
-            })
+            __html: serializeJsonLd(structuredData)
           }}
         />
       )}

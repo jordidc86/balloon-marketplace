@@ -1,31 +1,49 @@
 import { MetadataRoute } from 'next';
-import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/server';
 import { siteUrl } from '@/utils/site';
+import { isListingPubliclyIndexable } from '@/utils/marketplace-seo.mjs';
+
+// Listing visibility depends on the current Premium release timestamp. Generate
+// the sitemap at request time so builds never freeze or require production data.
+export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static routes
-  const routes = ['', '/catalog', '/wanted', '/pricing', '/login', '/signup', '/sell', '/new-balloon'].map(
-    (route) => ({
+  const routes = [
+    { route: '', priority: 1, changeFrequency: 'daily' as const },
+    { route: '/catalog', priority: 0.9, changeFrequency: 'daily' as const },
+    { route: '/new-balloon', priority: 0.9, changeFrequency: 'monthly' as const },
+    { route: '/wanted', priority: 0.8, changeFrequency: 'monthly' as const },
+    { route: '/sell', priority: 0.8, changeFrequency: 'monthly' as const },
+    { route: '/pricing', priority: 0.7, changeFrequency: 'monthly' as const },
+    { route: '/about', priority: 0.6, changeFrequency: 'monthly' as const },
+    { route: '/contact', priority: 0.6, changeFrequency: 'monthly' as const },
+  ].map(
+    ({ route, priority, changeFrequency }) => ({
       url: `${siteUrl}${route}`,
-      lastModified: new Date(),
-      changeFrequency: 'daily' as const,
-      priority: route === '' ? 1 : 0.8,
+      changeFrequency,
+      priority,
     })
   );
 
   // Dynamic routes (Listings)
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const { data: listings } = await supabase
     .from('listings')
-    .select('id, updated_at')
+    .select('id, status, public_at, updated_at, images(url, is_primary)')
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']);
 
-  const listingRoutes = (listings || []).map((listing) => ({
-    url: `${siteUrl}/catalog/${listing.id}`,
-    lastModified: new Date(listing.updated_at || new Date()),
-    changeFrequency: 'weekly' as const,
-    priority: 0.6,
-  }));
+  const listingRoutes = (listings || [])
+    .filter((listing) => isListingPubliclyIndexable(listing))
+    .map((listing) => ({
+      url: `${siteUrl}/catalog/${listing.id}`,
+      ...(listing.updated_at ? { lastModified: new Date(listing.updated_at) } : {}),
+      changeFrequency: 'weekly' as const,
+      priority: 0.7,
+      images: (listing.images || [])
+        .map((image) => image.url)
+        .filter((url) => typeof url === 'string' && /^https?:\/\//.test(url)),
+    }));
 
   return [...routes, ...listingRoutes];
 }

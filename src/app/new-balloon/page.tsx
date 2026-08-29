@@ -1,14 +1,27 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, Brush, Calculator, Factory, Send } from 'lucide-react'
-import { supportEmail } from '@/utils/site'
+import { siteUrl, supportEmail } from '@/utils/site'
 import { normalizeNewBalloonLeadSource } from '@/utils/new-balloon-lead.mjs'
+import { buildNewBalloonServiceJsonLd, serializeJsonLd } from '@/utils/marketplace-seo.mjs'
 import { submitNewBalloonQuote } from './actions'
 
 export const metadata: Metadata = {
   title: 'New Balloon Quote | AeroTrade Marketplace',
   description: 'Buy a new Pasha or Schroeder hot air balloon through AeroTrade and request an indicative budget and visual concept.',
   alternates: { canonical: '/new-balloon' },
+  openGraph: {
+    type: 'website',
+    siteName: 'AeroTrade',
+    title: 'Buy a New Pasha or Schroeder Balloon | AeroTrade',
+    description: 'Request an indicative budget and configuration guidance for a factory-new Pasha or Schroeder hot air balloon.',
+    url: '/new-balloon',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Buy a New Pasha or Schroeder Balloon | AeroTrade',
+    description: 'Request an indicative budget and configuration guidance for a factory-new Pasha or Schroeder hot air balloon.',
+  },
 }
 
 export default async function NewBalloonPage({
@@ -23,6 +36,10 @@ export default async function NewBalloonPage({
 
   return (
     <div className="bg-secondary/40">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildNewBalloonServiceJsonLd(siteUrl)) }}
+      />
       <section className="border-b bg-background">
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8 lg:py-16">
           <div className="flex flex-col justify-center">
