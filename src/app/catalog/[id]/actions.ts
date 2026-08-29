@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { getStoredListingPlan, premiumListingFeeCents } from '@/utils/listing-plans'
+import { getStoredListingPlan } from '@/utils/listing-plans'
 import { getApplicationOrigin } from '@/utils/navigation.mjs'
 import { canRevealSellerContact, parseListingImageUrls } from '@/utils/listing-safety.mjs'
 import { siteUrl } from '@/utils/site'
@@ -11,7 +11,9 @@ import { sendEmail } from '@/utils/resend'
 import { escapeHtml } from '@/utils/html'
 import { commercialEventKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 import type { BrowserCommercialContext } from '@/utils/browser-attribution'
-import { parseListingSubmission } from '@/utils/listing-submission.mjs'
+import { assertStoredListingRequiredFields, parseListingSubmission } from '@/utils/listing-submission.mjs'
+import { createPremiumListingCheckout } from '@/utils/listing-checkout'
+import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
 
 type ListingDetailsForm = Record<string, string | number | boolean | null | undefined>
 
@@ -385,7 +387,7 @@ export async function payListingFee(listingId: string) {
 
   const { data: listing, error } = await supabase
     .from('listings')
-    .select('id, title, seller_id, status')
+    .select('id, title, seller_id, status, category, details')
     .eq('id', listingId)
     .single()
 
@@ -397,44 +399,29 @@ export async function payListingFee(listingId: string) {
     throw new Error('Listing is already active or being processed')
   }
 
-  const { stripe } = await import('@/utils/stripe')
+  const admin = createAdminClient()
+  assertStoredListingRequiredFields(listing)
+  const { data: qualityRecovery } = await admin
+    .from('listing_quality_state')
+    .select('status,previous_listing_status')
+    .eq('listing_id', listing.id)
+    .in('status', ['QUARANTINED', 'RESOLVED'])
+    .maybeSingle()
+  if (listing.status === 'DRAFT' && qualityRecovery?.previous_listing_status) {
+    throw new Error('Repair and republish this listing without paying again')
+  }
+  await assertListingHasReachableImage(admin, listing.id)
+  await markListingQualityResolved(admin, listing.id)
   const headersList = await import('next/headers').then(m => m.headers())
   const origin = getApplicationOrigin(headersList.get('origin'), siteUrl)
-
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [
-      {
-        price_data: {
-          currency: 'eur',
-          product_data: {
-            name: 'Premium Listing: ' + listing.title,
-            description: '48-hour Premium window, bi-weekly newsletter, social promotion and buyer outreach.',
-          },
-          unit_amount: premiumListingFeeCents,
-        },
-        quantity: 1,
-      },
-    ],
-    metadata: {
-      type: 'listing_fee',
-      listing_plan: 'premium',
-      listing_id: listing.id,
-      user_id: user.id
-    },
-    mode: 'payment',
-    success_url: `${origin}/catalog/${listing.id}?success=true`,
-    cancel_url: `${origin}/catalog/${listing.id}?canceled=true`,
-  }, {
-    idempotencyKey: `listing-fee-${listing.id}-${Math.floor(Date.now() / 600000)}`,
+  const checkoutUrl = await createPremiumListingCheckout({
+    listingId: listing.id,
+    listingTitle: listing.title,
+    userId: user.id,
+    origin,
   })
-
-  if (session.url) {
-    const { redirect: nextRedirect } = await import('next/navigation')
-    nextRedirect(session.url)
-  } else {
-    throw new Error('Failed to create Stripe session')
-  }
+  const { redirect: nextRedirect } = await import('next/navigation')
+  nextRedirect(checkoutUrl)
 }
 
 export async function publishListingFree(listingId: string) {
@@ -447,7 +434,7 @@ export async function publishListingFree(listingId: string) {
 
   const { data: listing, error } = await supabase
     .from('listings')
-    .select('id, seller_id, status, details')
+    .select('id, seller_id, status, category, details')
     .eq('id', listingId)
     .single()
 
@@ -458,6 +445,19 @@ export async function publishListingFree(listingId: string) {
   if (listing.status !== 'DRAFT' && listing.status !== 'PENDING_PAYMENT') {
     throw new Error('Listing is already active')
   }
+
+  const admin = createAdminClient()
+  assertStoredListingRequiredFields(listing)
+  const { data: qualityRecovery } = await admin
+    .from('listing_quality_state')
+    .select('status,previous_listing_status')
+    .eq('listing_id', listing.id)
+    .in('status', ['QUARANTINED', 'RESOLVED'])
+    .maybeSingle()
+  if (listing.status === 'DRAFT' && qualityRecovery?.previous_listing_status) {
+    throw new Error('Use the repair workflow to preserve the original listing plan')
+  }
+  await assertListingHasReachableImage(admin, listing.id)
 
   const details = {
     ...((listing.details || {}) as Record<string, unknown>),
@@ -477,6 +477,7 @@ export async function publishListingFree(listingId: string) {
     console.error('Error publishing listing as free:', updateError)
     throw new Error('Could not publish listing')
   }
+  await markListingQualityResolved(admin, listing.id)
 
   const { revalidatePath } = await import('next/cache')
   revalidatePath(`/catalog/${listingId}`)
@@ -485,4 +486,49 @@ export async function publishListingFree(listingId: string) {
 
   const { redirect: nextRedirect } = await import('next/navigation')
   nextRedirect(`/catalog/${listingId}?success=true&plan=free`)
+}
+
+export async function republishQuarantinedListing(listingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const admin = createAdminClient()
+  const { data: listing, error: listingError } = await admin
+    .from('listings')
+    .select('id,seller_id,status,category,details')
+    .eq('id', listingId)
+    .single()
+  if (listingError || !listing || listing.seller_id !== user.id || listing.status !== 'DRAFT') {
+    throw new Error('This listing cannot be republished')
+  }
+
+  const { data: quality, error: qualityError } = await admin
+    .from('listing_quality_state')
+    .select('status,previous_listing_status')
+    .eq('listing_id', listing.id)
+    .in('status', ['QUARANTINED', 'RESOLVED'])
+    .single()
+  if (qualityError || !quality?.previous_listing_status) throw new Error('Listing repair state could not be verified')
+
+  assertStoredListingRequiredFields(listing)
+  await assertListingHasReachableImage(admin, listing.id)
+  const { data: republished, error: updateError } = await admin
+    .from('listings')
+    .update({ status: quality.previous_listing_status })
+    .eq('id', listing.id)
+    .eq('status', 'DRAFT')
+    .select('id,status')
+    .single()
+  if (updateError || republished?.status !== quality.previous_listing_status) {
+    throw new Error('Corrected listing could not be republished')
+  }
+  await markListingQualityResolved(admin, listing.id)
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath(`/catalog/${listingId}`)
+  revalidatePath('/catalog')
+  revalidatePath('/dashboard')
+  const { redirect: nextRedirect } = await import('next/navigation')
+  nextRedirect(`/catalog/${listingId}?repaired=true`)
 }

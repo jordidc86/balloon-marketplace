@@ -7,10 +7,11 @@ import ContactSeller from './ContactSeller'
 import { Metadata } from 'next'
 import { getListingVisibility, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
 import { siteUrl } from '@/utils/site'
-import { payListingFee, publishListingFree } from './actions'
+import { payListingFee, publishListingFree, republishQuarantinedListing } from './actions'
 import ListingViewTracker from './ListingViewTracker'
 import BuyerInquiryForm from './BuyerInquiryForm'
 import SafeListingImage from '@/components/SafeListingImage'
+import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -88,6 +89,13 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   }
 
   const typedListing = listing as ListingWithImages
+  const { data: qualityState } = user?.id === listing.seller_id
+    ? await supabaseAdmin
+      .from('listing_quality_state')
+      .select('status,previous_listing_status')
+      .eq('listing_id', listing.id)
+      .maybeSingle()
+    : { data: null }
   const verification = (listing as typeof listing & { listing_verifications?: Array<{ status: string; public_summary: string; verified_at: string | null }> }).listing_verifications?.[0]
   const isDocumentChecked = verification?.status === 'VERIFIED'
 
@@ -98,6 +106,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     isPremium
   )
   const isActiveListing = typedListing.status === 'ACTIVE_PUBLIC' || typedListing.status === 'ACTIVE_PREMIUM'
+  const isQualityRecovery = typedListing.status === 'DRAFT'
+    && qualityState?.status !== undefined
+    && ['QUARANTINED', 'RESOLVED'].includes(qualityState.status)
+    && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(qualityState.previous_listing_status || '')
+  const publicationIssues = getStoredListingPublicationIssues(typedListing)
 
   if (!isActiveListing && !isOwner) {
     notFound()
@@ -185,6 +198,26 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           </p>
         </div>
       )}
+
+      {isQualityRecovery && isOwner ? (
+        <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">This listing is paused because none of its stored photos could be retrieved.</p>
+            <p className="mt-1 text-sm">Edit the listing, upload at least one working photo, then return here to republish it. Its description and commercial history are preserved.</p>
+          </div>
+        </div>
+      ) : null}
+
+      {isOwner && publicationIssues.length > 0 ? (
+        <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">Aircraft identity information needs attention.</p>
+            <p className="mt-1 text-sm">Required fields missing: {publicationIssues.join(', ')}. AeroTrade will not guess these values or republish this aircraft until you add them.</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Left: Images */}
@@ -320,7 +353,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                  <div className="w-full text-center p-4 bg-muted text-muted-foreground rounded-xl font-medium border">
                    This is your listing.
                  </div>
-                 {typedListing.status === 'PENDING_PAYMENT' && (
+                 {(typedListing.status === 'PENDING_PAYMENT' || (typedListing.status === 'DRAFT' && !isQualityRecovery)) && (
                    <div className="grid gap-3 sm:grid-cols-2">
                      <form action={async () => {
                        'use server'
@@ -340,6 +373,16 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                      </form>
                    </div>
                  )}
+                 {isQualityRecovery ? (
+                   <form action={async () => {
+                     'use server'
+                     await republishQuarantinedListing(typedListing.id)
+                   }}>
+                     <button className="w-full rounded-xl bg-accent py-4 text-base font-bold text-accent-foreground hover:opacity-90">
+                       Republish corrected listing
+                     </button>
+                   </form>
+                 ) : null}
                  <Link href={`/catalog/${typedListing.id}/edit`} className="w-full flex justify-center items-center gap-2 bg-primary text-primary-foreground py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-md">
                    Edit Listing Details & Photos
                  </Link>

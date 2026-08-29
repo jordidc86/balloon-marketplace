@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { parseListingSubmission } from '../src/utils/listing-submission.mjs'
+import { assertStoredListingRequiredFields, getStoredListingPublicationIssues, parseListingSubmission } from '../src/utils/listing-submission.mjs'
 
 const validListing = () => {
   const form = new FormData()
@@ -26,11 +26,14 @@ const validListing = () => {
 }
 
 test('listing submissions are normalized and retain seller-declared trust evidence', () => {
-  const parsed = parseListingSubmission(validListing())
+  const form = validListing()
+  form.set('location_country', ' España ')
+  const parsed = parseListingSubmission(form)
   assert.equal(parsed.price, 25000)
   assert.equal(parsed.details.serial, '12345')
   assert.equal(parsed.details.supporting_documents_available, true)
   assert.equal(parsed.details.seller_declaration, true)
+  assert.equal(parsed.location_country, 'Spain')
 })
 
 test('listing submissions reject browser-bypass values', () => {
@@ -47,3 +50,13 @@ test('listing submissions reject browser-bypass values', () => {
   assert.throws(() => parseListingSubmission(missingSerial), /Serial number/)
 })
 
+test('historical flight listings cannot be republished with missing aircraft identity fields', () => {
+  const listing = {
+    category: 'complete',
+    details: { manufacturer: 'Cameron', model: 'Z-120', year: 2004, hours: 420, serial: '' },
+  }
+  assert.deepEqual(getStoredListingPublicationIssues(listing), ['MISSING_SERIAL'])
+  assert.throws(() => assertStoredListingRequiredFields(listing), /MISSING_SERIAL/)
+  assert.equal(assertStoredListingRequiredFields({ ...listing, details: { ...listing.details, serial: '1234' } }), true)
+  assert.equal(assertStoredListingRequiredFields({ category: 'burners', details: {} }), true)
+})

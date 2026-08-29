@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { Eye, Rocket, Trash2, CheckCircle2, Megaphone, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import ExportInstagramButton from '@/components/admin/ExportInstagramButton'
+import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +24,9 @@ type AdminListing = {
   users?: { email?: string | null } | null
   images?: AdminListingImage[] | null
   listing_verifications?: { status?: string | null }[] | null
+  listing_quality_state?: { status?: string | null; consecutive_failures?: number | null }[] | null
+  category: string
+  details?: ({ hours?: string | number } & Record<string, unknown>) | null
 }
 
 export default async function AdminListingsPage() {
@@ -30,7 +34,7 @@ export default async function AdminListingsPage() {
 
   const { data: listings, error } = await supabase
     .from('listings')
-    .select('*, users(email), images(url, is_primary, created_at), listing_verifications(status)')
+    .select('*, users(email), images(url, is_primary, created_at), listing_verifications(status), listing_quality_state(status, consecutive_failures)')
     .order('created_at', { ascending: false })
 
   const typedListings = listings as AdminListing[] | null
@@ -62,7 +66,10 @@ export default async function AdminListingsPage() {
             <tbody className="divide-y">
               {typedListings?.map((l) => (
                 <tr key={l.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 font-medium max-w-[200px] truncate">{l.title}</td>
+                  <td className="px-6 py-4 font-medium max-w-[240px]">
+                    <p className="truncate">{l.title}</p>
+                    {getStoredListingPublicationIssues(l).length > 0 ? <p className="mt-1 text-xs font-semibold text-amber-700">Missing: {getStoredListingPublicationIssues(l).join(', ')}</p> : null}
+                  </td>
                   <td className="px-6 py-4 text-muted-foreground">{l.users?.email || 'Unknown'}</td>
                   <td className="px-6 py-4 font-bold">{l.price.toLocaleString()} {l.currency}</td>
                   <td className="px-6 py-4">
@@ -73,6 +80,9 @@ export default async function AdminListingsPage() {
                     }`}>
                       {l.status}
                     </span>
+                    {l.listing_quality_state?.[0]?.status === 'QUARANTINED' ? (
+                      <span className="ml-2 rounded-md bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">PHOTOS PAUSED</span>
+                    ) : null}
                   </td>
                   <td className="px-6 py-4 text-muted-foreground">
                     {formatDistanceToNow(new Date(l.created_at), { addSuffix: true })}
@@ -85,6 +95,7 @@ export default async function AdminListingsPage() {
                        <ExportInstagramButton
                          listing={{
                            ...l,
+                           details: l.details || undefined,
                            images: [...(l.images || [])].sort((a, b) => {
                              if (a.is_primary && !b.is_primary) return -1
                              if (!a.is_primary && b.is_primary) return 1

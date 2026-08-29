@@ -12,6 +12,7 @@ import { parseListingSubmission } from '@/utils/listing-submission.mjs'
 import { createPremiumListingCheckout } from '@/utils/listing-checkout'
 import { normalizeSellerFunnelStage } from '@/utils/seller-funnel.mjs'
 import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
+import { assertListingImageUrlsReachable } from '@/utils/listing-image-quality-server'
 
 export async function recordSellerFunnelStage(rawStage: unknown) {
   const stage = normalizeSellerFunnelStage(rawStage, true)
@@ -33,6 +34,7 @@ export async function submitListing(formData: FormData) {
   const listingPlan = getListingPlan(formData.get('listing_plan'))
   const publication = getInitialListingPublication(listingPlan)
   const imageUrls = parseListingImageUrls(formData.get('image_urls'))
+  await assertListingImageUrlsReachable(imageUrls)
   const submission = parseListingSubmission(formData)
   const details = { ...submission.details, listing_plan: listingPlan }
 

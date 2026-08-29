@@ -1,3 +1,5 @@
+import { normalizeListingCountry } from './listing-country.mjs'
+
 export const listingCategories = ['complete', 'envelopes', 'baskets', 'burners', 'bottom-end', 'cylinders', 'other-equipment']
 export const listingConditions = ['New', 'Used-Excellent', 'Used-Good', 'Needs Repair']
 export const listingCurrencies = ['EUR', 'GBP', 'USD']
@@ -65,10 +67,29 @@ export function parseListingSubmission(formData, { requireDeclaration = true } =
     price,
     currency,
     condition,
-    location_country: boundedText(formData, 'location_country', 2, 100, 'Country'),
+    location_country: normalizeListingCountry(boundedText(formData, 'location_country', 2, 100, 'Country')),
     contact_email: contactEmail,
     contact_phone: optionalText(formData, 'contact_phone', 60, 'Contact phone'),
     details,
   }
 }
 
+export function getStoredListingPublicationIssues(listing) {
+  if (!listing || !['complete', 'envelopes'].includes(listing.category)) return []
+  const details = listing.details && typeof listing.details === 'object' ? listing.details : {}
+  const issues = []
+  if (typeof details.manufacturer !== 'string' || !details.manufacturer.trim()) issues.push('MISSING_MANUFACTURER')
+  if (typeof details.model !== 'string' || !details.model.trim()) issues.push('MISSING_MODEL')
+  if (!Number.isFinite(Number(details.year))) issues.push('MISSING_YEAR')
+  if (!Number.isFinite(Number(details.hours))) issues.push('MISSING_HOURS')
+  if (typeof details.serial !== 'string' || !details.serial.trim()) issues.push('MISSING_SERIAL')
+  return issues
+}
+
+export function assertStoredListingRequiredFields(listing) {
+  const issues = getStoredListingPublicationIssues(listing)
+  if (issues.length > 0) {
+    throw new Error(`Complete the required aircraft fields before publishing: ${issues.join(', ')}`)
+  }
+  return true
+}

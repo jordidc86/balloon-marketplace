@@ -155,7 +155,27 @@ const checks = [
   {
     name: 'Listing submissions are validated again on the server',
     file: 'src/utils/listing-submission.mjs',
-    required: ['listingCategories', 'listingConditions', 'listingCurrencies', 'seller_declaration', 'supporting_documents_available', 'Serial number'],
+    required: ['listingCategories', 'listingConditions', 'listingCurrencies', 'seller_declaration', 'supporting_documents_available', 'Serial number', 'normalizeListingCountry', 'assertStoredListingRequiredFields', 'MISSING_SERIAL'],
+  },
+  {
+    name: 'Listing countries converge without guessing unknown locations',
+    file: 'src/utils/listing-country.mjs',
+    required: ['normalizeListingCountry', "['spain', 'Spain']", "['prague, czech republic', 'Czech Republic']", 'return countryAliases.get'],
+  },
+  {
+    name: 'Broken-image quarantine requires two definitive checks and is private',
+    file: 'supabase/migrations/20260829230000_listing_quality_quarantine.sql',
+    required: ['listing_quality_state', "status in ('HEALTHY', 'SUSPECT', 'QUARANTINED', 'RESOLVED')", 'consecutive_failures integer not null', 'enable row level security', 'revoke all on public.listing_quality_state from anon, authenticated', 'listing_quality_quarantine'],
+  },
+  {
+    name: 'Catalog quality checks fail safely and notify only after persisted quarantine',
+    file: 'src/app/api/cron/catalog-quality/route.ts',
+    required: ['getListingQualityTransition', "transition === 'QUARANTINE'", ".update({ status: 'DRAFT' })", 'Broken listing was not safely paused', 'notifyQuarantinedSeller', 'commercial_notification_receipts'],
+  },
+  {
+    name: 'Listing publication requires a reachable image from trusted storage',
+    file: 'src/utils/listing-image-quality-server.ts',
+    required: ['getAllowedListingImageHosts', 'assertListingImageUrlsReachable', 'assertListingHasReachableImage', 'markListingQualityResolved'],
   },
   {
     name: 'Admin has one evidence-based commercial pipeline',

@@ -10,6 +10,8 @@ import { isClosedInquiryStatus, normalizeInquiryStatus } from '@/utils/inquiry-s
 import { parseCommercialOutcome } from '@/utils/commercial-outcome.mjs'
 import { normalizeWantedRequestStatus } from '@/utils/wanted-request.mjs'
 import { createPremiumMembershipCheckout } from '@/utils/premium-checkout'
+import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
+import { assertStoredListingRequiredFields } from '@/utils/listing-submission.mjs'
 
 async function checkAdmin() {
   const supabase = await createClient()
@@ -97,12 +99,22 @@ export async function sendPremiumPaymentLink(userId: string) {
 export async function forcePublishListing(listingId: string) {
   const { supabase } = await checkAdmin()
 
-  const { error } = await supabase.from('listings').update({
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('id,category,details')
+    .eq('id', listingId)
+    .single()
+  if (listingError || !listing) throw new Error('Listing not found')
+  assertStoredListingRequiredFields(listing)
+  await assertListingHasReachableImage(supabase, listingId)
+
+  const { data, error } = await supabase.from('listings').update({
     status: 'ACTIVE_PUBLIC',
     public_at: new Date().toISOString()
-  }).eq('id', listingId)
+  }).eq('id', listingId).select('id,status').single()
 
-  if (error) throw new Error('Failed to publish listing')
+  if (error || data?.status !== 'ACTIVE_PUBLIC') throw new Error('Failed to publish listing')
+  await markListingQualityResolved(supabase, listingId)
 
   revalidatePath('/admin/listings')
 }

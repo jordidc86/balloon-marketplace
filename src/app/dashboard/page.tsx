@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert } from 'lucide-react'
 import { openBillingPortal, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
+import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 
 type DashboardListingImage = {
   url: string
@@ -20,6 +21,12 @@ type SellerInquiry = {
   seller_notification_status: string
   created_at: string
   listings: { id: string; title: string } | null
+}
+
+type ListingQualityState = {
+  listing_id: string
+  status: string
+  previous_listing_status: string | null
 }
 
 export default async function DashboardPage({
@@ -59,6 +66,14 @@ export default async function DashboardPage({
 
   const isPremium = profile?.is_premium || false
   const admin = await createAdminClient()
+  const listingIds = (listings || []).map((listing) => listing.id)
+  const { data: qualityStates } = listingIds.length > 0
+    ? await admin
+      .from('listing_quality_state')
+      .select('listing_id,status,previous_listing_status')
+      .in('listing_id', listingIds)
+    : { data: [] }
+  const qualityByListing = new Map(((qualityStates as ListingQualityState[] | null) || []).map((state) => [state.listing_id, state]))
   const { data: latestPremiumIntent } = !isPremium ? await admin
     .from('premium_checkout_intents')
     .select('status,source,created_at')
@@ -156,6 +171,11 @@ export default async function DashboardPage({
               ) : (
                 <div className="space-y-4">
                   {listings.map((item) => {
+                    const quality = qualityByListing.get(item.id)
+                    const isQualityRecovery = item.status === 'DRAFT'
+                      && quality
+                      && ['QUARANTINED', 'RESOLVED'].includes(quality.status)
+                    const publicationIssues = getStoredListingPublicationIssues(item)
                     const primaryImage =
                       item.images?.find((image: DashboardListingImage) => image.is_primary)?.url ||
                       item.images?.[0]?.url ||
@@ -178,6 +198,8 @@ export default async function DashboardPage({
                             </span>
                           </div>
                           {item.status === 'PENDING_PAYMENT' ? <p className="mt-1 text-xs font-medium text-amber-700">Not public — Premium payment incomplete</p> : null}
+                          {isQualityRecovery ? <p className="mt-1 text-xs font-medium text-amber-700">Paused — upload a working photo, then republish</p> : null}
+                          {publicationIssues.length > 0 ? <p className="mt-1 text-xs font-medium text-amber-700">Aircraft data incomplete — {publicationIssues.join(', ')}</p> : null}
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-2">
                           {item.status === 'PENDING_PAYMENT' ? (
@@ -186,6 +208,7 @@ export default async function DashboardPage({
                             </form>
                           ) : null}
                           <Link href={`/catalog/${item.id}`} className="text-sm font-medium text-primary hover:underline">View</Link>
+                          {isQualityRecovery ? <Link href={`/catalog/${item.id}/edit`} className="text-xs font-semibold text-amber-700 hover:underline">Repair photos</Link> : null}
                         </div>
                       </div>
                     )
