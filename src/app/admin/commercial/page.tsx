@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { CircleDollarSign, MessageSquare, Plane, TriangleAlert } from 'lucide-react'
-import { updateAdminInquiryStatus, updateQuoteRequestStatus } from '../actions'
+import { recordCommercialOutcome, updateAdminInquiryStatus, updateQuoteRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +32,19 @@ type CommercialNotification = {
   created_at: string
 }
 
+type CommercialOutcome = {
+  id: string
+  entity_type: 'marketplace_inquiry' | 'quote_request'
+  entity_id: string
+  outcome_type: string
+  currency: string
+  gross_amount_minor: number
+  aerotrade_revenue_minor: number
+  evidence_level: string
+  notes: string | null
+  closed_at: string
+}
+
 const formatDate = (value: string) => new Intl.DateTimeFormat('en-GB', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -45,17 +58,20 @@ export default async function CommercialPage() {
   // This is a force-dynamic server component; the cutoff is intentionally evaluated per request.
   // eslint-disable-next-line react-hooks/purity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString()
-  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: quotes, error: quotesError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,buyer_name,buyer_email,status,seller_notification_status,created_at,last_activity_at,listings(title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('quote_requests').select('id,name,email,equipment_type,status,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,notes,closed_at').order('closed_at', { ascending: false }).limit(200),
   ])
 
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
   const typedQuotes = (quotes || []) as Quote[]
   const typedNotifications = (notifications || []) as CommercialNotification[]
+  const typedOutcomes = (outcomes || []) as CommercialOutcome[]
+  const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
   const views = (events || []).filter((event) => event.event_type === 'VIEW').length
   const reveals = (events || []).filter((event) => event.event_type === 'CONTACT_REVEAL').length
   const openInquiries = typedInquiries.filter((inquiry) => openInquiryStatuses.includes(inquiry.status)).length
@@ -64,6 +80,16 @@ export default async function CommercialPage() {
     + typedNotifications.filter((notification) => notification.status === 'failed').length
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
+  const settledRevenueByCurrency = typedOutcomes
+    .filter((outcome) => outcome.evidence_level === 'settled')
+    .reduce<Record<string, number>>((totals, outcome) => {
+      totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.aerotrade_revenue_minor || 0)
+      return totals
+    }, {})
+  const reportedGrossByCurrency = typedOutcomes.reduce<Record<string, number>>((totals, outcome) => {
+    totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.gross_amount_minor || 0)
+    return totals
+  }, {})
 
   return (
     <div className="space-y-8">
@@ -82,9 +108,12 @@ export default async function CommercialPage() {
       <div className="rounded-2xl border bg-card p-6">
         <h2 className="text-xl font-semibold">Revenue evidence</h2>
         <p className="mt-1 text-sm text-muted-foreground">{liveReceipts.length} live payment notification receipt(s) · {(liveGross / 100).toLocaleString('en-IE', { style: 'currency', currency: 'EUR' })} gross EUR represented. This is not net revenue.</p>
+        <p className="mt-2 text-sm text-muted-foreground">{typedOutcomes.length} recorded commercial outcome(s) · gross outcomes {formatCurrencyTotals(reportedGrossByCurrency)} · settled AeroTrade revenue {formatCurrencyTotals(settledRevenueByCurrency)}.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Reported and documented outcomes are not counted as settled revenue. Stripe receipts and marketplace outcomes remain separate evidence sources.</p>
       </div>
 
       {notificationsError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial notification evidence unavailable: {notificationsError.message}</p> : null}
+      {outcomesError ? <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">Commercial outcome evidence unavailable: {outcomesError.message}</p> : null}
 
       <section className="rounded-2xl border bg-card overflow-hidden">
         <div className="border-b p-6"><h2 className="text-xl font-semibold">Marketplace enquiries</h2></div>
@@ -107,6 +136,9 @@ export default async function CommercialPage() {
                   </select>
                   <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
                 </form>
+                <div className="lg:col-span-3">
+                  <OutcomeEditor entityType="marketplace_inquiry" entityId={inquiry.id} outcome={outcomesByEntity.get(`marketplace_inquiry:${inquiry.id}`)} />
+                </div>
               </div>
             ))}
           </div>
@@ -127,6 +159,9 @@ export default async function CommercialPage() {
                   </select>
                   <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
                 </form>
+                <div className="lg:col-span-3">
+                  <OutcomeEditor entityType="quote_request" entityId={quote.id} outcome={outcomesByEntity.get(`quote_request:${quote.id}`)} />
+                </div>
               </div>
             ))}
           </div>
@@ -138,4 +173,40 @@ export default async function CommercialPage() {
 
 function Metric({ title, value, detail, icon, warning = false }: { title: string; value: number; detail: string; icon: React.ReactNode; warning?: boolean }) {
   return <div className={`rounded-2xl border bg-card p-5 ${warning ? 'border-destructive/30' : ''}`}><div className="flex items-center justify-between"><p className="text-sm font-medium text-muted-foreground">{title}</p><span className={warning ? 'text-destructive' : 'text-primary'}>{icon}</span></div><p className="mt-3 text-3xl font-bold">{value}</p><p className="mt-1 text-xs text-muted-foreground">{detail}</p></div>
+}
+
+function formatCurrencyTotals(totals: Record<string, number>) {
+  const entries = Object.entries(totals)
+  if (entries.length === 0) return 'none recorded'
+  return entries.map(([currency, minor]) => (minor / 100).toLocaleString('en-IE', { style: 'currency', currency })).join(' · ')
+}
+
+function OutcomeEditor({ entityType, entityId, outcome }: {
+  entityType: 'marketplace_inquiry' | 'quote_request'
+  entityId: string
+  outcome?: CommercialOutcome
+}) {
+  const amount = (minor?: number) => ((minor || 0) / 100).toFixed(2)
+  return (
+    <details className="rounded-xl border bg-muted/20">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
+        {outcome ? `Outcome: ${outcome.evidence_level} · ${amount(outcome.gross_amount_minor)} ${outcome.currency}` : 'Record commercial outcome'}
+      </summary>
+      <form action={recordCommercialOutcome.bind(null, entityType, entityId)} className="grid gap-3 border-t p-4 sm:grid-cols-2 lg:grid-cols-6">
+        <select name="outcome_type" defaultValue={outcome?.outcome_type || 'sale'} className="rounded-lg border bg-background px-3 py-2 text-sm">
+          <option value="sale">Sale</option><option value="intermediation">Intermediation</option><option value="other">Other</option>
+        </select>
+        <select name="currency" defaultValue={outcome?.currency || 'EUR'} className="rounded-lg border bg-background px-3 py-2 text-sm">
+          <option value="EUR">EUR</option><option value="GBP">GBP</option><option value="USD">USD</option>
+        </select>
+        <input name="gross_amount" required inputMode="decimal" defaultValue={amount(outcome?.gross_amount_minor)} placeholder="Gross amount" aria-label="Gross amount" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+        <input name="aerotrade_revenue" required inputMode="decimal" defaultValue={amount(outcome?.aerotrade_revenue_minor)} placeholder="AeroTrade revenue" aria-label="AeroTrade revenue" className="rounded-lg border bg-background px-3 py-2 text-sm" />
+        <select name="evidence_level" defaultValue={outcome?.evidence_level || 'reported'} className="rounded-lg border bg-background px-3 py-2 text-sm">
+          <option value="reported">Reported</option><option value="documented">Documented</option><option value="settled">Settled</option>
+        </select>
+        <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save outcome</button>
+        <textarea name="outcome_notes" maxLength={2000} defaultValue={outcome?.notes || ''} placeholder="Evidence note (no passwords or card data)" className="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2 lg:col-span-6" />
+      </form>
+    </details>
+  )
 }

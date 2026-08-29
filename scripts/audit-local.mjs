@@ -58,6 +58,11 @@ const checks = [
     required: ['commercial_notification_receipts', 'idempotency_key text not null unique', 'enable row level security', 'revoke all on public.commercial_notification_receipts from anon, authenticated'],
   },
   {
+    name: 'Commercial outcomes separate reported value from settled revenue',
+    file: 'supabase/migrations/20260829140000_commercial_outcomes.sql',
+    required: ['commercial_outcomes', "evidence_level in ('reported', 'documented', 'settled')", 'aerotrade_revenue_minor <= gross_amount_minor', 'enable row level security', 'revoke all on public.commercial_outcomes from anon, authenticated'],
+  },
+  {
     name: 'Listing trust badges have an explicit non-airworthiness boundary',
     file: 'supabase/migrations/20260829110000_listing_verification.sql',
     required: ['listing_verifications', 'supporting_documents_checked', 'This is not an airworthiness inspection.', 'enable row level security'],

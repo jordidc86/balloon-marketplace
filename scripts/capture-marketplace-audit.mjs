@@ -37,6 +37,7 @@ const [
   inquiries,
   verifications,
   commercialNotifications,
+  commercialOutcomes,
 ] = await Promise.all([
   rows('users', 'id,is_premium,premium_source,created_at'),
   rows('listings', 'id,seller_id,category,status,price,currency,condition,location_country,contact_phone,details,created_at,updated_at,public_at,instagram_posted,facebook_posted'),
@@ -50,6 +51,7 @@ const [
   rows('marketplace_inquiries', 'id,listing_id,status,seller_notification_status,created_at,last_activity_at,closed_at'),
   rows('listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'),
   rows('commercial_notification_receipts', 'id,notification_type,entity_type,status,created_at,attempted_at,accepted_at'),
+  rows('commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,closed_at'),
 ])
 
 const countBy = (items, key) => items.reduce((counts, item) => {
@@ -155,6 +157,18 @@ const result = {
     marketplaceInquiriesByStatus: countBy(inquiries, 'status'),
     failedSellerNotifications: inquiries.filter((inquiry) => inquiry.seller_notification_status === 'failed').length,
     closedMarketplaceTransactionsKnown: inquiries.filter((inquiry) => inquiry.status === 'WON').length,
+    commercialOutcomes: commercialOutcomes.length,
+    outcomesByEvidence: countBy(commercialOutcomes, 'evidence_level'),
+    grossOutcomeMinorByCurrency: commercialOutcomes.reduce((totals, outcome) => {
+      totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.gross_amount_minor || 0)
+      return totals
+    }, {}),
+    settledAerotradeRevenueMinorByCurrency: commercialOutcomes
+      .filter((outcome) => outcome.evidence_level === 'settled')
+      .reduce((totals, outcome) => {
+        totals[outcome.currency] = (totals[outcome.currency] || 0) + Number(outcome.aerotrade_revenue_minor || 0)
+        return totals
+      }, {}),
     caveat: 'WON is an explicit recorded outcome; transaction value and settlement are not inferred.',
   },
   communications: {

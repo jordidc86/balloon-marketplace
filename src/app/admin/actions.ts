@@ -7,6 +7,7 @@ import { sendEmail } from '@/utils/resend'
 import { sendPremiumListingAlert } from '@/utils/premium-alerts'
 import { revalidatePath } from 'next/cache'
 import { isClosedInquiryStatus, normalizeInquiryStatus } from '@/utils/inquiry-safety.mjs'
+import { parseCommercialOutcome } from '@/utils/commercial-outcome.mjs'
 
 async function checkAdmin() {
   const supabase = await createClient()
@@ -195,6 +196,62 @@ export async function updateQuoteRequestStatus(requestId: string, formData: Form
 
   if (error || !data?.id || data.status !== status) throw new Error('Could not update quote status')
   revalidatePath('/admin/commercial')
+}
+
+export async function recordCommercialOutcome(
+  entityType: 'marketplace_inquiry' | 'quote_request',
+  entityId: string,
+  formData: FormData,
+) {
+  const { supabase, adminUserId } = await checkAdmin()
+  const outcome = parseCommercialOutcome(formData)
+  const table = entityType === 'marketplace_inquiry' ? 'marketplace_inquiries' : 'quote_requests'
+
+  const { data: entity, error: entityError } = await supabase
+    .from(table)
+    .select('id')
+    .eq('id', entityId)
+    .single()
+  if (entityError || !entity?.id) throw new Error('Commercial opportunity not found')
+
+  const now = new Date().toISOString()
+  const { data: stored, error: outcomeError } = await supabase
+    .from('commercial_outcomes')
+    .upsert({
+      entity_type: entityType,
+      entity_id: entityId,
+      ...outcome,
+      recorded_by: adminUserId,
+      closed_at: now,
+    }, { onConflict: 'entity_type,entity_id' })
+    .select('id,entity_type,entity_id,gross_amount_minor,aerotrade_revenue_minor,evidence_level')
+    .single()
+
+  if (outcomeError || !stored?.id
+    || stored.entity_type !== entityType
+    || stored.entity_id !== entityId
+    || Number(stored.gross_amount_minor) !== outcome.gross_amount_minor
+    || Number(stored.aerotrade_revenue_minor) !== outcome.aerotrade_revenue_minor
+    || stored.evidence_level !== outcome.evidence_level) {
+    throw new Error('Could not persist and verify the commercial outcome')
+  }
+
+  const statusUpdate = entityType === 'marketplace_inquiry'
+    ? { status: 'WON', last_activity_at: now, closed_at: now }
+    : { status: 'WON', updated_at: now }
+  const { data: statusReadback, error: statusError } = await supabase
+    .from(table)
+    .update(statusUpdate)
+    .eq('id', entityId)
+    .select('id,status')
+    .single()
+
+  if (statusError || statusReadback?.status !== 'WON') {
+    throw new Error('Outcome stored, but the opportunity status needs review')
+  }
+
+  revalidatePath('/admin/commercial')
+  revalidatePath('/dashboard')
 }
 
 export async function setListingVerification(listingId: string, formData: FormData) {

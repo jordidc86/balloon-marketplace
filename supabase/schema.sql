@@ -450,3 +450,27 @@ revoke all on public.commercial_notification_receipts from anon, authenticated;
 create policy "Admins can manage commercial notification receipts" on public.commercial_notification_receipts for all to authenticated
   using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'))
   with check (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
+
+create table public.commercial_outcomes (
+  id uuid default uuid_generate_v4() primary key,
+  entity_type text not null check (entity_type in ('marketplace_inquiry', 'quote_request')),
+  entity_id uuid not null,
+  outcome_type text not null default 'sale' check (outcome_type in ('sale', 'intermediation', 'other')),
+  currency text not null default 'EUR' check (currency in ('EUR', 'GBP', 'USD')),
+  gross_amount_minor bigint not null default 0 check (gross_amount_minor >= 0),
+  aerotrade_revenue_minor bigint not null default 0 check (aerotrade_revenue_minor >= 0 and aerotrade_revenue_minor <= gross_amount_minor),
+  evidence_level text not null default 'reported' check (evidence_level in ('reported', 'documented', 'settled')),
+  notes text check (notes is null or char_length(notes) <= 2000),
+  recorded_by uuid references public.users(id) on delete set null,
+  closed_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  unique (entity_type, entity_id)
+);
+create index commercial_outcomes_evidence_closed_idx on public.commercial_outcomes (evidence_level, closed_at desc);
+create trigger set_commercial_outcomes_updated_at before update on public.commercial_outcomes for each row execute procedure public.set_updated_at();
+alter table public.commercial_outcomes enable row level security;
+revoke all on public.commercial_outcomes from anon, authenticated;
+create policy "Admins can manage commercial outcomes" on public.commercial_outcomes for all to authenticated
+  using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'))
+  with check (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));

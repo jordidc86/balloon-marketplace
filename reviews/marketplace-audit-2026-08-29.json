@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T06:04:39.700Z",
+  "capturedAt": "2026-08-29T06:14:53.586Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T06:04:39.700Z"
+    "since": "2026-07-30T06:14:53.586Z"
   },
   "supply": {
     "listingsTotal": 14,
@@ -96,6 +96,10 @@
     "marketplaceInquiriesByStatus": {},
     "failedSellerNotifications": 0,
     "closedMarketplaceTransactionsKnown": 0,
+    "commercialOutcomes": 0,
+    "outcomesByEvidence": {},
+    "grossOutcomeMinorByCurrency": {},
+    "settledAerotradeRevenueMinorByCurrency": {},
     "caveat": "WON is an explicit recorded outcome; transaction value and settlement are not inferred."
   },
   "communications": {
