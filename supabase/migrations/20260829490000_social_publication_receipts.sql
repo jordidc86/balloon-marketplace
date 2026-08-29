@@ -49,7 +49,14 @@ drop policy if exists "Admins can read social publication receipts" on public.so
 create policy "Admins can read social publication receipts"
   on public.social_publication_receipts for select
   to authenticated
-  using (public.is_admin(auth.uid()));
+  using (
+    exists (
+      select 1
+      from public.users
+      where id = auth.uid()
+        and role = 'admin'
+    )
+  );
 
 comment on table public.social_publication_receipts is
   'Private per-placement provider evidence for scheduled AeroTrade social publication. Pending claims fail closed and accepted provider IDs are never automatically repeated.';

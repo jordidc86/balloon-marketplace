@@ -707,6 +707,12 @@ const checks = [
     required: ['stalledSellerInquiryIds', 'sellerReminderByInquiry', 'sellerEscalationByInquiry', 'Seller response overdue after an accepted reminder', 'seller response overdue'],
   },
   {
+    name: 'Listing availability RPCs resolve daily uniqueness without PL/pgSQL ambiguity',
+    file: 'supabase/migrations/20260829590000_fix_listing_availability_conflict.sql',
+    required: ['confirm_listing_availability', 'confirm_all_listing_availability', 'confirm_listing_availability_from_seller_digest', 'scope.scoped_listing_id', 'on conflict on constraint listing_availability_confirmations_listing_id_confirmed_on_key do nothing', 'grant execute on function public.confirm_listing_availability(uuid) to authenticated', 'grant execute on function public.confirm_all_listing_availability() to authenticated', 'grant execute on function public.confirm_listing_availability_from_seller_digest(uuid, text, uuid[]) to service_role', 'never changes publication, price, payment or ownership'],
+    forbidden: ['drop table', 'delete from public.listing_availability_confirmations', 'on conflict (listing_id, confirmed_on)', 'count(distinct listing_id)'],
+  },
+  {
     name: 'Abandoned Premium listing checkout receives one non-destructive recovery path',
     file: 'supabase/migrations/20260829250000_premium_listing_checkout_recovery.sql',
     required: ['premium_listing_checkout_recovery', 'CHECKOUT_RECOVERY_SENT', 'stores no message body, email address', 'seller_funnel_listing_stage_consistency'],
@@ -834,7 +840,8 @@ const checks = [
   {
     name: 'Social publication evidence is private, placement-specific and fails closed',
     file: 'supabase/migrations/20260829490000_social_publication_receipts.sql',
-    required: ['social_publication_receipts', 'publication_key text not null unique', "content_kind in ('listing', 'brand')", "network in ('instagram', 'facebook')", "status in ('pending', 'accepted', 'failed')", 'attempt_count between 0 and 2', 'provider_id is not null', 'enable row level security', 'revoke all on public.social_publication_receipts from public, anon, authenticated'],
+    required: ['social_publication_receipts', 'publication_key text not null unique', "content_kind in ('listing', 'brand')", "network in ('instagram', 'facebook')", "status in ('pending', 'accepted', 'failed')", 'attempt_count between 0 and 2', 'provider_id is not null', 'enable row level security', 'revoke all on public.social_publication_receipts from public, anon, authenticated', 'from public.users', "and role = 'admin'"],
+    forbidden: ['public.is_admin(auth.uid())'],
   },
   {
     name: 'Each social placement is claimed before publishing and accepted by provider ID',
