@@ -158,9 +158,9 @@ export async function CatalogExperience({
       </form>
 
       <div className="mb-8 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-        <div><p className="font-bold">The right used equipment is not here?</p><p className="mt-1 text-sm text-muted-foreground">Record your requirement for a future match, or ask AeroTrade for an approximate quote for a new Pasha or Schroeder balloon.</p></div>
-        <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg border border-primary/30 bg-background px-4 py-2 text-center text-sm font-semibold text-primary">Find it for me</Link>
-        <Link href={newBalloonHref} className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Buy a new balloon</Link>
+        <div><p className="font-bold">Did not find the balloon or equipment you want?</p><p className="mt-1 text-sm text-muted-foreground">Tell AeroTrade what is missing so we can help find it, or request an approximate budget for a factory-new Pasha or Schroeder balloon. New aircraft are available independently of today&apos;s used inventory.</p></div>
+        <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg border border-primary/30 bg-background px-4 py-2 text-center text-sm font-semibold text-primary">Tell us what you need</Link>
+        <Link href={newBalloonHref} className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Get a new-balloon estimate</Link>
       </div>
 
       <p className="mb-4 text-sm text-muted-foreground">{rawListings?.length || 0} matching listing(s)</p>
@@ -243,12 +243,11 @@ export async function CatalogExperience({
           <div className="col-span-full py-20 text-center flex flex-col items-center">
             <Filter className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-medium text-foreground">No suitable used equipment found</h3>
-            <p className="mt-1 max-w-2xl text-muted-foreground">You do not have to wait for another listing. AeroTrade can also sell you a factory-new Pasha or Schroeder balloon and prepare an indicative budget for the configuration you need.</p>
+            <p className="mt-1 max-w-2xl text-muted-foreground">You do not have to wait for another listing. Tell AeroTrade what you need, or ask us for an approximate budget for a factory-new Pasha or Schroeder balloon.</p>
             <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row">
-              <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg bg-foreground px-5 py-2 text-sm font-bold text-background">Record what you need</Link>
-              <Link href="/sell?source=catalog_empty" className="text-primary hover:underline font-medium">Have something to sell?</Link>
+              <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg bg-foreground px-5 py-2 text-sm font-bold text-background">Ask us to find a used option</Link>
               <Link href={newBalloonHref} className="bg-primary px-5 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">
-                Request a new Pasha or Schroeder budget
+                Get an approximate new-balloon budget
               </Link>
             </div>
           </div>

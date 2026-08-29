@@ -55,10 +55,10 @@ export default async function NewBalloonPage({
               Marketplace <ArrowRight className="h-4 w-4" />
             </Link>
             <h1 className="max-w-2xl text-4xl font-extrabold tracking-tight sm:text-5xl">
-              Buy a new balloon through AeroTrade.
+              Get an approximate new-balloon budget.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-              AeroTrade does not only sell used equipment. If the current marketplace does not contain the right aircraft, we can source a factory-new Pasha or Schroeder balloon and prepare an indicative budget for your configuration.
+              AeroTrade does not only sell used equipment. Even when no current listing is suitable, we can sell you a factory-new Pasha or Schroeder balloon and prepare an indicative budget for your configuration.
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -83,9 +83,9 @@ export default async function NewBalloonPage({
 
           <div className="border bg-card p-6 shadow-sm sm:p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold">Request an indicative budget</h2>
+              <h2 className="text-2xl font-bold">Ask for an approximate price</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Tell us enough to recommend Pasha or Schroeder, outline a suitable configuration and prepare a first price direction.
+                You do not need a finished specification. Tell us what you know and we can recommend Pasha or Schroeder, outline a suitable configuration and prepare a first price direction.
               </p>
             </div>
 
@@ -216,7 +216,7 @@ export default async function NewBalloonPage({
 
               <button className="inline-flex w-full items-center justify-center gap-2 bg-primary px-5 py-3 font-bold text-primary-foreground hover:bg-primary/90">
                 <Send className="h-4 w-4" />
-                Request Indicative Budget & Visual Concept
+                Request Approximate Budget & Visual Concept
               </button>
             </form>
           </div>

@@ -364,7 +364,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                   Upgrade to Contact Seller
                 </Link>
                 <Link href={newBalloonHref} className="w-full flex justify-center items-center gap-2 border border-primary/30 bg-primary/5 py-3 rounded-xl font-bold text-primary hover:bg-primary/10 transition-colors">
-                  Buy a new balloon instead
+                  Get an approximate new-balloon budget
                 </Link>
               </div>
             ) : isOwner ? (
@@ -414,8 +414,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                   <ContactSeller listingId={typedListing.id} />
                 </div>
                 <div className="grid gap-2 border-t pt-4 sm:grid-cols-2">
-                  <Link href={`/wanted?category=${encodeURIComponent(typedListing.category)}`} className="rounded-lg border px-3 py-2 text-center text-sm font-semibold text-primary">Find another used option</Link>
-                  <Link href={newBalloonHref} className="rounded-lg bg-primary/10 px-3 py-2 text-center text-sm font-semibold text-primary">Buy a new Pasha or Schroeder</Link>
+                  <Link href={`/wanted?category=${encodeURIComponent(typedListing.category)}`} className="rounded-lg border px-3 py-2 text-center text-sm font-semibold text-primary">Ask us to find another used option</Link>
+                  <Link href={newBalloonHref} className="rounded-lg bg-primary/10 px-3 py-2 text-center text-sm font-semibold text-primary">Get a new Pasha or Schroeder estimate</Link>
                 </div>
               </div>
             )}

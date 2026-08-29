@@ -223,7 +223,7 @@ export default async function Home() {
                 <Search className="w-12 h-12 text-slate-300 mb-4" />
                 <h3 className="text-lg font-bold text-slate-900">No listings found</h3>
                 <p className="text-slate-500 max-w-lg mt-1 mb-6">There are currently no matching used listings. AeroTrade can still source a factory-new Pasha or Schroeder balloon and prepare an indicative budget.</p>
-                <div className="flex flex-col gap-3 sm:flex-row"><Link href="/new-balloon?source=catalog-empty" className="bg-primary hover:bg-primary/90 text-white font-medium px-6 py-2.5 rounded-full transition-colors shadow-sm">Get a New Balloon Budget</Link><Link href="/sell?source=home" className="border border-slate-300 bg-white px-6 py-2.5 rounded-full font-medium text-slate-700 hover:border-primary hover:text-primary">List Your Equipment</Link></div>
+                <div className="flex flex-col gap-3 sm:flex-row"><Link href="/new-balloon?source=catalog-empty" className="bg-primary hover:bg-primary/90 text-white font-medium px-6 py-2.5 rounded-full transition-colors shadow-sm">Get an Approximate New-Balloon Budget</Link><Link href="/wanted" className="border border-slate-300 bg-white px-6 py-2.5 rounded-full font-medium text-slate-700 hover:border-primary hover:text-primary">Tell Us What You Need</Link></div>
               </div>
             )}
           </div>
@@ -241,7 +241,7 @@ export default async function Home() {
       <section className="border-t bg-white py-10">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center lg:px-8">
           <div><p className="text-sm font-bold uppercase tracking-wider text-primary">Used or new</p><h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">Do not stop because today’s catalog is not the right fit.</h2><p className="mt-3 max-w-3xl text-slate-600">Tell AeroTrade what used equipment you need, or request an approximate price direction for a new Pasha or Schroeder balloon. The commercial path continues either way.</p></div>
-          <div className="flex flex-col gap-3 sm:flex-row"><Link href="/wanted" className="rounded-xl border border-slate-300 px-5 py-3 text-center font-bold text-slate-800 hover:border-primary hover:text-primary">Find used equipment</Link><Link href="/new-balloon?source=home" className="rounded-xl bg-primary px-5 py-3 text-center font-bold text-white hover:bg-primary/90">Buy a new balloon</Link></div>
+          <div className="flex flex-col gap-3 sm:flex-row"><Link href="/wanted" className="rounded-xl border border-slate-300 px-5 py-3 text-center font-bold text-slate-800 hover:border-primary hover:text-primary">Tell us what you need</Link><Link href="/new-balloon?source=home" className="rounded-xl bg-primary px-5 py-3 text-center font-bold text-white hover:bg-primary/90">Get a new-balloon estimate</Link></div>
         </div>
       </section>
 

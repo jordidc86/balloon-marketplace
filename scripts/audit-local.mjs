@@ -188,7 +188,27 @@ const checks = [
   {
     name: 'Seller intent measurement is authenticated and non-blocking',
     file: 'src/components/SellForm.tsx',
-    required: ["recordSellerFunnelStage('SELL_PAGE_VIEWED')", "recordSellerFunnelStage('FORM_STARTED')", 'formStartedRecorded', 'onChangeCapture'],
+    required: ["recordSellerFunnelStage('SELL_PAGE_VIEWED', sellerEntryContext)", "recordSellerFunnelStage('FORM_STARTED', sellerEntryContext)", 'formStartedRecorded', 'onChangeCapture'],
+  },
+  {
+    name: 'Late seller authentication preserves intent before the long form is exposed',
+    file: 'src/app/sell/page.tsx',
+    required: ['if (!user)', 'Start without losing your work', 'redirectTo=', 'Record a private sale request', '<SellForm'],
+  },
+  {
+    name: 'Seller acquisition source is a closed non-free-text dimension',
+    file: 'src/utils/seller-acquisition.mjs',
+    required: ['sellerAcquisitionSources', "'seller_seo'", "'catalog_empty'", "'assisted_conversion'", ': fallback'],
+  },
+  {
+    name: 'Seller acquisition context remains private and migration-bounded',
+    file: 'supabase/migrations/20260829360000_seller_acquisition_context.sql',
+    required: ['entry_context text not null default', 'seller_funnel_events_entry_context_check', "alter column source_context set default 'direct'", 'seller_assistance_requests_source_context_check', 'no URL or campaign free text'],
+  },
+  {
+    name: 'Missing used inventory always offers assisted sourcing or a new-balloon estimate',
+    file: 'src/app/catalog/page.tsx',
+    required: ['Tell us what you need', 'Get a new-balloon estimate', 'Ask us to find a used option', 'Get an approximate new-balloon budget', 'newBalloonHref'],
   },
   {
     name: 'Unready sellers have one private assisted path into the normal listing workflow',
