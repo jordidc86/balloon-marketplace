@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_listing_availability_bulk_readiness",
+  "capturedAt": "2026-08-29T17:26:06.668Z",
+  "containsPii": false,
+  "readOnlyProductionAudit": true,
+  "productionMutation": false,
+  "emailSent": false,
+  "activeListings": 12,
+  "activeSellers": 5,
+  "freshAvailabilityConfirmations": 0,
+  "dueListings": 12,
+  "dueSellers": 5,
+  "dueSellerPortfolioDistribution": {
+    "1": 2,
+    "2": 1,
+    "3": 1,
+    "5": 1
+  },
+  "existingRequestReceipts": {
+    "total": 0,
+    "accepted": 0,
+    "failed": 0
+  },
+  "candidate": {
+    "migration": "20260829540000_bulk_listing_availability_confirmation.sql",
+    "ownerAuthenticated": true,
+    "oneExplicitAction": true,
+    "perListingImmutableEvidence": true,
+    "databaseReadbackRequired": true,
+    "changesListingState": false,
+    "sendsEmail": false,
+    "createsPayment": false
+  },
+  "interpretation": "Five authenticated sellers can confirm all twelve currently active adverts through five total dashboard actions instead of twelve separate confirmations. No confirmation is inferred and no seller has been contacted."
+}

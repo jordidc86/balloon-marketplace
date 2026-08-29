@@ -61,3 +61,7 @@ Do not call AeroTrade commercially operational until production evidence shows a
 - zero newsletter delivery to a `NOT_REQUESTED` or `UNSUBSCRIBED` profile;
 - exactly one expected Netlify production deploy for the grouped release;
 - no invented outcome, payment, cost or revenue.
+
+### Availability recovery candidate
+
+A later PII-free read-only snapshot at `2026-08-29T17:26:06.668Z` confirmed that all 12 active listings across 5 sellers still lack owner availability evidence. The grouped candidate now extends the same authenticated confirmation system so each seller can confirm every currently active owned advert with one explicit dashboard action while retaining one immutable confirmation row per listing. The current portfolio would therefore require 5 seller actions instead of 12. This does not count as availability proof until those sellers actually confirm; no email or database write was performed during the audit.

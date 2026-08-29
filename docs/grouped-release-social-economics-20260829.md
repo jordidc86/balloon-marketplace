@@ -4,13 +4,14 @@ Status: release candidate only. Production is unchanged.
 
 ## Purpose
 
-Ship five material, additive capabilities in one Netlify production deploy:
+Ship six material, additive capabilities in one Netlify production deploy:
 
 1. Per-content, network and placement social-publication receipts with provider-ID acceptance, bounded retry and attributable links.
 2. Complete, evidence-backed unit economics on the existing commercial outcome, with unknown costs kept null and every measurement snapshotted immutably.
 3. A private, capability-bound response loop for accepted indicative new-balloon proposals, with one immutable buyer response, database readback and an auditable internal notification.
 4. A one-time, bounded recovery path for a genuine buyer-initiated annual Buyer Early Access checkout that expired without verified payment.
 5. Explicit, owner-controlled consent for the existing bi-weekly newsletter, with no legacy opt-in inference, a signed POST-only stop control and a consent recheck before selective recovery.
+6. One authenticated seller action that confirms every currently active owned listing while preserving independent, immutable availability evidence per advert.
 
 The release also activates a deployment-cost guard: future production builds require an explicit change to `release/netlify-production.json`. Ordinary runtime commits may be staged on `main` but cannot independently consume a production-deploy charge.
 
@@ -19,36 +20,37 @@ The release does not change prices, publish a post, send a message by itself, cr
 ## Exact source
 
 - Production base: `9880e56df0b1f47089c0ea176d57a613c25847a5`.
-- Runtime release candidate: `d810f3b1bae368f26434a220dc8f8632d9744f4e`.
-- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d` and `d810f3b`.
+- Runtime release candidate: `6a2d763dfc66f557b288abad953ee03d6a8e1833`.
+- Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b` and `6a2d763`.
 - Required migrations, in order:
   1. `20260829490000_social_publication_receipts.sql`
   2. `20260829500000_commercial_unit_economics.sql`
   3. `20260829510000_new_balloon_proposal_responses.sql`
   4. `20260829520000_buyer_early_access_checkout_recovery.sql`
   5. `20260829530000_newsletter_consent.sql`
+  6. `20260829540000_bulk_listing_availability_confirmation.sql`
 - Explicit production release marker: `release/netlify-production.json` with release ID `2026-08-29-grouped-commercial-release`.
 
 ## Authorization gate
 
-Do not apply any production migration, merge/push to `main`, trigger a deploy or call a production dry run until Jordi explicitly approves this grouped release. One approval should name all five migrations, the one grouped deploy and the post-deploy read-only verification.
+Do not apply any production migration, merge/push to `main`, trigger a deploy or call a production dry run until Jordi explicitly approves this grouped release. One approval should name all six migrations, the one grouped deploy and the post-deploy read-only verification.
 
 Exact approval wording:
 
-> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000 y 20260829530000, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros y el dry run de newsletter sin enviar emails.
+> Apruebo aplicar las migraciones 20260829490000, 20260829500000, 20260829510000, 20260829520000, 20260829530000 y 20260829540000, realizar un único despliegue agrupado de Aerotrade —máximo estimado 15 créditos de Netlify— y ejecutar la verificación de producción, el dry run social sin publicar nada, el dry run de recuperación Buyer Early Access sin enviar emails ni crear cobros y el dry run de newsletter sin enviar emails.
 
 ## Pre-release gate
 
 1. Confirm the feature branch and `origin/main` still resolve to the exact commits above or recalculate this plan.
 2. Confirm the worktree is clean and no secret or generated directory is tracked.
 3. Run `npm test`, `npm run audit:local`, `npm run lint`, `npx tsc --noEmit`, `git diff --check` and `npm run build`.
-4. Confirm the expected result remains 150/150 tests and 150/150 operational contracts.
+4. Confirm the expected result remains 150/150 tests and 152/152 operational contracts.
 5. Capture read-only counts of existing commercial outcomes and current Supabase migration versions without including personal data.
 6. Confirm GitHub Actions workflow `Send Bi-Weekly Newsletter Cron` remains `disabled_manually`; it was paused before the 1 September schedule so the old runtime cannot send another registration-based marketing batch.
 
 ## Database order and readback
 
-Apply all five additive migrations before deploying the runtime. Immediately verify, without inserting synthetic rows:
+Apply all six additive migrations before deploying the runtime. Immediately verify, without inserting synthetic rows:
 
 - `social_publication_receipts` exists, has RLS enabled and exposes no anonymous/authenticated write privilege.
 - `commercial_unit_economics_events` exists, has RLS enabled and exposes no anonymous/authenticated write privilege.
@@ -62,6 +64,7 @@ Apply all five additive migrations before deploying the runtime. Immediately ver
 - Existing accounts have newsletter state `NOT_REQUESTED`; migration never marks a legacy account as consented.
 - `set_own_newsletter_consent` is executable only by an authenticated profile owner, and the signed unsubscribe action changes only the newsletter preference.
 - A live newsletter selects only profiles with complete `ACTIVE` consent evidence, embeds one signed stop link per recipient and rechecks current consent before any manual recovery.
+- `confirm_all_listing_availability` is executable only by an authenticated seller, returns only that seller's currently active listings and creates the same current-day immutable evidence as the individual action. Verifying the function must not call it or invent confirmation rows.
 - Existing commercial-outcome row counts are unchanged and pre-existing rows have null economics fields.
 - No social receipt, economics event, proposal response, post, message, charge or other economic action was created by migration verification.
 
@@ -97,7 +100,7 @@ After database readback succeeds:
 The safe rollback is runtime-first and non-destructive:
 
 1. Roll Netlify back to production base `9880e56df0b1f47089c0ea176d57a613c25847a5` or its known-good deploy `6a92ffe4dbebcf0008be7dd7`.
-2. Leave all five additive private tables/functions and nullable columns in Supabase. The previous runtime does not query them, so retaining them preserves audit evidence and avoids destructive rollback.
+2. Leave all six additive private tables/functions and nullable columns in Supabase. The previous runtime does not query them, so retaining them preserves audit evidence and avoids destructive rollback.
 3. Pause the scheduled social function only if the reverted runtime or credential state cannot be proven safe; do not repeat any pending or ambiguous provider operation.
 4. Keep the newsletter workflow disabled if runtime is rolled back below the consent-safe release.
 5. Do not drop tables, columns, functions or events during incident response. Any later schema removal requires a separate migration, backup and explicit approval.
@@ -109,8 +112,8 @@ The safe rollback is runtime-first and non-destructive:
 - Never increment `release/netlify-production.json` for documentation, evidence or an isolated incremental change.
 - If more than one production deploy is created, stop the release and investigate before any further push.
 
-The production auditor is release-version aware: the currently deployed schema remains fully auditable while these five candidate migrations are pending. Candidate-only datasets are reported as `not_deployed`; authentication, permission and network failures still fail the audit closed.
+The production auditor is release-version aware: the currently deployed schema remains fully auditable while these six candidate migrations are pending. Candidate-only datasets are reported as `not_deployed`; authentication, permission and network failures still fail the audit closed.
 
 ## Score gate
 
-This release alone does not authorize a commercial-proof score increase. Social acquisition needs a genuine provider-accepted placement and attributable visit; unit economics needs a genuine commercial outcome with complete evidence; proposal conversion needs a genuine buyer response; checkout recovery needs a genuine accepted reminder followed by a verified annual payment; newsletter acquisition needs an explicit consent followed by an attributable visit or conversion. Until then, all five remain implemented release candidates rather than commercially proven capabilities.
+This release alone does not authorize a commercial-proof score increase. Social acquisition needs a genuine provider-accepted placement and attributable visit; unit economics needs a genuine commercial outcome with complete evidence; proposal conversion needs a genuine buyer response; checkout recovery needs a genuine accepted reminder followed by a verified annual payment; newsletter acquisition needs an explicit consent followed by an attributable visit or conversion; availability needs a genuine owner action. Until then, all six remain implemented release candidates rather than commercially proven capabilities.
