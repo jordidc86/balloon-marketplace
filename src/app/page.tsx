@@ -10,6 +10,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "AeroTrade | Global Hot Air Balloon Marketplace",
   description: "The private global exchange for lighter-than-air aviation. Buy and sell used hot air balloons, baskets, burners, and accessories.",
+  alternates: { canonical: '/' },
   openGraph: {
     title: "AeroTrade | Global Hot Air Balloon Marketplace",
     description: "The private global exchange for lighter-than-air aviation. Buy and sell used hot air balloons, baskets, burners, and accessories.",

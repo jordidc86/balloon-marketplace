@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { sendEmail } from '@/utils/resend'
 import { escapeHtml } from '@/utils/html'
@@ -8,6 +8,7 @@ import { getListingPlan, premiumListingFeeCents } from '@/utils/listing-plans'
 import { getApplicationOrigin } from '@/utils/navigation.mjs'
 import { getInitialListingPublication, parseListingImageUrls } from '@/utils/listing-safety.mjs'
 import { siteUrl } from '@/utils/site'
+import { parseListingSubmission } from '@/utils/listing-submission.mjs'
 
 export async function submitListing(formData: FormData) {
   const supabase = await createClient()
@@ -20,42 +21,13 @@ export async function submitListing(formData: FormData) {
   const listingPlan = getListingPlan(formData.get('listing_plan'))
   const publication = getInitialListingPublication(listingPlan)
   const imageUrls = parseListingImageUrls(formData.get('image_urls'))
-
-  const category = formData.get('category') as string
-  const getTextValue = (name: string) => {
-    const value = formData.get(name)
-    return typeof value === 'string' ? value : null
-  }
-  const details: Record<string, string | null> = {}
-  
-  // Extract common details based on category
-  if (['complete', 'envelopes'].includes(category)) {
-    details.manufacturer = getTextValue('manufacturer')
-    details.model = getTextValue('model')
-    details.year = getTextValue('year')
-    details.hours = getTextValue('hours')
-    details.registration = getTextValue('registration')
-    details.serial = getTextValue('serial')
-  }
-
-  if (category === 'baskets' || category === 'burners' || category === 'bottom-end') {
-    details.dimensions = getTextValue('dimensions')
-    details.type = getTextValue('type') // burner type
-  }
-  details.listing_plan = listingPlan
+  const submission = parseListingSubmission(formData)
+  const details = { ...submission.details, listing_plan: listingPlan }
 
   // Generate a random ID for the listing
   const listingData = {
     seller_id: user.id,
-    category,
-    title: formData.get('title') as string,
-    description: formData.get('description') as string,
-    price: parseFloat(formData.get('price') as string),
-    currency: formData.get('currency') as string,
-    condition: formData.get('condition') as string,
-    location_country: formData.get('location_country') as string,
-    contact_email: formData.get('contact_email') as string,
-    contact_phone: formData.get('contact_phone') as string,
+    ...submission,
     details,
     status: 'DRAFT',
     public_at: null,
@@ -101,21 +73,60 @@ export async function submitListing(formData: FormData) {
     throw new Error('Could not publish listing')
   }
 
-  try {
-    await sendEmail(
-      'jordi.diaz.casaubon@gmail.com',
-      'Nuevo anuncio en AeroTrade',
-      `<p>Se ha creado un nuevo anuncio:</p>
-      <p>Plan: ${escapeHtml(listingPlan)}</p>
-      <p>Título: ${escapeHtml(publishedListing.title)}</p>
-      <p>Categoría: ${escapeHtml(publishedListing.category)}</p>
-      <p>Precio: ${escapeHtml(publishedListing.price)}</p>
-      <p>Usuario ID: ${escapeHtml(user.id)}</p>
-      <p>Email contacto: ${escapeHtml(publishedListing.contact_email)}</p>
-      <p>Status: ${escapeHtml(publishedListing.status)}</p>`
-    )
-  } catch (e) {
-    console.error("Error sending notification:", e)
+  const adminEmail = process.env.ADMIN_EMAIL?.trim()
+  const adminSupabase = await createAdminClient()
+  const notificationKey = `listing-created-admin-${publishedListing.id}`
+  const { data: receipt, error: receiptError } = await adminSupabase
+    .from('commercial_notification_receipts')
+    .upsert({
+      notification_type: 'listing_created_admin',
+      entity_type: 'listing',
+      entity_id: publishedListing.id,
+      recipient_role: 'admin',
+      status: 'pending',
+      idempotency_key: notificationKey,
+    }, { onConflict: 'idempotency_key' })
+    .select('id')
+    .single()
+
+  if (receiptError || !receipt?.id) {
+    console.error('Could not persist the new-listing notification attempt:', receiptError)
+  } else {
+    const delivery = adminEmail
+      ? await sendEmail(
+        adminEmail,
+        'Nuevo anuncio en AeroTrade',
+        `<p>Se ha creado un nuevo anuncio:</p>
+        <p>Plan: ${escapeHtml(listingPlan)}</p>
+        <p>Título: ${escapeHtml(publishedListing.title)}</p>
+        <p>Categoría: ${escapeHtml(publishedListing.category)}</p>
+        <p>Precio: ${escapeHtml(publishedListing.price)}</p>
+        <p>Usuario ID: ${escapeHtml(user.id)}</p>
+        <p>Email contacto: ${escapeHtml(publishedListing.contact_email)}</p>
+        <p>Status: ${escapeHtml(publishedListing.status)}</p>`,
+        { idempotencyKey: notificationKey },
+      )
+      : { success: false, resendId: undefined }
+
+    const accepted = delivery.success && delivery.resendId
+    const expectedStatus = accepted ? 'accepted' : 'failed'
+    const now = new Date().toISOString()
+    const { data: notificationReadback, error: notificationError } = await adminSupabase
+      .from('commercial_notification_receipts')
+      .update({
+        status: expectedStatus,
+        provider_message_id: accepted ? delivery.resendId : null,
+        error_message: accepted ? null : adminEmail ? 'Provider acceptance was not confirmed.' : 'ADMIN_EMAIL is not configured.',
+        attempted_at: now,
+        accepted_at: accepted ? now : null,
+      })
+      .eq('id', receipt.id)
+      .select('id,status')
+      .single()
+
+    if (notificationError || notificationReadback?.status !== expectedStatus) {
+      console.error('Could not persist the new-listing notification result:', notificationError)
+    }
   }
 
   if (listingPlan === 'free') {

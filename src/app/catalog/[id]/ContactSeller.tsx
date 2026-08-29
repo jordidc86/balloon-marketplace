@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Mail, Phone, Loader2, Eye } from 'lucide-react'
 import { revealSellerContact } from './actions'
+import { getBrowserCommercialContext } from '@/utils/browser-attribution'
 
 interface ContactSellerProps {
   listingId: string
@@ -23,7 +24,7 @@ export default function ContactSeller({ listingId }: ContactSellerProps) {
     setIsLoading(true)
     setError(null)
     try {
-      const sellerContact = await revealSellerContact(listingId)
+      const sellerContact = await revealSellerContact(listingId, getBrowserCommercialContext())
       setContact(sellerContact)
       setIsRevealed(true)
     } catch (e) {

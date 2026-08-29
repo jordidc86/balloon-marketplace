@@ -10,7 +10,7 @@ export default function TermsPage() {
       <h1 className="text-4xl font-extrabold tracking-tight mb-8">Terms of Service</h1>
       
       <div className="prose prose-slate dark:prose-invert lg:prose-lg max-w-none">
-        <p><strong>Last Updated:</strong> April 2026</p>
+        <p><strong>Last Updated:</strong> 29 August 2026</p>
         
         <h2>1. Acceptance of Terms</h2>
         <p>By accessing or using the AeroTrade Marketplace ("Platform"), you agree to be bound by these Terms of Service. If you disagree with any part of the terms, you may not access the Platform.</p>
@@ -23,6 +23,7 @@ export default function TermsPage() {
           <li>You must provide accurate and complete information when creating a listing.</li>
           <li>You are solely responsible for ensuring the equipment listed complies with local aviation authority regulations (e.g., FAA, EASA) regarding airworthiness.</li>
           <li>You agree not to post false, misleading, or fraudulent listings.</li>
+          <li>If you submit a buyer enquiry, you must provide genuine contact information and use it only for a legitimate interest in the equipment.</li>
         </ul>
         
         <h2>4. Fees and Premium Limits</h2>
@@ -30,6 +31,9 @@ export default function TermsPage() {
         
         <h2>5. Limitation of Liability</h2>
         <p>AeroTrade makes no warranties regarding the condition, airworthiness, safety, or legality of any equipment listed. All transactions are at your own risk. AeroTrade shall not be liable for any indirect, incidental, or consequential damages arising from the use of the Platform.</p>
+
+        <h2>6. Verification Badges</h2>
+        <p>An AeroTrade document-checked badge means only that AeroTrade recorded a review of seller identity and supporting listing evidence. It is not an airworthiness review, maintenance release, title guarantee, escrow service, physical inspection or recommendation to purchase. Buyers remain responsible for independent technical, legal and financial due diligence.</p>
       </div>
     </div>
   )

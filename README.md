@@ -66,6 +66,13 @@ Commercial measurement records bounded listing views, successful seller-contact 
 CONFIRM_READ_ONLY_PRODUCTION=1 npm run baseline:commercial
 ```
 
+For a broader, PII-free operational audit of supply, listing quality, demand,
+opportunities, communications and revenue evidence, run:
+
+```bash
+CONFIRM_READ_ONLY_PRODUCTION=1 npm run audit:marketplace
+```
+
 The payment totals in that snapshot are gross Stripe charges in minor currency units. They are not net revenue and do not subtract fees, refunds, disputes or tax.
 
 Required runtime variables are configured in the hosting environment, not in this repository:

@@ -6,6 +6,7 @@ import { siteUrl } from '@/utils/site'
 import { sendEmail } from '@/utils/resend'
 import { sendPremiumListingAlert } from '@/utils/premium-alerts'
 import { revalidatePath } from 'next/cache'
+import { isClosedInquiryStatus, normalizeInquiryStatus } from '@/utils/inquiry-safety.mjs'
 
 async function checkAdmin() {
   const supabase = await createClient()
@@ -155,4 +156,76 @@ export async function promoteListing(listingId: string) {
   }
 
   return sendPremiumListingAlert(supabase, listingId)
+}
+
+export async function updateAdminInquiryStatus(inquiryId: string, formData: FormData) {
+  const { supabase } = await checkAdmin()
+  const status = normalizeInquiryStatus(formData.get('status'))
+  if (!status) throw new Error('Invalid enquiry status')
+
+  const now = new Date().toISOString()
+  const { data, error } = await supabase
+    .from('marketplace_inquiries')
+    .update({
+      status,
+      last_activity_at: now,
+      closed_at: isClosedInquiryStatus(status) ? now : null,
+    })
+    .eq('id', inquiryId)
+    .select('id,status')
+    .single()
+
+  if (error || !data?.id || data.status !== status) throw new Error('Could not update enquiry status')
+  revalidatePath('/admin/commercial')
+  revalidatePath('/dashboard')
+}
+
+export async function updateQuoteRequestStatus(requestId: string, formData: FormData) {
+  const { supabase } = await checkAdmin()
+  const status = formData.get('status')
+  const allowed = ['NEW', 'CONTACTED', 'SENT_TO_PARTNER', 'QUOTE_SENT', 'WON', 'LOST']
+  if (typeof status !== 'string' || !allowed.includes(status)) throw new Error('Invalid quote status')
+
+  const { data, error } = await supabase
+    .from('quote_requests')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', requestId)
+    .select('id,status')
+    .single()
+
+  if (error || !data?.id || data.status !== status) throw new Error('Could not update quote status')
+  revalidatePath('/admin/commercial')
+}
+
+export async function setListingVerification(listingId: string, formData: FormData) {
+  const { supabase, adminUserId } = await checkAdmin()
+  const action = formData.get('verification_action')
+  if (action !== 'verify' && action !== 'unverify') throw new Error('Invalid verification action')
+
+  const verified = action === 'verify'
+  if (verified && (formData.get('identity_checked') !== 'yes' || formData.get('supporting_documents_checked') !== 'yes')) {
+    throw new Error('Confirm both identity and supporting-document review before publishing a verification badge')
+  }
+
+  const now = new Date().toISOString()
+  const status = verified ? 'VERIFIED' : 'UNVERIFIED'
+  const { data, error } = await supabase
+    .from('listing_verifications')
+    .upsert({
+      listing_id: listingId,
+      status,
+      identity_checked: verified,
+      supporting_documents_checked: verified,
+      verified_by: verified ? adminUserId : null,
+      verified_at: verified ? now : null,
+    }, { onConflict: 'listing_id' })
+    .select('listing_id,status')
+    .single()
+
+  if (error || data?.listing_id !== listingId || data.status !== status) {
+    throw new Error('Could not persist listing verification')
+  }
+
+  revalidatePath('/admin/listings')
+  revalidatePath(`/catalog/${listingId}`)
 }

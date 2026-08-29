@@ -6,6 +6,12 @@ import { getStoredListingPlan, premiumListingFeeCents } from '@/utils/listing-pl
 import { getApplicationOrigin } from '@/utils/navigation.mjs'
 import { canRevealSellerContact, parseListingImageUrls } from '@/utils/listing-safety.mjs'
 import { siteUrl } from '@/utils/site'
+import { parseInquiry } from '@/utils/inquiry-safety.mjs'
+import { sendEmail } from '@/utils/resend'
+import { escapeHtml } from '@/utils/html'
+import { commercialEventKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
+import type { BrowserCommercialContext } from '@/utils/browser-attribution'
+import { parseListingSubmission } from '@/utils/listing-submission.mjs'
 
 type ListingDetailsForm = Record<string, string | number | boolean | null | undefined>
 
@@ -20,7 +26,7 @@ const createAdminClient = () => {
   return createSupabaseClient(supabaseUrl, serviceRoleKey)
 }
 
-export async function logListingView(listingId: string) {
+export async function logListingView(listingId: string, rawContext?: BrowserCommercialContext) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const supabaseAdmin = createAdminClient()
@@ -32,11 +38,20 @@ export async function logListingView(listingId: string) {
     .maybeSingle()
 
   if (listingError || !listing) return false
-  const { error } = await supabaseAdmin.from('listing_events').insert({
+  const context = normalizeCommercialContext(rawContext)
+  const principal = user?.id || context.visitorId
+  if (!principal) return false
+  const eventKey = commercialEventKey({ listingId: listing.id, eventType: 'VIEW', principal })
+  const { error } = await supabaseAdmin.from('listing_events').upsert({
     listing_id: listing.id,
     user_id: user?.id || null,
     event_type: 'VIEW',
-  })
+    event_key: eventKey,
+    referrer_host: context.referrer_host,
+    utm_source: context.utm_source,
+    utm_medium: context.utm_medium,
+    utm_campaign: context.utm_campaign,
+  }, { onConflict: 'event_key', ignoreDuplicates: true })
   if (error) {
     console.error('Failed to log listing view:', error)
     return false
@@ -44,7 +59,7 @@ export async function logListingView(listingId: string) {
   return true
 }
 
-export async function revealSellerContact(listingId: string) {
+export async function revealSellerContact(listingId: string, rawContext?: BrowserCommercialContext) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = user
@@ -82,13 +97,21 @@ export async function revealSellerContact(listingId: string) {
     throw new Error('Premium access is required to reveal this contact')
   }
 
-  const { error: eventError } = await supabaseAdmin
+  const context = normalizeCommercialContext(rawContext)
+  const principal = user?.id || context.visitorId
+  const eventKey = commercialEventKey({ listingId, eventType: 'CONTACT_REVEAL', principal })
+  const { error: eventError } = principal ? await supabaseAdmin
     .from('listing_events')
-    .insert({
+    .upsert({
       listing_id: listingId,
       user_id: user?.id || null,
       event_type: 'CONTACT_REVEAL',
-    })
+      event_key: eventKey,
+      referrer_host: context.referrer_host,
+      utm_source: context.utm_source,
+      utm_medium: context.utm_medium,
+      utm_campaign: context.utm_campaign,
+    }, { onConflict: 'event_key', ignoreDuplicates: true }) : { error: null }
 
   if (eventError) {
     console.error('Failed to log contact reveal:', eventError)
@@ -97,6 +120,137 @@ export async function revealSellerContact(listingId: string) {
   return {
     email: listing.contact_email as string,
     phone: listing.contact_phone as string | null,
+  }
+}
+
+export async function submitListingInquiry(listingId: string, formData: FormData) {
+  let inquiry
+  try {
+    inquiry = parseInquiry(formData)
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unable to submit this enquiry',
+    }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from('users').select('is_premium').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const supabaseAdmin = createAdminClient()
+  const { data: listing, error: listingError } = await supabaseAdmin
+    .from('listings')
+    .select('id,seller_id,title,status,public_at,contact_email')
+    .eq('id', listingId)
+    .maybeSingle()
+
+  if (listingError || !listing) {
+    return { success: false, message: 'This listing is no longer available.' }
+  }
+
+  const canContact = canRevealSellerContact(
+    { status: listing.status, publicAt: listing.public_at, sellerId: listing.seller_id },
+    { userId: user?.id || null, isPremium: profile?.is_premium || false },
+  )
+  if (!canContact) {
+    return { success: false, message: 'Premium access is required during the exclusive window.' }
+  }
+
+  const duplicateCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  const { data: duplicate } = await supabaseAdmin
+    .from('marketplace_inquiries')
+    .select('id')
+    .eq('listing_id', listing.id)
+    .eq('buyer_email', inquiry.buyer_email)
+    .gte('created_at', duplicateCutoff)
+    .neq('status', 'SPAM')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (duplicate?.id) {
+    return {
+      success: true,
+      duplicate: true,
+      message: 'Your enquiry is already recorded. The seller can see it in AeroTrade.',
+    }
+  }
+
+  const { data: stored, error: insertError } = await supabaseAdmin
+    .from('marketplace_inquiries')
+    .insert({
+      listing_id: listing.id,
+      buyer_user_id: user?.id || null,
+      ...inquiry,
+      source: 'listing_form',
+      status: 'NEW',
+    })
+    .select('id')
+    .single()
+
+  if (insertError || !stored?.id) {
+    console.error('Could not store marketplace enquiry:', insertError)
+    return { success: false, message: 'We could not save your enquiry. Please try again.' }
+  }
+
+  const listingUrl = `${siteUrl}/catalog/${listing.id}`
+  const delivery = await sendEmail(
+    listing.contact_email,
+    `New AeroTrade enquiry: ${listing.title}`,
+    `<h2>A buyer is interested in your AeroTrade listing</h2>
+    <p><strong>Listing:</strong> <a href="${escapeHtml(listingUrl)}">${escapeHtml(listing.title)}</a></p>
+    <p><strong>Name:</strong> ${escapeHtml(inquiry.buyer_name)}</p>
+    <p><strong>Email:</strong> <a href="mailto:${escapeHtml(inquiry.buyer_email)}">${escapeHtml(inquiry.buyer_email)}</a></p>
+    ${inquiry.buyer_phone ? `<p><strong>Phone:</strong> ${escapeHtml(inquiry.buyer_phone)}</p>` : ''}
+    <p><strong>Message:</strong></p>
+    <p>${escapeHtml(inquiry.message).replaceAll('\n', '<br />')}</p>
+    <p>This enquiry is also recorded in your AeroTrade dashboard so its outcome can be tracked.</p>`,
+    { idempotencyKey: `aerotrade-inquiry-${stored.id}-seller` },
+  )
+
+  const notificationUpdate = delivery.success && delivery.resendId
+    ? {
+        status: 'SELLER_NOTIFIED',
+        seller_notification_status: 'accepted',
+        seller_notification_provider_id: delivery.resendId,
+        seller_notification_error: null,
+        last_activity_at: new Date().toISOString(),
+      }
+    : {
+        seller_notification_status: 'failed',
+        seller_notification_error: 'Provider acceptance was not confirmed.',
+      }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('marketplace_inquiries')
+    .update(notificationUpdate)
+    .eq('id', stored.id)
+
+  if (updateError) {
+    console.error('Could not persist marketplace enquiry notification result:', updateError)
+  }
+
+  const { data: readback, error: readbackError } = await supabaseAdmin
+    .from('marketplace_inquiries')
+    .select('id,status,seller_notification_status')
+    .eq('id', stored.id)
+    .single()
+
+  if (readbackError || !readback?.id) {
+    console.error('Marketplace enquiry readback failed:', readbackError)
+    return {
+      success: true,
+      message: 'Your enquiry was saved, but its notification status needs an internal review.',
+    }
+  }
+
+  return {
+    success: true,
+    message: delivery.success
+      ? 'Your enquiry has been sent to the seller and recorded by AeroTrade.'
+      : 'Your enquiry is safely recorded. The seller can see it in AeroTrade even though the email notification needs a retry.',
   }
 }
 
@@ -124,28 +278,10 @@ export async function updateListing(formData: FormData) {
     throw new Error('Unauthorized')
   }
 
-  const category = formData.get('category') as string
-  const getTextValue = (name: string) => {
-    const value = formData.get(name)
-    return typeof value === 'string' ? value : null
-  }
+  const submission = parseListingSubmission(formData)
   const details: ListingDetailsForm = {
     ...((listing.details || {}) as ListingDetailsForm),
-  }
-  
-  // Extract common details based on category
-  if (['complete', 'envelopes'].includes(category)) {
-    details.manufacturer = getTextValue('manufacturer')
-    details.model = getTextValue('model')
-    details.year = getTextValue('year')
-    details.hours = getTextValue('hours')
-    details.registration = getTextValue('registration')
-    details.serial = getTextValue('serial')
-  }
-
-  if (category === 'baskets' || category === 'burners' || category === 'bottom-end') {
-    details.dimensions = getTextValue('dimensions')
-    details.type = getTextValue('type')
+    ...submission.details,
   }
 
   const storedPlan = getStoredListingPlan(listing.details)
@@ -154,15 +290,7 @@ export async function updateListing(formData: FormData) {
   }
 
   const listingData = {
-    category,
-    title: formData.get('title') as string,
-    description: formData.get('description') as string,
-    price: parseFloat(formData.get('price') as string),
-    currency: formData.get('currency') as string,
-    condition: formData.get('condition') as string,
-    location_country: formData.get('location_country') as string,
-    contact_email: formData.get('contact_email') as string,
-    contact_phone: formData.get('contact_phone') as string,
+    ...submission,
     details,
   }
 

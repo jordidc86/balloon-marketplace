@@ -43,6 +43,41 @@ const checks = [
     required: ['canRevealSellerContact', 'Premium access is required to reveal this contact', "event_type: 'CONTACT_REVEAL'", 'user_id: user?.id || null'],
   },
   {
+    name: 'Marketplace enquiries are private, durable and seller-manageable',
+    file: 'supabase/migrations/20260829100000_marketplace_inquiry_pipeline.sql',
+    required: ['marketplace_inquiries', 'enable row level security', 'revoke all on public.marketplace_inquiries from anon', 'Sellers can view enquiries for their listings', "status in ('NEW', 'SELLER_NOTIFIED', 'CONTACTED', 'QUALIFIED', 'NEGOTIATING', 'WON', 'LOST', 'SPAM')"],
+  },
+  {
+    name: 'Buyer enquiries fail closed on storage and preserve provider evidence',
+    file: 'src/app/catalog/[id]/actions.ts',
+    required: ['parseInquiry(formData)', "from('marketplace_inquiries')", 'seller_notification_provider_id', 'Provider acceptance was not confirmed.', 'Marketplace enquiry readback failed'],
+  },
+  {
+    name: 'Commercial operational emails have private durable receipts',
+    file: 'supabase/migrations/20260829130000_commercial_notification_receipts.sql',
+    required: ['commercial_notification_receipts', 'idempotency_key text not null unique', 'enable row level security', 'revoke all on public.commercial_notification_receipts from anon, authenticated'],
+  },
+  {
+    name: 'Listing trust badges have an explicit non-airworthiness boundary',
+    file: 'supabase/migrations/20260829110000_listing_verification.sql',
+    required: ['listing_verifications', 'supporting_documents_checked', 'This is not an airworthiness inspection.', 'enable row level security'],
+  },
+  {
+    name: 'Commercial events are daily-deduplicated without raw visitor ids',
+    file: 'supabase/migrations/20260829120000_deduplicate_commercial_events.sql',
+    required: ['event_key text', 'listing_events_event_key_unique', 'referrer_host', 'utm_source'],
+  },
+  {
+    name: 'Listing submissions are validated again on the server',
+    file: 'src/utils/listing-submission.mjs',
+    required: ['listingCategories', 'listingConditions', 'listingCurrencies', 'seller_declaration', 'supporting_documents_available', 'Serial number'],
+  },
+  {
+    name: 'Admin has one evidence-based commercial pipeline',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['Commercial Pipeline', 'Open opportunities', 'Won outcomes', 'Revenue evidence', 'This is not net revenue.'],
+  },
+  {
     name: 'New-balloon quotes fail closed unless the lead is durably stored',
     file: 'src/app/new-balloon/actions.ts',
     required: ["select('id')", 'Quote request readback did not return an id', 'aerotrade-quote-${requestId}'],

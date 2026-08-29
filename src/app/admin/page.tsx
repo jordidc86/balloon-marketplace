@@ -41,6 +41,7 @@ export default async function AdminPage() {
   // Fetch KPI data
   const { count: usersCount } = await supabase.from('users').select('*', { count: 'exact', head: true })
   const { count: premiumCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_premium', true)
+  const { count: stripePremiumCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_premium', true).eq('premium_source', 'stripe')
   const { count: activeListings } = await supabase.from('listings').select('*', { count: 'exact', head: true }).in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
   const { count: pendingListings } = await supabase.from('listings').select('*', { count: 'exact', head: true }).in('status', ['DRAFT', 'PENDING_PAYMENT'])
   const { data: newsletterRuns, error: newsletterRunsError } = await supabase
@@ -73,7 +74,7 @@ export default async function AdminPage() {
             <div className="bg-accent/10 p-2 rounded-lg"><DollarSign className="w-5 h-5 text-accent" /></div>
           </div>
           <p className="text-3xl font-bold text-accent">{premiumCount || 0}</p>
-          <p className="text-xs text-muted-foreground mt-2">Paying actively</p>
+          <p className="text-xs text-muted-foreground mt-2">{stripePremiumCount || 0} Stripe-managed · {Math.max(0, (premiumCount || 0) - (stripePremiumCount || 0))} granted or legacy</p>
         </div>
 
         {/* Active Listings */}

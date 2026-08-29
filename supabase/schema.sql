@@ -354,3 +354,99 @@ create policy "Admins can do everything on premium_alert_runs" on public.premium
 
 create policy "Admins can do everything on premium_alert_recipients" on public.premium_alert_recipients for all
   using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
+
+-- 2026-08-29 COMMERCIAL PIPELINE
+create table public.marketplace_inquiries (
+  id uuid default uuid_generate_v4() primary key,
+  listing_id uuid not null references public.listings(id) on delete restrict,
+  buyer_user_id uuid references public.users(id) on delete set null,
+  buyer_name text not null check (char_length(buyer_name) between 2 and 120),
+  buyer_email text not null check (char_length(buyer_email) between 5 and 320),
+  buyer_phone text check (buyer_phone is null or char_length(buyer_phone) <= 60),
+  message text not null check (char_length(message) between 20 and 2000),
+  source text not null default 'listing_form' check (source in ('listing_form', 'admin', 'import')),
+  status text not null default 'NEW' check (status in ('NEW', 'SELLER_NOTIFIED', 'CONTACTED', 'QUALIFIED', 'NEGOTIATING', 'WON', 'LOST', 'SPAM')),
+  seller_notification_status text not null default 'pending' check (seller_notification_status in ('pending', 'accepted', 'failed', 'not_required')),
+  seller_notification_provider_id text,
+  seller_notification_error text,
+  last_activity_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  closed_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create index marketplace_inquiries_listing_created_idx on public.marketplace_inquiries (listing_id, created_at desc);
+create index marketplace_inquiries_status_activity_idx on public.marketplace_inquiries (status, last_activity_at desc);
+create index marketplace_inquiries_buyer_email_idx on public.marketplace_inquiries (lower(buyer_email), created_at desc);
+create trigger set_marketplace_inquiries_updated_at before update on public.marketplace_inquiries for each row execute procedure public.set_updated_at();
+alter table public.marketplace_inquiries enable row level security;
+revoke all on public.marketplace_inquiries from anon, authenticated;
+grant select on public.marketplace_inquiries to authenticated;
+grant update (status, last_activity_at, closed_at, updated_at) on public.marketplace_inquiries to authenticated;
+create policy "Sellers can view enquiries for their listings" on public.marketplace_inquiries for select to authenticated
+  using (exists (select 1 from public.listings where listings.id = marketplace_inquiries.listing_id and listings.seller_id = auth.uid()));
+create policy "Sellers can update enquiries for their listings" on public.marketplace_inquiries for update to authenticated
+  using (exists (select 1 from public.listings where listings.id = marketplace_inquiries.listing_id and listings.seller_id = auth.uid()))
+  with check (exists (select 1 from public.listings where listings.id = marketplace_inquiries.listing_id and listings.seller_id = auth.uid()));
+create policy "Admins can manage marketplace enquiries" on public.marketplace_inquiries for all to authenticated
+  using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'))
+  with check (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
+
+create table public.listing_verifications (
+  listing_id uuid primary key references public.listings(id) on delete cascade,
+  status text not null default 'UNVERIFIED' check (status in ('UNVERIFIED', 'IN_REVIEW', 'VERIFIED', 'REJECTED')),
+  identity_checked boolean not null default false,
+  supporting_documents_checked boolean not null default false,
+  public_summary text not null default 'Seller identity and supporting listing evidence reviewed by AeroTrade. This is not an airworthiness inspection.' check (char_length(public_summary) between 20 and 500),
+  verified_by uuid references public.users(id) on delete set null,
+  verified_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+create trigger set_listing_verifications_updated_at before update on public.listing_verifications for each row execute procedure public.set_updated_at();
+alter table public.listing_verifications enable row level security;
+revoke all on public.listing_verifications from anon, authenticated;
+grant select on public.listing_verifications to authenticated;
+create policy "Sellers can view verification for their listings" on public.listing_verifications for select to authenticated
+  using (exists (select 1 from public.listings where listings.id = listing_verifications.listing_id and listings.seller_id = auth.uid()));
+create policy "Admins can manage listing verification" on public.listing_verifications for all to authenticated
+  using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'))
+  with check (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));
+
+alter table public.listing_events
+  add column event_key text,
+  add column referrer_host text,
+  add column utm_source text,
+  add column utm_medium text,
+  add column utm_campaign text,
+  add constraint listing_events_event_key_length check (event_key is null or char_length(event_key) = 64),
+  add constraint listing_events_referrer_host_length check (referrer_host is null or char_length(referrer_host) <= 255),
+  add constraint listing_events_utm_source_length check (utm_source is null or char_length(utm_source) <= 120),
+  add constraint listing_events_utm_medium_length check (utm_medium is null or char_length(utm_medium) <= 120),
+  add constraint listing_events_utm_campaign_length check (utm_campaign is null or char_length(utm_campaign) <= 120);
+create unique index listing_events_event_key_unique on public.listing_events (event_key) where event_key is not null;
+create index listing_events_attribution_idx on public.listing_events (utm_source, event_type, created_at desc);
+
+create table public.commercial_notification_receipts (
+  id uuid default uuid_generate_v4() primary key,
+  notification_type text not null check (notification_type in ('listing_created_admin', 'quote_created_admin')),
+  entity_type text not null check (entity_type in ('listing', 'quote_request')),
+  entity_id uuid not null,
+  recipient_role text not null default 'admin' check (recipient_role in ('admin', 'seller')),
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'failed')),
+  provider_message_id text,
+  error_message text,
+  idempotency_key text not null unique,
+  attempted_at timestamp with time zone,
+  accepted_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+create index commercial_notification_receipts_entity_idx on public.commercial_notification_receipts (entity_type, entity_id, created_at desc);
+create index commercial_notification_receipts_attention_idx on public.commercial_notification_receipts (status, created_at desc);
+create trigger set_commercial_notification_receipts_updated_at before update on public.commercial_notification_receipts for each row execute procedure public.set_updated_at();
+alter table public.commercial_notification_receipts enable row level security;
+revoke all on public.commercial_notification_receipts from anon, authenticated;
+create policy "Admins can manage commercial notification receipts" on public.commercial_notification_receipts for all to authenticated
+  using (exists (select 1 from public.users where id = auth.uid() and role = 'admin'))
+  with check (exists (select 1 from public.users where id = auth.uid() and role = 'admin'));

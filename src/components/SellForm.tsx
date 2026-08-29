@@ -12,6 +12,7 @@ import { updateListing } from '@/app/catalog/[id]/actions'
 import { maxListingImages } from '@/utils/listing-safety.mjs'
 
 const maxImageBytes = 5 * 1024 * 1024
+const nextCalendarYear = new Date().getFullYear() + 1
 
 type ExistingImage = {
   url: string
@@ -28,11 +29,11 @@ type SellFormInitialData = {
   location_country?: string
   contact_email?: string
   contact_phone?: string
-  details?: Record<string, string | number | null | undefined>
+  details?: Record<string, string | number | boolean | null | undefined>
   images?: ExistingImage[]
 }
 
-export default function SellForm({ userId, initialData }: { userId?: string | null; initialData?: SellFormInitialData }) {
+export default function SellForm({ userId, defaultContactEmail, initialData }: { userId?: string | null; defaultContactEmail?: string | null; initialData?: SellFormInitialData }) {
   const router = useRouter()
   const supabase = createClient()
   const isEditing = !!initialData
@@ -224,28 +225,28 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
             {needsFlightData && (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Manufacturer</label>
-                  <input type="text" name="manufacturer" defaultValue={initialData?.details?.manufacturer || ''} placeholder="e.g. Cameron Balloons" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <label className="text-sm font-medium">Manufacturer *</label>
+                  <input type="text" name="manufacturer" required defaultValue={String(initialData?.details?.manufacturer || '')} placeholder="e.g. Cameron Balloons" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Model / Volume</label>
-                  <input type="text" name="model" defaultValue={initialData?.details?.model || ''} placeholder="e.g. Z-105 / 105,000 cu ft" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <label className="text-sm font-medium">Model / Volume *</label>
+                  <input type="text" name="model" required defaultValue={String(initialData?.details?.model || '')} placeholder="e.g. Z-105 / 105,000 cu ft" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Year of Manufacture</label>
-                  <input type="number" name="year" defaultValue={initialData?.details?.year || ''} placeholder="2018" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <label className="text-sm font-medium">Year of Manufacture *</label>
+                  <input type="number" name="year" required min="1900" max={nextCalendarYear} defaultValue={String(initialData?.details?.year || '')} placeholder="2018" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-primary">Total Hours Flown *</label>
-                  <input type="number" name="hours" required defaultValue={initialData?.details?.hours || ''} placeholder="e.g. 145" className="w-full px-3 py-2 border border-primary/30 rounded-lg bg-input/50 outline-none" />
+                  <input type="number" name="hours" required min="0" max="100000" defaultValue={String(initialData?.details?.hours || '')} placeholder="e.g. 145" className="w-full px-3 py-2 border border-primary/30 rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Registration</label>
-                  <input type="text" name="registration" defaultValue={initialData?.details?.registration || ''} placeholder="e.g. G-XXXX" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <input type="text" name="registration" defaultValue={String(initialData?.details?.registration || '')} placeholder="e.g. G-XXXX" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Serial Number</label>
-                  <input type="text" name="serial" defaultValue={initialData?.details?.serial || ''} className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <label className="text-sm font-medium">Serial Number *</label>
+                  <input type="text" name="serial" required defaultValue={String(initialData?.details?.serial || '')} className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
               </>
             )}
@@ -254,12 +255,12 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
               <>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Dimensions</label>
-                  <input type="text" name="dimensions" defaultValue={initialData?.details?.dimensions || ''} placeholder="e.g. 1.10 x 1.50m Solid Floor" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                  <input type="text" name="dimensions" defaultValue={String(initialData?.details?.dimensions || '')} placeholder="e.g. 1.10 x 1.50m Solid Floor" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                 </div>
                 {category === 'burners' && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Burner Type</label>
-                    <input type="text" name="type" defaultValue={initialData?.details?.type || ''} placeholder="e.g. Shadow Double" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+                    <input type="text" name="type" defaultValue={String(initialData?.details?.type || '')} placeholder="e.g. Shadow Double" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
                   </div>
                 )}
               </>
@@ -302,7 +303,7 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
            <div className="space-y-2">
             <label className="text-sm font-medium">Contact Email *</label>
-            <input type="email" name="contact_email" defaultValue={initialData?.contact_email || ''} required placeholder="Your email for buyers" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
+            <input type="email" name="contact_email" defaultValue={initialData?.contact_email || defaultContactEmail || ''} required placeholder="Your email for buyers" className="w-full px-3 py-2 border rounded-lg bg-input/50 outline-none" />
             <p className="text-xs text-muted-foreground">Hidden behind "Contact Seller" button.</p>
           </div>
           <div className="space-y-2">
@@ -359,6 +360,23 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
         </div>
       </div>
 
+      <div className="space-y-4 rounded-xl border bg-muted/20 p-5">
+        <h2 className="text-xl font-semibold">5. Seller evidence and declaration</h2>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="supporting_documents_available" value="yes" defaultChecked={initialData?.details?.supporting_documents_available === true} className="mt-1" />
+          <span>I can provide supporting ownership, maintenance or equipment documentation to a serious buyer.</span>
+        </label>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium">Last inspection date (optional)</label>
+          <input type="date" name="last_inspection_date" defaultValue={String(initialData?.details?.last_inspection_date || '')} className="rounded-lg border bg-background px-3 py-2" />
+        </div>
+        <label className="flex items-start gap-3 text-sm font-medium">
+          <input type="checkbox" name="seller_declaration" value="yes" required defaultChecked={initialData?.details?.seller_declaration === true} className="mt-1" />
+          <span>I confirm that this listing is accurate, I am entitled to offer the equipment, and I will disclose material defects to prospective buyers. *</span>
+        </label>
+        <p className="text-xs text-muted-foreground">Seller declarations are not AeroTrade verification or an airworthiness assessment.</p>
+      </div>
+
       {/* SUBMISSION */}
       <div className="pt-6 border-t flex flex-col items-center gap-4">
         {submissionError && (
@@ -368,7 +386,7 @@ export default function SellForm({ userId, initialData }: { userId?: string | nu
         )}
         {!isEditing && (
           <div className="w-full space-y-3">
-            <h2 className="text-xl font-semibold">5. Listing Plan</h2>
+            <h2 className="text-xl font-semibold">6. Listing Plan</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <label className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors ${listingPlan === 'free' ? 'border-primary bg-primary/5' : 'bg-background hover:bg-muted/30'}`}>
                 <input

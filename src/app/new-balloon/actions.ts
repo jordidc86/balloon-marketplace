@@ -4,7 +4,7 @@ import { createAdminClient } from '@/utils/supabase/server'
 import { sendEmail } from '@/utils/resend'
 import { redirect } from 'next/navigation'
 
-const adminEmail = process.env.ADMIN_EMAIL || 'jordi.diaz.casaubon@gmail.com'
+const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
 const getFormString = (formData: FormData, key: string) => {
   const value = formData.get(key)
@@ -68,7 +68,27 @@ export async function submitNewBalloonQuote(formData: FormData) {
     `)
     .join('')
 
-  const delivery = await sendEmail(
+  const supabase = await createAdminClient()
+  const notificationKey = `aerotrade-quote-${requestId}`
+  const { data: receipt, error: receiptError } = await supabase
+    .from('commercial_notification_receipts')
+    .upsert({
+      notification_type: 'quote_created_admin',
+      entity_type: 'quote_request',
+      entity_id: requestId,
+      recipient_role: 'admin',
+      status: 'pending',
+      idempotency_key: notificationKey,
+    }, { onConflict: 'idempotency_key' })
+    .select('id')
+    .single()
+
+  if (receiptError || !receipt?.id) {
+    console.error(`Quote request ${requestId} was stored but its notification receipt could not be created`)
+    redirect('/new-balloon?success=true')
+  }
+
+  const delivery = adminEmail ? await sendEmail(
     adminEmail,
     `New Pasha/Schroeder balloon quote request: ${request.name}`,
     `
@@ -76,11 +96,27 @@ export async function submitNewBalloonQuote(formData: FormData) {
       <p>A buyer is asking for a fast price indication and first visual concept for a new Pasha or Schroeder balloon.</p>
       <table style="border-collapse: collapse; width: 100%; max-width: 720px;">${rows}</table>
     `,
-    { idempotencyKey: `aerotrade-quote-${requestId}` },
-  )
+    { idempotencyKey: notificationKey },
+  ) : { success: false, resendId: undefined }
 
-  if (!delivery.success || !delivery.resendId) {
-    console.error(`Quote request ${requestId} was stored but its admin notification was not accepted`)
+  const accepted = delivery.success && delivery.resendId
+  const expectedStatus = accepted ? 'accepted' : 'failed'
+  const now = new Date().toISOString()
+  const { data: notificationReadback, error: notificationError } = await supabase
+    .from('commercial_notification_receipts')
+    .update({
+      status: expectedStatus,
+      provider_message_id: accepted ? delivery.resendId : null,
+      error_message: accepted ? null : adminEmail ? 'Provider acceptance was not confirmed.' : 'ADMIN_EMAIL is not configured.',
+      attempted_at: now,
+      accepted_at: accepted ? now : null,
+    })
+    .eq('id', receipt.id)
+    .select('id,status')
+    .single()
+
+  if (notificationError || notificationReadback?.status !== expectedStatus) {
+    console.error(`Quote request ${requestId} was stored but its notification result could not be verified`)
   }
 
   redirect('/new-balloon?success=true')

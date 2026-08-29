@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "projectId": "aerotrade",
+  "readOnly": true,
+  "capturedAt": "2026-08-29T06:04:39.700Z",
+  "period": {
+    "rollingDays": 30,
+    "since": "2026-07-30T06:04:39.700Z"
+  },
+  "supply": {
+    "listingsTotal": 14,
+    "listingsByStatus": {
+      "ACTIVE_PUBLIC": 13,
+      "PENDING_PAYMENT": 1
+    },
+    "activeListings": 13,
+    "activeByCategory": {
+      "burners": 2,
+      "bottom-end": 2,
+      "complete": 7,
+      "envelopes": 2
+    },
+    "activeByCountry": {
+      "Türkiye": 5,
+      "Belgium": 2,
+      "spain": 1,
+      "Czech Republic": 1,
+      "Spain": 2,
+      "España ": 1,
+      "Prague, Czech Republic": 1
+    },
+    "activeSellers": 6,
+    "largestSellerActiveListings": 5,
+    "topThreeSellerShare": 0.7692,
+    "staleActiveListings": 0
+  },
+  "quality": {
+    "activeWithoutImages": 0,
+    "activeWithoutExactlyOnePrimaryImage": 0,
+    "activeWithAtLeastThreeImages": 8,
+    "flightListings": 9,
+    "flightFieldCoverage": {
+      "manufacturer": {
+        "complete": 9,
+        "eligible": 9
+      },
+      "model": {
+        "complete": 9,
+        "eligible": 9
+      },
+      "year": {
+        "complete": 9,
+        "eligible": 9
+      },
+      "hours": {
+        "complete": 9,
+        "eligible": 9
+      },
+      "registration": {
+        "complete": 9,
+        "eligible": 9
+      },
+      "serial": {
+        "complete": 7,
+        "eligible": 9
+      }
+    },
+    "activeWithPhone": 12,
+    "verifiableTrustStateAvailable": true,
+    "verifiedListings": 0,
+    "caveat": "Verification records document review only; they do not represent airworthiness or a physical inspection."
+  },
+  "demand": {
+    "usersTotal": 16,
+    "newUsers30d": 1,
+    "premiumUsers": 8,
+    "premiumBySource": {
+      "legacy": 6,
+      "stripe": 2
+    },
+    "views30d": 60,
+    "viewedListings30d": 13,
+    "contactReveals30d": 0,
+    "contactedListings30d": 0,
+    "registeredContactReveals30d": 0,
+    "anonymousContactReveals30d": 0,
+    "viewToContactRate": 0
+  },
+  "opportunities": {
+    "quoteRequestsTotal": 0,
+    "quoteRequests30d": 0,
+    "quoteRequestsByStatus": {},
+    "quotesWithMinimumContactData": 0,
+    "marketplaceLeadPipelineAvailable": true,
+    "marketplaceInquiries": 0,
+    "marketplaceInquiriesByStatus": {},
+    "failedSellerNotifications": 0,
+    "closedMarketplaceTransactionsKnown": 0,
+    "caveat": "WON is an explicit recorded outcome; transaction value and settlement are not inferred."
+  },
+  "communications": {
+    "newsletterRuns": 11,
+    "successfulLiveNewsletterRuns": 3,
+    "newsletterRecipientsAccepted": 45,
+    "premiumAlertRuns": 2,
+    "successfulPremiumAlertRuns": 1,
+    "premiumAlertRecipientsAccepted": 7,
+    "commercialNotificationReceipts": 0,
+    "commercialNotificationStatuses": {},
+    "runStatuses": {
+      "newsletters": {
+        "skipped": 6,
+        "sent": 3,
+        "partial": 2
+      },
+      "premiumAlerts": {
+        "failed": 1,
+        "sent": 1
+      }
+    }
+  },
+  "revenue": {
+    "stripeEventsByType": {
+      "aerotrade.audit": 1,
+      "checkout.session.completed": 1,
+      "aerotrade.deploy_test": 1
+    },
+    "stripeEventsByStatus": {
+      "processed": 3
+    },
+    "paymentReceipts": 0,
+    "livePaymentReceipts": 0,
+    "liveGrossMinorByCurrency": {},
+    "receiptTypes": {},
+    "caveat": "Gross accepted amounts are not net revenue and exclude fees, tax, refunds and disputes."
+  },
+  "integrity": {
+    "containsPii": false,
+    "queryProfile": "1b0ae2e589f4308eff9559034ba05076c1b4086d28d79089bb35b30f08c98594"
+  }
+}

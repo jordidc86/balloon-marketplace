@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import "./globals.css";
+import { siteUrl } from '@/utils/site'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +16,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "AeroTrade | Global Hot Air Balloon Marketplace",
   description: "The private global exchange for lighter-than-air aviation. Buy and sell used hot air balloons, baskets, burners, and accessories.",
+  openGraph: {
+    type: 'website',
+    siteName: 'AeroTrade',
+    title: 'AeroTrade | Global Hot Air Balloon Marketplace',
+    description: 'Buy and sell used hot air balloons, envelopes, baskets, burners and accessories across Europe and worldwide.',
+    url: siteUrl,
+  },
 };
 
 export default function RootLayout({

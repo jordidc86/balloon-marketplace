@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, Users, Grid } from 'lucide-react'
+import { LayoutDashboard, Users, Grid, TrendingUp } from 'lucide-react'
 
 export default async function AdminLayout({
   children,
@@ -43,6 +43,9 @@ export default async function AdminLayout({
           </Link>
           <Link href="/admin/listings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors">
             <Grid className="w-4 h-4 text-primary" /> Review Listings
+          </Link>
+          <Link href="/admin/commercial" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors">
+            <TrendingUp className="w-4 h-4 text-primary" /> Commercial Pipeline
           </Link>
         </nav>
       </aside>

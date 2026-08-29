@@ -14,6 +14,9 @@ export type ListingDetails = {
   dimensions?: string | number | null
   type?: string | number | null
   listing_plan?: 'free' | 'premium' | null
+  seller_declaration?: boolean | null
+  supporting_documents_available?: boolean | null
+  last_inspection_date?: string | null
 }
 
 export type ListingWithImages = {

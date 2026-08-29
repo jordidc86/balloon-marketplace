@@ -2,7 +2,7 @@ import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { formatDistanceToNow } from 'date-fns'
-import { Lock, MapPin, Calendar, Activity, CheckCircle2 } from 'lucide-react'
+import { Lock, MapPin, Calendar, Activity, CheckCircle2, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import ContactSeller from './ContactSeller'
 import { Metadata } from 'next'
@@ -10,6 +10,7 @@ import { getListingVisibility, getPublicTeaserTitle, type ListingWithImages } fr
 import { siteUrl } from '@/utils/site'
 import { payListingFee, publishListingFree } from './actions'
 import ListingViewTracker from './ListingViewTracker'
+import BuyerInquiryForm from './BuyerInquiryForm'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
@@ -34,12 +35,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       title: `${getPublicTeaserTitle(listing.category)} | AeroTrade Marketplace`,
       description: 'This AeroTrade listing is currently in the 48-hour Premium Exclusive window.',
       robots: { index: false, follow: true },
+      alternates: { canonical: `/catalog/${id}` },
     }
   }
 
   return {
     title: `${listing.title} | AeroTrade Marketplace`,
     description: listing.description?.substring(0, 160) || `Buy ${listing.title} on AeroTrade.`,
+    alternates: { canonical: `/catalog/${id}` },
   }
 }
 
@@ -74,7 +77,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       public_at,
       created_at,
       updated_at,
-      images(url, is_primary)
+      images(url, is_primary),
+      listing_verifications(status, public_summary, verified_at)
     `)
     .eq('id', id)
     .single()
@@ -84,6 +88,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   }
 
   const typedListing = listing as ListingWithImages
+  const verification = (listing as typeof listing & { listing_verifications?: Array<{ status: string; public_summary: string; verified_at: string | null }> }).listing_verifications?.[0]
+  const isDocumentChecked = verification?.status === 'VERIFIED'
 
   // Determine visibility rights
   const { isPremiumExclusive, isOwner, canViewFully } = getListingVisibility(
@@ -151,6 +157,16 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           </Link>
         </div>
       )}
+
+      {canViewFully && isDocumentChecked ? (
+        <div className="mb-8 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">AeroTrade document-checked listing</p>
+            <p className="mt-1 text-sm">{verification.public_summary}</p>
+          </div>
+        </div>
+      ) : null}
 
       {isPremiumExclusive && canViewFully && !isOwner && (
         <div className="bg-primary/10 text-primary border border-primary/20 p-4 rounded-xl mb-8 flex items-center gap-3">
@@ -269,6 +285,17 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
+            {canViewFully && (typedListing.details?.supporting_documents_available || typedListing.details?.last_inspection_date) ? (
+              <div className="mt-6 rounded-xl border bg-muted/30 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Seller-declared supporting information</p>
+                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                  {typedListing.details?.supporting_documents_available ? <span className="rounded-full bg-background px-3 py-1 font-medium">Supporting documents available</span> : null}
+                  {typedListing.details?.last_inspection_date ? <span className="rounded-full bg-background px-3 py-1 font-medium">Last inspection stated: {String(typedListing.details.last_inspection_date)}</span> : null}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Declared by the seller; not independently verified unless the AeroTrade document-checked badge appears above.</p>
+              </div>
+            ) : null}
+
             <div className="mt-8">
               <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-2">Description</span>
               <p className="whitespace-pre-wrap text-foreground/90 leading-relaxed">
@@ -319,7 +346,13 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                  </Link>
                </div>
             ) : (
-              <ContactSeller listingId={typedListing.id} />
+              <div className="space-y-4">
+                <BuyerInquiryForm listingId={typedListing.id} />
+                <div className="pt-3 border-t">
+                  <p className="mb-3 text-center text-xs text-muted-foreground">Prefer to contact the seller directly?</p>
+                  <ContactSeller listingId={typedListing.id} />
+                </div>
+              </div>
             )}
           </div>
 

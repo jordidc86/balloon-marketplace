@@ -2,12 +2,24 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Plus, CheckCircle, Clock, CreditCard } from 'lucide-react'
-import { openBillingPortal } from './actions'
+import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone } from 'lucide-react'
+import { openBillingPortal, updateSellerInquiryStatus } from './actions'
 
 type DashboardListingImage = {
   url: string
   is_primary?: boolean | null
+}
+
+type SellerInquiry = {
+  id: string
+  buyer_name: string
+  buyer_email: string
+  buyer_phone: string | null
+  message: string
+  status: string
+  seller_notification_status: string
+  created_at: string
+  listings: { id: string; title: string } | null
 }
 
 export default async function DashboardPage() {
@@ -33,6 +45,11 @@ export default async function DashboardPage() {
     .from('listings')
     .select('*, images(url, is_primary, created_at)')
     .eq('seller_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const { data: inquiries } = await supabase
+    .from('marketplace_inquiries')
+    .select('id,buyer_name,buyer_email,buyer_phone,message,status,seller_notification_status,created_at,listings(id,title)')
     .order('created_at', { ascending: false })
 
   const isPremium = profile?.is_premium || false
@@ -135,6 +152,52 @@ export default async function DashboardPage() {
               )}
             </div>
           </div>
+        </div>
+
+        <div className="mt-8 rounded-2xl border bg-background p-6 shadow-sm">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2"><MessageSquare className="h-5 w-5 text-primary" /></div>
+            <div>
+              <h2 className="text-lg font-semibold">Buyer enquiries</h2>
+              <p className="text-sm text-muted-foreground">Track each opportunity through contact, negotiation and outcome.</p>
+            </div>
+          </div>
+          {!inquiries?.length ? (
+            <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No tracked enquiries yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {(inquiries as unknown as SellerInquiry[]).map((inquiry) => (
+                <article key={inquiry.id} className="rounded-xl border p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{inquiry.status}</span>
+                        {inquiry.seller_notification_status === 'failed' ? <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">Email notification failed — visible here</span> : null}
+                      </div>
+                      <p className="font-semibold">{inquiry.buyer_name} · {inquiry.listings?.title || 'Listing'}</p>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <a href={`mailto:${inquiry.buyer_email}`} className="inline-flex items-center gap-1 text-primary hover:underline"><Mail className="h-4 w-4" />{inquiry.buyer_email}</a>
+                        {inquiry.buyer_phone ? <a href={`tel:${inquiry.buyer_phone}`} className="inline-flex items-center gap-1 hover:underline"><Phone className="h-4 w-4" />{inquiry.buyer_phone}</a> : null}
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm text-muted-foreground">{inquiry.message}</p>
+                      <p className="text-xs text-muted-foreground">Received {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Madrid' }).format(new Date(inquiry.created_at))}</p>
+                    </div>
+                    <form action={updateSellerInquiryStatus.bind(null, inquiry.id)} className="flex shrink-0 items-center gap-2">
+                      <select name="status" defaultValue={inquiry.status === 'NEW' || inquiry.status === 'SELLER_NOTIFIED' ? 'CONTACTED' : inquiry.status} className="rounded-lg border bg-background px-3 py-2 text-sm">
+                        <option value="CONTACTED">Contacted</option>
+                        <option value="QUALIFIED">Qualified</option>
+                        <option value="NEGOTIATING">Negotiating</option>
+                        <option value="WON">Won</option>
+                        <option value="LOST">Lost</option>
+                        <option value="SPAM">Spam</option>
+                      </select>
+                      <button className="rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background">Save</button>
+                    </form>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
 
       </div>

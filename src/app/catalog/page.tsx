@@ -9,6 +9,7 @@ import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type Li
 export const metadata: Metadata = {
   title: 'Catalog | AeroTrade Marketplace',
   description: 'Browse the latest hot air balloon equipment worldwide. Find balloons, envelopes, baskets, and burners.',
+  alternates: { canonical: '/catalog' },
 }
 
 export default async function CatalogPage({
@@ -22,6 +23,8 @@ export default async function CatalogPage({
   
   const categoryFilter = typeof params.category === 'string' ? params.category : null
   const searchQuery = typeof params.q === 'string' ? params.q.trim() : ''
+  const countryFilter = typeof params.country === 'string' ? params.country.trim() : ''
+  const sort = typeof params.sort === 'string' && ['newest', 'price_asc', 'price_desc'].includes(params.sort) ? params.sort : 'newest'
 
   // Fetch current user & premium status
   const { data: { user } } = await supabase.auth.getUser()
@@ -32,6 +35,12 @@ export default async function CatalogPage({
   }
 
   // Fetch active listings. Locked premium results are rendered with teaser-only fields.
+  const { data: countryRows } = await supabaseAdmin
+    .from('listings')
+    .select('location_country')
+    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+  const countries = Array.from(new Set((countryRows || []).map((row) => row.location_country).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+
   let query = supabaseAdmin
     .from('listings')
     .select(`
@@ -50,7 +59,6 @@ export default async function CatalogPage({
       images (url, is_primary)
     `)
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
-    .order('created_at', { ascending: false })
 
   if (categoryFilter) {
     query = query.eq('category', categoryFilter)
@@ -60,6 +68,13 @@ export default async function CatalogPage({
     const escapedQuery = searchQuery.replace(/[%_]/g, (value) => `\\${value}`)
     query = query.or(`title.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,location_country.ilike.%${escapedQuery}%`)
   }
+
+  if (countryFilter) query = query.eq('location_country', countryFilter)
+  query = sort === 'price_asc'
+    ? query.order('price', { ascending: true }).order('created_at', { ascending: false })
+    : sort === 'price_desc'
+      ? query.order('price', { ascending: false }).order('created_at', { ascending: false })
+      : query.order('created_at', { ascending: false })
 
   const { data: rawListings, error } = await query
 
@@ -76,7 +91,7 @@ export default async function CatalogPage({
           <p className="text-muted-foreground mt-1">Browse the latest hot air balloon equipment worldwide.</p>
         </div>
 
-        <div className="flex items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
+        <div className="flex max-w-full flex-wrap items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
           <Link href="/catalog" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${!categoryFilter ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>All</Link>
           <Link href="/catalog?category=complete" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'complete' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Balloons</Link>
           <Link href="/catalog?category=envelopes" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'envelopes' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Envelopes</Link>
@@ -87,6 +102,27 @@ export default async function CatalogPage({
           <Link href="/catalog?category=other-equipment" className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'other-equipment' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Other Equipment</Link>
         </div>
       </div>
+
+      <form method="get" action="/catalog" className="mb-8 grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1fr_220px_180px_auto]">
+        {categoryFilter ? <input type="hidden" name="category" value={categoryFilter} /> : null}
+        <label className="relative">
+          <span className="sr-only">Search equipment</span>
+          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <input name="q" defaultValue={searchQuery} placeholder="Manufacturer, model, country…" className="w-full rounded-lg border bg-background py-2.5 pl-9 pr-3" />
+        </label>
+        <select name="country" defaultValue={countryFilter} className="rounded-lg border bg-background px-3 py-2.5">
+          <option value="">All countries</option>
+          {countries.map((country) => <option key={country} value={country}>{country.trim()}</option>)}
+        </select>
+        <select name="sort" defaultValue={sort} className="rounded-lg border bg-background px-3 py-2.5">
+          <option value="newest">Newest first</option>
+          <option value="price_asc">Lowest price</option>
+          <option value="price_desc">Highest price</option>
+        </select>
+        <button className="rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background">Apply</button>
+      </form>
+
+      <p className="mb-4 text-sm text-muted-foreground">{rawListings?.length || 0} matching listing(s)</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {(rawListings as ListingWithImages[] | null)?.map((listing) => {

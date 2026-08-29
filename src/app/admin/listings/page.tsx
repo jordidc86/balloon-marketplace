@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/server'
-import { forcePublishListing, deleteListing, markListingSold, promoteListing } from '../actions'
+import { forcePublishListing, deleteListing, markListingSold, promoteListing, setListingVerification } from '../actions'
 import { formatDistanceToNow } from 'date-fns'
-import { Eye, Rocket, Trash2, CheckCircle2, Megaphone } from 'lucide-react'
+import { Eye, Rocket, Trash2, CheckCircle2, Megaphone, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import ExportInstagramButton from '@/components/admin/ExportInstagramButton'
 
@@ -22,6 +22,7 @@ type AdminListing = {
   created_at: string
   users?: { email?: string | null } | null
   images?: AdminListingImage[] | null
+  listing_verifications?: { status?: string | null }[] | null
 }
 
 export default async function AdminListingsPage() {
@@ -29,7 +30,7 @@ export default async function AdminListingsPage() {
 
   const { data: listings, error } = await supabase
     .from('listings')
-    .select('*, users(email), images(url, is_primary, created_at)')
+    .select('*, users(email), images(url, is_primary, created_at), listing_verifications(status)')
     .order('created_at', { ascending: false })
 
   const typedListings = listings as AdminListing[] | null
@@ -91,6 +92,28 @@ export default async function AdminListingsPage() {
                            }),
                          }}
                        />
+                       {l.listing_verifications?.[0]?.status === 'VERIFIED' ? (
+                         <form action={setListingVerification.bind(null, l.id)}>
+                           <input type="hidden" name="verification_action" value="unverify" />
+                           <button className="p-2 rounded-lg bg-emerald-500/15 text-emerald-700 transition-colors flex items-center gap-1.5 font-semibold text-xs" title="Remove the document-review badge">
+                             <ShieldCheck className="w-3.5 h-3.5" /> Verified
+                           </button>
+                         </form>
+                       ) : (
+                         <details className="relative">
+                           <summary className="list-none cursor-pointer p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors flex items-center gap-1.5 font-semibold text-xs" title="Document review status — not an airworthiness inspection">
+                             <ShieldCheck className="w-3.5 h-3.5" /> Review
+                           </summary>
+                           <form action={setListingVerification.bind(null, l.id)} className="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded-xl border bg-card p-4 text-left shadow-xl whitespace-normal">
+                             <input type="hidden" name="verification_action" value="verify" />
+                             <p className="font-semibold">Document-check gate</p>
+                             <label className="flex items-start gap-2 text-xs"><input type="checkbox" name="identity_checked" value="yes" required className="mt-0.5" /> Seller identity has been reviewed.</label>
+                             <label className="flex items-start gap-2 text-xs"><input type="checkbox" name="supporting_documents_checked" value="yes" required className="mt-0.5" /> Supporting listing evidence has been reviewed.</label>
+                             <p className="text-xs text-muted-foreground">This does not certify ownership, airworthiness or physical condition.</p>
+                             <button className="w-full rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background">Publish badge</button>
+                           </form>
+                         </details>
+                       )}
                        {(l.status === 'DRAFT' || l.status === 'PENDING_PAYMENT') && (
                          <form action={async () => {
                            'use server'

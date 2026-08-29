@@ -37,7 +37,7 @@ export default async function SellPage() {
         )}
       </div>
 
-      <SellForm userId={user?.id || null} />
+      <SellForm userId={user?.id || null} defaultContactEmail={user?.email || null} />
     </div>
   )
 }
