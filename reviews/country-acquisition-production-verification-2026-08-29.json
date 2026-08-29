@@ -1,0 +1,50 @@
+{
+  "verifiedAt": "2026-08-29T13:32:07+02:00",
+  "productionOrigin": "https://aerotrade.app",
+  "codeCommit": "c34bf5679f1d645e76216c01428f531009c18996",
+  "productionDeploy": "6a92c2c9fec7b3ceb9dd2b2a",
+  "deployState": "ready",
+  "inventoryRule": {
+    "closedCountries": ["spain", "belgium", "czech-republic", "turkey"],
+    "minimumPublicListingsToIndex": 2,
+    "unknownOrThinCountryPages": "404 or noindex and excluded from sitemap"
+  },
+  "productionPages": [
+    { "path": "/catalog/country/spain", "status": 200, "robots": "index, follow", "matchingActiveListings": 3, "usedAndNewAlternativesPresent": true },
+    { "path": "/catalog/country/belgium", "status": 200, "robots": "index, follow", "matchingActiveListings": 2, "usedAndNewAlternativesPresent": true },
+    { "path": "/catalog/country/czech-republic", "status": 200, "robots": "index, follow", "matchingActiveListings": 2, "usedAndNewAlternativesPresent": true },
+    { "path": "/catalog/country/turkey", "status": 200, "robots": "index, follow", "matchingActiveListings": 5, "usedAndNewAlternativesPresent": true }
+  ],
+  "negativeChecks": {
+    "unknownCountryRouteStatus": 404,
+    "unknownCountryReturnsNoindex": true,
+    "unknownCountryPresentInSitemap": false
+  },
+  "discovery": {
+    "sitemapStatus": 200,
+    "countryUrlCount": 4,
+    "indexNowUrlCount": 33,
+    "indexNowProviderStatus": 200,
+    "indexNowAccepted": true,
+    "duplicateRunSuppressed": true
+  },
+  "measurement": {
+    "countryPageVisitsUseExistingPrivateCatalogSearchLedger": true,
+    "dailyDeduplication": true,
+    "rawVisitorIdentifierStored": false
+  },
+  "validation": {
+    "automatedTests": 97,
+    "operationalContracts": 87,
+    "lint": "passed",
+    "typecheck": "passed",
+    "productionBuild": "passed"
+  },
+  "sideEffects": {
+    "commercialLeadsCreated": 0,
+    "emailsSent": 0,
+    "chargesCreated": 0,
+    "listingOrUserRowsChanged": 0
+  },
+  "remainingGap": "IndexNow acceptance exposes these inventory-backed country pages to participating engines but does not prove Google indexing, qualified visits or buyer conversion."
+}

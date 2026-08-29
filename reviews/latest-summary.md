@@ -7,9 +7,9 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 
 - Production: `https://aerotrade.app`, deployed from `main`.
 - Database migrations are registered and read back through `20260829360000`.
-- Validation: 94 automated tests, 85 operational contracts, ESLint, TypeScript and a full Next.js production build.
-- Current evidence-based score: **91.9%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
-- Production deploy `6a92c0f09a9104f4dec38424` is live from code commit `fb1f7e6d2bfc8bcffe9749d4435106ef04b8fd69`.
+- Validation: 97 automated tests, 87 operational contracts, ESLint, TypeScript and a full Next.js production build.
+- Current evidence-based score: **92.1%**, detailed in `reviews/aerotrade-scorecard-2026-08-29.md`.
+- Production deploy `6a92c2c9fec7b3ceb9dd2b2a` is live from code commit `c34bf5679f1d645e76216c01428f531009c18996`.
 - The live Stripe webhook is enabled for checkout completion and expiry, successful charges, subscription updates/deletions and payment failures.
 - Stripe rolling 90-day evidence: 5 checkout sessions, 1 completed/paid and 4 expired. The successful historical 9.99 EUR gross charge predates the current internal payment receipt and cannot be assigned to a product by inference.
 
@@ -32,6 +32,7 @@ Status: `Production deployed, reconciled and measurable; used and new-balloon op
 - Public search contract shared by metadata, structured data and sitemap: 12/12 public listings verified with canonical, indexability, Open Graph and breadcrumbs; 7 truthful priced Product offers, 0 invalid offers, unreleased Premium inventory excluded, and authentication pages noindexed.
 - Four clean, inventory-backed category landing pages now target high-intent used-equipment demand; empty categories are noindexed, historical filter URLs redirect without losing the search and every category keeps a direct new-balloon alternative.
 - Three inventory-backed manufacturer pages now expose 6 Cameron, 3 Kubicek and 2 Ultramagic active matches. A two-public-listing threshold prevents thin pages; Schroeder and unknown manufacturers do not enter the sitemap. The 29-URL public set was accepted by IndexNow and a repeated run was deduplicated.
+- Four inventory-backed country pages now expose 3 listings in Spain, 2 in Belgium, 2 in the Czech Republic and 5 in Türkiye. The same two-public-listing threshold prevents empty location pages; all four retain measured used-sourcing and factory-new alternatives. The resulting 33-URL public set was accepted by IndexNow and the repeated run was deduplicated.
 - Buyer acknowledgement for stored marketplace enquiries, with private durable provider receipts.
 - Two-check listing-image quarantine: one broken listing was paused, the seller notification was accepted and the post-action audit reports 0 inaccessible active image files.
 - One-time Seller Launch Promotion checkout recovery: the real pending listing had one expired Stripe session and no paid session; one reminder was accepted, linked to the funnel and duplicate execution was suppressed.
