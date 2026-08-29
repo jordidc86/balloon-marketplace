@@ -2,10 +2,10 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T08:01:22.444Z",
+  "capturedAt": "2026-08-29T08:10:50.865Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T08:01:22.444Z"
+    "since": "2026-07-30T08:10:50.865Z"
   },
   "supply": {
     "listingsTotal": 14,
@@ -95,9 +95,11 @@
     "catalogSearchesByUtmSource30d": {}
   },
   "sellerActivation": {
-    "events30d": 0,
-    "stages30d": {},
-    "distinctSellers30d": 0,
+    "events30d": 1,
+    "stages30d": {
+      "CHECKOUT_RECOVERY_SENT": 1
+    },
+    "distinctSellers30d": 1,
     "checkoutRecoveries30d": 0
   },
   "opportunities": {
@@ -129,9 +131,9 @@
     "premiumAlertRuns": 2,
     "successfulPremiumAlertRuns": 1,
     "premiumAlertRecipientsAccepted": 7,
-    "commercialNotificationReceipts": 1,
+    "commercialNotificationReceipts": 2,
     "commercialNotificationStatuses": {
-      "accepted": 1
+      "accepted": 2
     },
     "runStatuses": {
       "newsletters": {
