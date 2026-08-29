@@ -174,6 +174,23 @@ const checks = [
     required: ['listing_verifications', 'supporting_documents_checked', 'This is not an airworthiness inspection.', 'enable row level security'],
   },
   {
+    name: 'Listing verification decisions store only closed evidence categories and atomic audit events',
+    file: 'supabase/migrations/20260829280000_listing_verification_workflow.sql',
+    required: ['listing_verification_events', 'request_listing_verification', 'decide_listing_verification', 'for update', "grant execute on function public.request_listing_verification", 'stores no document copy'],
+    forbidden: ['document_url', 'document_number', 'identity_document_url'],
+  },
+  {
+    name: 'Seller verification requests require ownership, publish readiness and readback',
+    file: 'src/app/dashboard/actions.ts',
+    required: ['requestListingVerification', "eq('seller_id', user.id)", 'supporting_documents_available', 'assertStoredListingRequiredFields', 'assertListingHasReachableImage', "admin.rpc('request_listing_verification'", 'Verification request was not confirmed by readback', 'listing-verification-request-${result.event_id}'],
+  },
+  {
+    name: 'Admin can decide only queued listing reviews with bounded evidence and readback',
+    file: 'src/app/admin/actions.ts',
+    required: ['parseListingVerificationDecision', "current.status !== 'IN_REVIEW'", "supabase.rpc('decide_listing_verification'", 'Verification decision was not confirmed by readback', 'listing-verification-decision-${result.event_id}', 'does not certify ownership, legal title, airworthiness or physical condition'],
+    forbidden: [".upsert({\n      listing_id: listingId,\n      status"],
+  },
+  {
     name: 'Commercial events are daily-deduplicated without raw visitor ids',
     file: 'supabase/migrations/20260829120000_deduplicate_commercial_events.sql',
     required: ['event_key text', 'listing_events_event_key_unique', 'referrer_host', 'utm_source'],

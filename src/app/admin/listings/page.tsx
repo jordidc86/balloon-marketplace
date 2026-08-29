@@ -1,10 +1,11 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { forcePublishListing, deleteListing, markListingSold, promoteListing, setListingVerification } from '../actions'
 import { formatDistanceToNow } from 'date-fns'
-import { Eye, Rocket, Trash2, CheckCircle2, Megaphone, ShieldCheck } from 'lucide-react'
+import { Eye, Rocket, Trash2, CheckCircle2, Megaphone, ShieldCheck, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 import ExportInstagramButton from '@/components/admin/ExportInstagramButton'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
+import { identityReviewBases, supportingEvidenceTypes, verificationRejectionReasons } from '@/utils/listing-verification.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,21 +24,30 @@ type AdminListing = {
   created_at: string
   users?: { email?: string | null } | null
   images?: AdminListingImage[] | null
-  listing_verifications?: { status?: string | null }[] | null
+  listing_verifications?: {
+    status?: string | null
+    requested_at?: string | null
+    identity_review_basis?: string | null
+    supporting_evidence_types?: string[] | null
+    decision_reason?: string | null
+  }[] | null
   listing_quality_state?: { status?: string | null; consecutive_failures?: number | null }[] | null
   category: string
   details?: ({ hours?: string | number } & Record<string, unknown>) | null
 }
+
+const formatClosedCode = (value: string) => value.toLowerCase().replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase())
 
 export default async function AdminListingsPage() {
   const supabase = await createAdminClient()
 
   const { data: listings, error } = await supabase
     .from('listings')
-    .select('*, users(email), images(url, is_primary, created_at), listing_verifications(status), listing_quality_state(status, consecutive_failures)')
+    .select('*, users(email), images(url, is_primary, created_at), listing_verifications(status,requested_at,identity_review_basis,supporting_evidence_types,decision_reason), listing_quality_state(status, consecutive_failures)')
     .order('created_at', { ascending: false })
 
   const typedListings = listings as AdminListing[] | null
+  const reviewQueueCount = (typedListings || []).filter((listing) => listing.listing_verifications?.[0]?.status === 'IN_REVIEW').length
 
   if (error) {
     return <div className="p-4 bg-destructive/10 text-destructive rounded-xl">Error loading listings.</div>
@@ -47,7 +57,7 @@ export default async function AdminListingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Manage Listings</h1>
-        <p className="text-muted-foreground mt-1">Review marketplace submissions, force publish, or moderate content.</p>
+        <p className="text-muted-foreground mt-1">Review marketplace submissions, force publish, or moderate content. {reviewQueueCount} seller-requested verification review(s) queued.</p>
       </div>
 
       <div className="bg-card border rounded-2xl overflow-hidden shadow-sm">
@@ -64,8 +74,10 @@ export default async function AdminListingsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {typedListings?.map((l) => (
-                <tr key={l.id} className="hover:bg-muted/30 transition-colors">
+              {typedListings?.map((l) => {
+                const verification = l.listing_verifications?.[0]
+                return (
+                <tr key={l.id} className={`hover:bg-muted/30 transition-colors ${verification?.status === 'IN_REVIEW' ? 'bg-amber-50/50' : ''}`}>
                   <td className="px-6 py-4 font-medium max-w-[240px]">
                     <p className="truncate">{l.title}</p>
                     {getStoredListingPublicationIssues(l).length > 0 ? <p className="mt-1 text-xs font-semibold text-amber-700">Missing: {getStoredListingPublicationIssues(l).join(', ')}</p> : null}
@@ -82,6 +94,9 @@ export default async function AdminListingsPage() {
                     </span>
                     {l.listing_quality_state?.[0]?.status === 'QUARANTINED' ? (
                       <span className="ml-2 rounded-md bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">PHOTOS PAUSED</span>
+                    ) : null}
+                    {verification?.status ? (
+                      <span className={`ml-2 rounded-md px-2 py-1 text-xs font-bold ${verification.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' : verification.status === 'IN_REVIEW' ? 'bg-amber-100 text-amber-800' : verification.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-muted text-muted-foreground'}`}>{verification.status.replaceAll('_', ' ')}</span>
                     ) : null}
                   </td>
                   <td className="px-6 py-4 text-muted-foreground">
@@ -103,27 +118,48 @@ export default async function AdminListingsPage() {
                            }),
                          }}
                        />
-                       {l.listing_verifications?.[0]?.status === 'VERIFIED' ? (
+                       {verification?.status === 'VERIFIED' ? (
                          <form action={setListingVerification.bind(null, l.id)}>
                            <input type="hidden" name="verification_action" value="unverify" />
                            <button className="p-2 rounded-lg bg-emerald-500/15 text-emerald-700 transition-colors flex items-center gap-1.5 font-semibold text-xs" title="Remove the document-review badge">
                              <ShieldCheck className="w-3.5 h-3.5" /> Verified
                            </button>
                          </form>
-                       ) : (
+                       ) : verification?.status === 'IN_REVIEW' ? (
                          <details className="relative">
-                           <summary className="list-none cursor-pointer p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors flex items-center gap-1.5 font-semibold text-xs" title="Document review status — not an airworthiness inspection">
-                             <ShieldCheck className="w-3.5 h-3.5" /> Review
+                           <summary className="list-none cursor-pointer p-2 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors flex items-center gap-1.5 font-semibold text-xs" title="Seller-requested document review — not an airworthiness inspection">
+                             <ShieldAlert className="w-3.5 h-3.5" /> Decide review
                            </summary>
-                           <form action={setListingVerification.bind(null, l.id)} className="absolute right-0 z-20 mt-2 w-72 space-y-3 rounded-xl border bg-card p-4 text-left shadow-xl whitespace-normal">
-                             <input type="hidden" name="verification_action" value="verify" />
-                             <p className="font-semibold">Document-check gate</p>
-                             <label className="flex items-start gap-2 text-xs"><input type="checkbox" name="identity_checked" value="yes" required className="mt-0.5" /> Seller identity has been reviewed.</label>
-                             <label className="flex items-start gap-2 text-xs"><input type="checkbox" name="supporting_documents_checked" value="yes" required className="mt-0.5" /> Supporting listing evidence has been reviewed.</label>
-                             <p className="text-xs text-muted-foreground">This does not certify ownership, airworthiness or physical condition.</p>
-                             <button className="w-full rounded-lg bg-foreground px-3 py-2 text-xs font-semibold text-background">Publish badge</button>
-                           </form>
+                           <div className="absolute right-0 z-20 mt-2 w-[26rem] space-y-4 rounded-xl border bg-card p-4 text-left shadow-xl whitespace-normal">
+                             <div><p className="font-semibold">Limited verification review</p><p className="mt-1 text-xs text-muted-foreground">Requested {verification.requested_at ? formatDistanceToNow(new Date(verification.requested_at), { addSuffix: true }) : 'by the seller'}.</p></div>
+                             <form action={setListingVerification.bind(null, l.id)} className="space-y-3">
+                               <input type="hidden" name="verification_action" value="verify" />
+                               <label className="block space-y-1 text-xs font-semibold">Identity review basis
+                                 <select name="identity_review_basis" required defaultValue="" className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-xs font-normal">
+                                   <option value="" disabled>Select reviewed basis…</option>
+                                   {identityReviewBases.map((basis: string) => <option key={basis} value={basis}>{formatClosedCode(basis)}</option>)}
+                                 </select>
+                               </label>
+                               <fieldset className="space-y-1"><legend className="text-xs font-semibold">Supporting evidence reviewed</legend>
+                                 <div className="grid grid-cols-2 gap-1.5">{supportingEvidenceTypes.map((type: string) => <label key={type} className="flex items-start gap-2 text-xs"><input type="checkbox" name="supporting_evidence_types" value={type} className="mt-0.5" />{formatClosedCode(type)}</label>)}</div>
+                               </fieldset>
+                               <label className="flex items-start gap-2 text-xs"><input type="checkbox" name="review_scope_acknowledged" value="yes" required className="mt-0.5" /><span>I confirm the badge covers only the identity and evidence reviewed. It does not certify ownership, legal title, airworthiness or physical condition.</span></label>
+                               <button className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white">Complete review and publish badge</button>
+                             </form>
+                             <form action={setListingVerification.bind(null, l.id)} className="space-y-2 border-t pt-3">
+                               <input type="hidden" name="verification_action" value="reject" />
+                               <select name="decision_reason" required defaultValue="" className="w-full rounded-lg border bg-background px-3 py-2 text-xs">
+                                 <option value="" disabled>Select why review cannot be completed…</option>
+                                 {verificationRejectionReasons.map((reason: string) => <option key={reason} value={reason}>{formatClosedCode(reason)}</option>)}
+                               </select>
+                               <button className="w-full rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700">Reject review request</button>
+                             </form>
+                           </div>
                          </details>
+                       ) : (
+                         <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2 py-2 text-xs font-semibold text-muted-foreground" title={verification?.status === 'REJECTED' && verification.decision_reason ? formatClosedCode(verification.decision_reason) : 'The seller has not requested review'}>
+                           <ShieldCheck className="h-3.5 w-3.5" /> {verification?.status === 'REJECTED' ? 'Awaiting re-request' : 'Not requested'}
+                         </span>
                        )}
                        {(l.status === 'DRAFT' || l.status === 'PENDING_PAYMENT') && (
                          <form action={async () => {
@@ -166,7 +202,7 @@ export default async function AdminListingsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
               {typedListings?.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No listings found.</td>

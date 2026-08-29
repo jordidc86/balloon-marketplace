@@ -1,8 +1,8 @@
 import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert } from 'lucide-react'
-import { openBillingPortal, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
+import { Plus, CheckCircle, Clock, CreditCard, MessageSquare, Mail, Phone, TriangleAlert, ShieldCheck } from 'lucide-react'
+import { openBillingPortal, requestListingVerification, resumePremiumListingCheckout, resumePremiumMembershipCheckout, updateSellerInquiryStatus } from './actions'
 import SafeListingImage from '@/components/SafeListingImage'
 import { getStoredListingPublicationIssues } from '@/utils/listing-submission.mjs'
 
@@ -28,6 +28,16 @@ type ListingQualityState = {
   status: string
   previous_listing_status: string | null
 }
+
+type ListingVerificationState = {
+  listing_id: string
+  status: 'UNVERIFIED' | 'IN_REVIEW' | 'VERIFIED' | 'REJECTED'
+  requested_at: string | null
+  verified_at: string | null
+  decision_reason: string | null
+}
+
+const formatClosedCode = (value: string) => value.toLowerCase().replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase())
 
 export default async function DashboardPage({
   searchParams,
@@ -74,6 +84,13 @@ export default async function DashboardPage({
       .in('listing_id', listingIds)
     : { data: [] }
   const qualityByListing = new Map(((qualityStates as ListingQualityState[] | null) || []).map((state) => [state.listing_id, state]))
+  const { data: verificationStates } = listingIds.length > 0
+    ? await admin
+      .from('listing_verifications')
+      .select('listing_id,status,requested_at,verified_at,decision_reason')
+      .in('listing_id', listingIds)
+    : { data: [] }
+  const verificationByListing = new Map(((verificationStates as ListingVerificationState[] | null) || []).map((state) => [state.listing_id, state]))
   const { data: latestPremiumIntent } = !isPremium ? await admin
     .from('premium_checkout_intents')
     .select('status,source,created_at')
@@ -172,10 +189,15 @@ export default async function DashboardPage({
                 <div className="space-y-4">
                   {listings.map((item) => {
                     const quality = qualityByListing.get(item.id)
+                    const verification = verificationByListing.get(item.id)
                     const isQualityRecovery = item.status === 'DRAFT'
                       && quality
                       && ['QUARANTINED', 'RESOLVED'].includes(quality.status)
                     const publicationIssues = getStoredListingPublicationIssues(item)
+                    const supportingEvidenceAvailable = item.details && typeof item.details === 'object' && item.details.supporting_documents_available === true
+                    const verificationEligible = ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status)
+                      && publicationIssues.length === 0
+                      && supportingEvidenceAvailable
                     const primaryImage =
                       item.images?.find((image: DashboardListingImage) => image.is_primary)?.url ||
                       item.images?.[0]?.url ||
@@ -200,6 +222,9 @@ export default async function DashboardPage({
                           {item.status === 'PENDING_PAYMENT' ? <p className="mt-1 text-xs font-medium text-amber-700">Not public — Premium payment incomplete</p> : null}
                           {isQualityRecovery ? <p className="mt-1 text-xs font-medium text-amber-700">Paused — upload a working photo, then republish</p> : null}
                           {publicationIssues.length > 0 ? <p className="mt-1 text-xs font-medium text-amber-700">Aircraft data incomplete — {publicationIssues.join(', ')}</p> : null}
+                          {verification?.status === 'VERIFIED' ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />AeroTrade evidence review complete</p> : null}
+                          {verification?.status === 'IN_REVIEW' ? <p className="mt-1 text-xs font-semibold text-amber-700">Verification requested — queued for review</p> : null}
+                          {verification?.status === 'REJECTED' ? <p className="mt-1 text-xs font-semibold text-red-700">Review incomplete — {verification.decision_reason ? formatClosedCode(verification.decision_reason) : 'evidence needs attention'}</p> : null}
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-2">
                           {item.status === 'PENDING_PAYMENT' ? (
@@ -209,6 +234,12 @@ export default async function DashboardPage({
                           ) : null}
                           <Link href={`/catalog/${item.id}`} className="text-sm font-medium text-primary hover:underline">View</Link>
                           {isQualityRecovery ? <Link href={`/catalog/${item.id}/edit`} className="text-xs font-semibold text-amber-700 hover:underline">Repair photos</Link> : null}
+                          {verificationEligible && !['IN_REVIEW', 'VERIFIED'].includes(verification?.status || '') ? (
+                            <form action={requestListingVerification.bind(null, item.id)}>
+                              <button className="rounded-lg border border-primary/30 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5">{verification?.status === 'REJECTED' ? 'Request another review' : 'Request document check'}</button>
+                            </form>
+                          ) : null}
+                          {!supportingEvidenceAvailable && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) ? <Link href={`/catalog/${item.id}/edit`} className="max-w-40 text-right text-xs font-semibold text-amber-700 hover:underline">Mark supporting evidence available to request review</Link> : null}
                         </div>
                       </div>
                     )

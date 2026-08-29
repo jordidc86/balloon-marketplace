@@ -10,6 +10,12 @@ import { getStoredListingPlan } from '@/utils/listing-plans'
 import { createPremiumListingCheckout } from '@/utils/listing-checkout'
 import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 import { createPremiumMembershipCheckout } from '@/utils/premium-checkout'
+import { assertListingHasReachableImage } from '@/utils/listing-image-quality-server'
+import { assertStoredListingRequiredFields } from '@/utils/listing-submission.mjs'
+import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
+import { escapeHtml } from '@/utils/html'
+
+const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
 export async function openBillingPortal() {
   const supabase = await createClient()
@@ -162,4 +168,67 @@ export async function updateSellerInquiryStatus(inquiryId: string, formData: For
   }
 
   revalidatePath('/dashboard')
+}
+
+export async function requestListingVerification(listingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('id,seller_id,title,status,category,details')
+    .eq('id', listingId)
+    .eq('seller_id', user.id)
+    .single()
+  if (listingError || !listing) throw new Error('Listing not found')
+  if (!['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(listing.status)) {
+    throw new Error('Publish the listing before requesting an AeroTrade document check')
+  }
+  const details = listing.details && typeof listing.details === 'object' ? listing.details as Record<string, unknown> : {}
+  if (details.supporting_documents_available !== true) {
+    throw new Error('Mark supporting evidence as available in the listing before requesting review')
+  }
+  assertStoredListingRequiredFields(listing)
+
+  const admin = await createAdminClient()
+  await assertListingHasReachableImage(admin, listing.id)
+
+  const { data: transition, error: transitionError } = await admin.rpc('request_listing_verification', {
+    p_listing_id: listing.id,
+    p_requester: user.id,
+  })
+  const result = Array.isArray(transition) ? transition[0] : transition
+  if (transitionError || !result?.event_id || result.verification_status !== 'IN_REVIEW') {
+    throw new Error(transitionError?.message || 'Verification request could not be queued')
+  }
+
+  const [{ data: verification }, { data: event }] = await Promise.all([
+    admin.from('listing_verifications').select('listing_id,status,requested_by').eq('listing_id', listing.id).single(),
+    admin.from('listing_verification_events').select('id,event_type,to_status').eq('id', result.event_id).single(),
+  ])
+  if (verification?.status !== 'IN_REVIEW' || verification.requested_by !== user.id
+    || event?.event_type !== 'REQUESTED' || event.to_status !== 'IN_REVIEW') {
+    throw new Error('Verification request was not confirmed by readback')
+  }
+
+  if (adminEmail) {
+    try {
+      await sendCommercialReceiptEmail(admin, {
+        notificationType: 'listing_verification_requested',
+        entityType: 'listing',
+        entityId: listing.id,
+        recipientRole: 'admin',
+        to: adminEmail,
+        subject: `AeroTrade verification requested: ${listing.title}`,
+        html: `<p>A seller has requested the limited AeroTrade identity and supporting-evidence review for <strong>${escapeHtml(listing.title)}</strong>.</p><p>No document copies were uploaded or retained by this workflow.</p><p><a href="${siteUrl}/admin/listings">Open the verification queue</a></p>`,
+        idempotencyKey: `listing-verification-request-${result.event_id}`,
+      })
+    } catch (error) {
+      console.error('Verification request was queued, but the admin notification needs review:', error)
+    }
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/admin/listings')
 }

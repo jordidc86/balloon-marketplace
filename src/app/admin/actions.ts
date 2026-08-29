@@ -12,6 +12,8 @@ import { normalizeWantedRequestStatus } from '@/utils/wanted-request.mjs'
 import { createPremiumMembershipCheckout } from '@/utils/premium-checkout'
 import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
 import { assertStoredListingRequiredFields } from '@/utils/listing-submission.mjs'
+import { parseListingVerificationDecision } from '@/utils/listing-verification.mjs'
+import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 
 async function checkAdmin() {
   const supabase = await createClient()
@@ -269,33 +271,74 @@ export async function recordCommercialOutcome(
 
 export async function setListingVerification(listingId: string, formData: FormData) {
   const { supabase, adminUserId } = await checkAdmin()
-  const action = formData.get('verification_action')
-  if (action !== 'verify' && action !== 'unverify') throw new Error('Invalid verification action')
+  const decision = parseListingVerificationDecision(formData)
 
-  const verified = action === 'verify'
-  if (verified && (formData.get('identity_checked') !== 'yes' || formData.get('supporting_documents_checked') !== 'yes')) {
-    throw new Error('Confirm both identity and supporting-document review before publishing a verification badge')
+  const [{ data: listing, error: listingError }, { data: current, error: currentError }] = await Promise.all([
+    supabase.from('listings').select('id,seller_id,title,contact_email,status,category,details').eq('id', listingId).single(),
+    supabase.from('listing_verifications').select('listing_id,status').eq('listing_id', listingId).maybeSingle(),
+  ])
+  if (listingError || !listing) throw new Error('Listing not found')
+  if (currentError || !current) throw new Error('Verification request not found')
+  if (decision.action === 'verify') {
+    if (current.status !== 'IN_REVIEW') throw new Error('Only a queued seller request can be verified')
+    const details = listing.details && typeof listing.details === 'object' ? listing.details as Record<string, unknown> : {}
+    if (details.supporting_documents_available !== true) throw new Error('The seller has not declared supporting evidence available')
+    assertStoredListingRequiredFields(listing)
+    await assertListingHasReachableImage(supabase, listingId)
+  } else if (decision.action === 'reject' && current.status !== 'IN_REVIEW') {
+    throw new Error('Only a queued seller request can be rejected')
+  } else if (decision.action === 'unverify' && current.status !== 'VERIFIED') {
+    throw new Error('Only a verified listing can be unverified')
   }
 
-  const now = new Date().toISOString()
-  const status = verified ? 'VERIFIED' : 'UNVERIFIED'
-  const { data, error } = await supabase
-    .from('listing_verifications')
-    .upsert({
-      listing_id: listingId,
-      status,
-      identity_checked: verified,
-      supporting_documents_checked: verified,
-      verified_by: verified ? adminUserId : null,
-      verified_at: verified ? now : null,
-    }, { onConflict: 'listing_id' })
-    .select('listing_id,status')
-    .single()
+  const { data: transition, error } = await supabase.rpc('decide_listing_verification', {
+    p_listing_id: listingId,
+    p_admin: adminUserId,
+    p_action: decision.action,
+    p_identity_review_basis: decision.identity_review_basis,
+    p_supporting_evidence_types: decision.supporting_evidence_types,
+    p_decision_reason: decision.decision_reason,
+    p_review_scope_acknowledged: decision.action === 'verify',
+  })
+  const result = Array.isArray(transition) ? transition[0] : transition
+  const expectedStatus = decision.action === 'verify' ? 'VERIFIED' : decision.action === 'reject' ? 'REJECTED' : 'UNVERIFIED'
+  if (error || !result?.event_id || result.verification_status !== expectedStatus) {
+    throw new Error(error?.message || 'Could not persist listing verification decision')
+  }
 
-  if (error || data?.listing_id !== listingId || data.status !== status) {
-    throw new Error('Could not persist listing verification')
+  const [{ data: verification }, { data: event }] = await Promise.all([
+    supabase.from('listing_verifications').select('listing_id,status,last_decided_at').eq('listing_id', listingId).single(),
+    supabase.from('listing_verification_events').select('id,event_type,to_status').eq('id', result.event_id).single(),
+  ])
+  if (verification?.status !== expectedStatus || event?.to_status !== expectedStatus) {
+    throw new Error('Verification decision was not confirmed by readback')
+  }
+
+  const { data: seller } = await supabase.from('users').select('email').eq('id', listing.seller_id).maybeSingle()
+  const sellerEmail = seller?.email || listing.contact_email
+  if (sellerEmail) {
+    const outcome = expectedStatus === 'VERIFIED'
+      ? 'The limited AeroTrade identity and supporting-evidence review is complete and the badge is now visible.'
+      : expectedStatus === 'REJECTED'
+        ? `The review could not be completed (${decision.decision_reason}). Update the listing or evidence availability and request another review.`
+        : 'The AeroTrade document-check badge has been removed. You may request a new review after the listing evidence is ready.'
+    try {
+      await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'listing_verification_decision',
+        entityType: 'listing',
+        entityId: listingId,
+        recipientRole: 'seller',
+        to: sellerEmail,
+        subject: `AeroTrade verification update: ${listing.title}`,
+        html: `<p>${escapeHtml(outcome)}</p><p>This review does not certify ownership, legal title, airworthiness or physical condition.</p><p><a href="${siteUrl}/dashboard">Open your AeroTrade dashboard</a></p>`,
+        idempotencyKey: `listing-verification-decision-${result.event_id}`,
+      })
+    } catch (notificationError) {
+      console.error('Verification decision was stored, but the seller notification needs review:', notificationError)
+    }
   }
 
   revalidatePath('/admin/listings')
+  revalidatePath('/dashboard')
   revalidatePath(`/catalog/${listingId}`)
 }
