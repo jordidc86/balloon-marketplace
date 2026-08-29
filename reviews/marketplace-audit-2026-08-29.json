@@ -2,76 +2,74 @@
   "version": 1,
   "projectId": "aerotrade",
   "readOnly": true,
-  "capturedAt": "2026-08-29T07:00:11.475Z",
+  "capturedAt": "2026-08-29T08:01:22.444Z",
   "period": {
     "rollingDays": 30,
-    "since": "2026-07-30T07:00:11.475Z"
+    "since": "2026-07-30T08:01:22.444Z"
   },
   "supply": {
     "listingsTotal": 14,
     "listingsByStatus": {
-      "ACTIVE_PUBLIC": 13,
+      "ACTIVE_PUBLIC": 12,
+      "DRAFT": 1,
       "PENDING_PAYMENT": 1
     },
-    "activeListings": 13,
+    "activeListings": 12,
     "activeByCategory": {
       "burners": 2,
       "bottom-end": 2,
-      "complete": 7,
+      "complete": 6,
       "envelopes": 2
     },
     "activeByCountry": {
       "Türkiye": 5,
       "Belgium": 2,
-      "spain": 1,
-      "Czech Republic": 1,
-      "Spain": 2,
-      "España ": 1,
-      "Prague, Czech Republic": 1
+      "Czech Republic": 2,
+      "Spain": 3
     },
-    "activeSellers": 6,
+    "activeSellers": 5,
     "largestSellerActiveListings": 5,
-    "topThreeSellerShare": 0.7692,
+    "topThreeSellerShare": 0.8333,
     "staleActiveListings": 0,
     "pendingPaymentListings": 1,
-    "usersWithoutListings": 10
+    "usersWithoutListings": 11
   },
   "quality": {
     "activeWithoutImages": 0,
     "activeWithoutExactlyOnePrimaryImage": 0,
-    "activeWithAtLeastThreeImages": 8,
-    "activeImageFilesChecked": 96,
-    "inaccessibleActiveImageFiles": 8,
+    "activeWithAtLeastThreeImages": 7,
+    "activeImageFilesChecked": 88,
+    "inaccessibleActiveImageFiles": 0,
     "imageChecksUnknown": 0,
-    "activeListingsWithNoReachableImage": 1,
-    "flightListings": 9,
+    "activeListingsWithNoReachableImage": 0,
+    "flightListings": 8,
     "flightFieldCoverage": {
       "manufacturer": {
-        "complete": 9,
-        "eligible": 9
+        "complete": 8,
+        "eligible": 8
       },
       "model": {
-        "complete": 9,
-        "eligible": 9
+        "complete": 8,
+        "eligible": 8
       },
       "year": {
-        "complete": 9,
-        "eligible": 9
+        "complete": 8,
+        "eligible": 8
       },
       "hours": {
-        "complete": 9,
-        "eligible": 9
+        "complete": 8,
+        "eligible": 8
       },
       "registration": {
-        "complete": 9,
-        "eligible": 9
+        "complete": 8,
+        "eligible": 8
       },
       "serial": {
-        "complete": 7,
-        "eligible": 9
+        "complete": 6,
+        "eligible": 8
       }
     },
-    "activeWithPhone": 12,
+    "activeWithPhone": 11,
     "verifiableTrustStateAvailable": true,
     "verifiedListings": 0,
     "caveat": "Verification records document review only; they do not represent airworthiness or a physical inspection."
@@ -131,8 +129,10 @@
     "premiumAlertRuns": 2,
     "successfulPremiumAlertRuns": 1,
     "premiumAlertRecipientsAccepted": 7,
-    "commercialNotificationReceipts": 0,
-    "commercialNotificationStatuses": {},
+    "commercialNotificationReceipts": 1,
+    "commercialNotificationStatuses": {
+      "accepted": 1
+    },
     "runStatuses": {
       "newsletters": {
         "skipped": 6,
