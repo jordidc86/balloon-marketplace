@@ -145,6 +145,53 @@ export const buildNewBalloonServiceJsonLd = (siteUrl) => {
   }
 }
 
+/**
+ * @param {{
+ *   siteUrl: string,
+ *   path: string,
+ *   name: string,
+ *   description: string,
+ *   language: string,
+ *   listings?: Array<{
+ *     id: string,
+ *     title: string,
+ *     description?: string | null,
+ *     category?: string | null,
+ *     status: string,
+ *     public_at?: string | null,
+ *     images?: Array<{url?: string | null}> | null
+ *   }>
+ * }} input
+ */
+export const buildBuyerAcquisitionCollectionJsonLd = ({ siteUrl, path, name, description, language, listings = [] }) => {
+  const origin = String(siteUrl).replace(/\/+$/, '')
+  const collectionUrl = new URL(String(path || '/'), `${origin}/`).toString()
+  const safeListings = listings
+    .filter((listing) => isListingPubliclyIndexable(listing))
+    .map((listing) => getPublicListingSeoData(listing, origin))
+    .filter(Boolean)
+
+  return {
+    '@context': 'https://schema.org/',
+    '@type': 'CollectionPage',
+    name: compactText(String(name || ''), 120),
+    description: compactText(String(description || ''), 200),
+    url: collectionUrl,
+    inLanguage: compactText(String(language || 'en-GB'), 20),
+    isPartOf: { '@id': `${origin}/#website` },
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: safeListings.length,
+      itemListElement: safeListings.map((listing, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: listing.title,
+        url: listing.url,
+      })),
+    },
+  }
+}
+
 export const serializeJsonLd = (value) => JSON.stringify(value)
   .replace(/</g, '\\u003c')
   .replace(/\u2028/g, '\\u2028')

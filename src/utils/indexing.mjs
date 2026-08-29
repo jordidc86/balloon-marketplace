@@ -3,8 +3,9 @@ import { getCatalogCategory, getCatalogCategoryPath } from './catalog-categories
 import { getCatalogManufacturerPath, getCatalogManufacturersWithInventory, minimumManufacturerInventoryForIndexing } from './catalog-manufacturers.mjs'
 import { getCatalogCountriesWithInventory, getCatalogCountryPath, minimumCountryInventoryForIndexing } from './catalog-countries.mjs'
 import { isListingPubliclyIndexable } from './marketplace-seo.mjs'
+import { europeanBuyerLandingPaths } from './european-buyer-landings.mjs'
 
-const publicStaticPaths = ['', '/catalog', '/new-balloon', '/wanted', '/sell', '/sell-hot-air-balloon', '/sell/assisted', '/pricing', '/about', '/contact']
+const publicStaticPaths = ['', '/catalog', '/new-balloon', '/wanted', '/sell', '/sell-hot-air-balloon', '/sell/assisted', '/pricing', '/about', '/contact', ...europeanBuyerLandingPaths]
 
 const normalizeOrigin = (value) => {
   try {

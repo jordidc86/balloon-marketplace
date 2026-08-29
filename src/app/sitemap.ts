@@ -5,6 +5,7 @@ import { isListingPubliclyIndexable } from '@/utils/marketplace-seo.mjs';
 import { getCatalogCategory, getCatalogCategoryPath } from '@/utils/catalog-categories.mjs';
 import { getCatalogManufacturerPath, getCatalogManufacturersWithInventory, minimumManufacturerInventoryForIndexing } from '@/utils/catalog-manufacturers.mjs';
 import { getCatalogCountriesWithInventory, getCatalogCountryPath, minimumCountryInventoryForIndexing } from '@/utils/catalog-countries.mjs';
+import { europeanBuyerLandingPaths } from '@/utils/european-buyer-landings.mjs';
 
 // Listing visibility depends on the current Premium release timestamp. Generate
 // the sitemap at request time so builds never freeze or require production data.
@@ -25,6 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { route: '/pricing', priority: 0.7, changeFrequency: 'monthly' as const },
     { route: '/about', priority: 0.6, changeFrequency: 'monthly' as const },
     { route: '/contact', priority: 0.6, changeFrequency: 'monthly' as const },
+    ...europeanBuyerLandingPaths.map((route) => ({ route, priority: 0.85, changeFrequency: 'daily' as const })),
   ].map(
     ({ route, priority, changeFrequency }) => ({
       url: `${siteUrl}${route}`,

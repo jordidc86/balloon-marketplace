@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   buildListingBreadcrumbJsonLd,
   buildListingProductJsonLd,
+  buildBuyerAcquisitionCollectionJsonLd,
   buildMarketplaceIdentityJsonLd,
   buildNewBalloonServiceJsonLd,
   getPublicListingSeoData,
@@ -71,4 +72,21 @@ test('breadcrumbs and marketplace identity use only public commercial URLs', () 
   const service = buildNewBalloonServiceJsonLd('https://aerotrade.app')
   assert.equal(service.url, 'https://aerotrade.app/new-balloon')
   assert.match(service.name, /Pasha or Schroeder/)
+})
+
+test('localized buyer acquisition schema exposes only public listing destinations', () => {
+  const collection = buildBuyerAcquisitionCollectionJsonLd({
+    siteUrl: 'https://aerotrade.app',
+    path: '/de/gebrauchte-heissluftballons',
+    name: 'Gebrauchte Heißluftballons',
+    description: 'Aktuelle gebrauchte Heißluftballons und Ballonausrüstung in Europa.',
+    language: 'de-DE',
+    listings: [listing, { ...listing, id: 'draft', status: 'DRAFT' }],
+  })
+
+  assert.equal(collection['@type'], 'CollectionPage')
+  assert.equal(collection.url, 'https://aerotrade.app/de/gebrauchte-heissluftballons')
+  assert.equal(collection.inLanguage, 'de-DE')
+  assert.equal(collection.mainEntity.numberOfItems, 1)
+  assert.equal(collection.mainEntity.itemListElement[0].url, 'https://aerotrade.app/catalog/public-listing')
 })

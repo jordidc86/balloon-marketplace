@@ -636,6 +636,17 @@ const checks = [
     forbidden: ['utm_source=aerotrade', 'utm_medium=organic', 'utm_campaign=new_balloon'],
   },
   {
+    name: 'European high-intent acquisition reuses real inventory and existing conversion paths',
+    file: 'src/components/EuropeanBuyerLanding.tsx',
+    required: ['CommercialAttributionSeed', "isListingPubliclyIndexable", "href=\"/catalog\"", "'/wanted?category=complete'", "'/new-balloon?source=catalog&category=complete'", 'buildBuyerAcquisitionCollectionJsonLd'],
+    forbidden: ['utm_source=aerotrade', 'certified airworthy', 'guaranteed airworthy'],
+  },
+  {
+    name: 'European acquisition locales are closed, reciprocal and indexable',
+    file: 'src/utils/european-buyer-landings.mjs',
+    required: ['/used-hot-air-balloons-for-sale', '/de/gebrauchte-heissluftballons', '/fr/montgolfieres-occasion', '/es/globos-aerostaticos-segunda-mano', 'europeanBuyerLandingAlternates', "['x-default', europeanBuyerLandings[0].path]"],
+  },
+  {
     name: 'New-balloon manufacturer funnel reaches proposal, outcome and settled revenue evidence',
     file: 'src/utils/new-balloon-manufacturers.mjs',
     required: ['preferredRequests', 'acceptedProposals', 'wonOutcomes', 'settledRevenueMinorByCurrency', "outcome.entity_type !== 'quote_request'", "outcome.evidence_level !== 'settled'"],
