@@ -27,7 +27,7 @@ The release does not change prices, publish a post, send a message by itself, cr
 ## Exact source
 
 - Production base: `9880e56df0b1f47089c0ea176d57a613c25847a5`.
-- Runtime release candidate: `b0fe505`.
+- Runtime and migration release candidate: `b03d1e6`.
 - Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3`, `8abde69`, `255f37e`, `c0589ea`, `5cddd94`, `611c9df` and `dfc5427`.
 - Required migrations, in order:
   1. `20260829490000_social_publication_receipts.sql`
