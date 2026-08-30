@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "projectId": "aerotrade",
+  "readOnly": true,
+  "capturedAt": "2026-08-30T22:12:14.458Z",
+  "period": {
+    "rollingDays": 30,
+    "since": "2026-07-31T22:12:14.101Z"
+  },
+  "stages": {
+    "acquisition": {
+      "status": "verified",
+      "label": "Intención observada en 30 días",
+      "metrics": [
+        {
+          "name": "vistas de anuncio",
+          "value": 60
+        },
+        {
+          "name": "usuarios registrados totales",
+          "value": 16
+        }
+      ],
+      "caveat": "Las vistas no son usuarios únicos ni demuestran intención de compra."
+    },
+    "activation": {
+      "status": "verified",
+      "label": "Oferta y adopción disponibles",
+      "metrics": [
+        {
+          "name": "anuncios activos",
+          "value": 13
+        },
+        {
+          "name": "usuarios premium",
+          "value": 8
+        },
+        {
+          "name": "premium gestionado por Stripe",
+          "value": 2
+        },
+        {
+          "name": "premium concedido por administración",
+          "value": 0
+        },
+        {
+          "name": "premium legado",
+          "value": 6
+        }
+      ],
+      "caveat": "Premium puede proceder de Stripe, administración o legado; este conteo no equivale a ingresos cobrados."
+    },
+    "conversion": {
+      "status": "verified",
+      "label": "Acciones comerciales observadas",
+      "metrics": [
+        {
+          "name": "contactos revelados en 30 días",
+          "value": 0
+        },
+        {
+          "name": "solicitudes de presupuesto en 30 días",
+          "value": 0
+        },
+        {
+          "name": "presupuestos ganados históricos",
+          "value": 0
+        }
+      ],
+      "caveat": "Un contacto revelado o una solicitud no demuestra una venta; WON depende del registro manual del estado."
+    },
+    "revenue": {
+      "status": "verified",
+      "label": "Cobros aceptados y notificación verificable en 30 días",
+      "metrics": [
+        {
+          "name": "eventos charge.succeeded",
+          "value": 0
+        },
+        {
+          "name": "recibos de notificación persistidos",
+          "value": 0
+        },
+        {
+          "name": "recibos live",
+          "value": 0
+        },
+        {
+          "name": "recibos test",
+          "value": 0
+        },
+        {
+          "name": "cobertura pendiente",
+          "value": 0
+        },
+        {
+          "name": "importe bruto live por moneda (minor units)",
+          "value": {}
+        },
+        {
+          "name": "recibos por tipo",
+          "value": {}
+        }
+      ],
+      "caveat": "Importe bruto cobrado: no descuenta comisiones, reembolsos, disputas ni impuestos y no debe interpretarse como ingreso neto."
+    }
+  },
+  "integrity": {
+    "queryProfile": "24eeaf6db358eea0e43b5d89853fb799d9e29c3f1e1a1c60bc3f202233f87e6b"
+  }
+}
