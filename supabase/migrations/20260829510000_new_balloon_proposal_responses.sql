@@ -1,5 +1,5 @@
 create table if not exists public.new_balloon_proposal_response_events (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default extensions.uuid_generate_v4() primary key,
   proposal_id uuid not null unique references public.new_balloon_quote_proposals(id) on delete restrict,
   quote_request_id uuid not null references public.quote_requests(id) on delete restrict,
   response_type text not null check (response_type in ('INTERESTED', 'QUESTION', 'DECLINED')),

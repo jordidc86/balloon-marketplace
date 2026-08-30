@@ -84,7 +84,7 @@ create index if not exists commercial_outcomes_economics_evidence_idx
   where direct_cost_minor is not null;
 
 create table if not exists public.commercial_unit_economics_events (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default extensions.uuid_generate_v4() primary key,
   outcome_id uuid not null references public.commercial_outcomes(id) on delete restrict,
   event_type text not null check (event_type in ('ECONOMICS_RECORDED', 'ECONOMICS_UPDATED')),
   currency text not null check (currency in ('EUR', 'GBP', 'USD')),

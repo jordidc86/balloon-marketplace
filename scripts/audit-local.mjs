@@ -262,7 +262,7 @@ const checks = [
   {
     name: 'Unit economics extend outcomes atomically with immutable evidence and negative-margin support',
     file: 'supabase/migrations/20260829500000_commercial_unit_economics.sql',
-    required: ['contribution_margin_minor bigint generated always as', 'commercial_unit_economics_events', 'record_commercial_unit_economics', 'for update', 'Unit economics evidence cannot be downgraded', 'prevent_untracked_economics_basis_change', 'direct_cost_minor is null', 'grant execute on function public.record_commercial_unit_economics', 'enable row level security', 'revoke all on public.commercial_unit_economics_events from anon, authenticated'],
+    required: ['contribution_margin_minor bigint generated always as', 'commercial_unit_economics_events', 'extensions.uuid_generate_v4()', 'record_commercial_unit_economics', 'for update', 'Unit economics evidence cannot be downgraded', 'prevent_untracked_economics_basis_change', 'direct_cost_minor is null', 'grant execute on function public.record_commercial_unit_economics', 'enable row level security', 'revoke all on public.commercial_unit_economics_events from anon, authenticated'],
     forbidden: ['contribution_margin_minor bigint not null check (contribution_margin_minor >= 0)'],
   },
   {
@@ -316,7 +316,7 @@ const checks = [
   {
     name: 'New-balloon buyer responses are immutable, idempotent and non-binding',
     file: 'supabase/migrations/20260829510000_new_balloon_proposal_responses.sql',
-    required: ['new_balloon_proposal_response_events', "response_type in ('INTERESTED', 'QUESTION', 'DECLINED')", 'proposal_id uuid not null unique', 'record_new_balloon_proposal_response', 'A different response is already recorded', 'grant execute on function public.record_new_balloon_proposal_response(uuid,text,text,text) to service_role', "set status = 'BUYER_RESPONDED'", 'commercial closure remains administrator-only', 'never creates an order, reservation, payment or contract'],
+    required: ['new_balloon_proposal_response_events', 'extensions.uuid_generate_v4()', "response_type in ('INTERESTED', 'QUESTION', 'DECLINED')", 'proposal_id uuid not null unique', 'record_new_balloon_proposal_response', 'A different response is already recorded', 'grant execute on function public.record_new_balloon_proposal_response(uuid,text,text,text) to service_role', "set status = 'BUYER_RESPONDED'", 'commercial closure remains administrator-only', 'never creates an order, reservation, payment or contract'],
     forbidden: ["set status = 'WON'", "set status = 'LOST'", 'insert into public.commercial_outcomes'],
   },
   {
