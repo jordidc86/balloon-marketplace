@@ -1,6 +1,6 @@
 # AeroTrade grouped release: social evidence, economics and conversion recovery
 
-Status: explicitly authorized by Jordi on 2026-08-30; production is unchanged until the gates below pass.
+Status: released to production and verified on 2026-08-30 from commit `8e6bfef5f25a6610ef51f3e542f96857b37904f1`.
 
 ## Purpose
 
@@ -63,7 +63,7 @@ Exact approval wording:
 
 ## Database order and readback
 
-Apply all eleven additive migrations before deploying the runtime. Immediately verify, without inserting synthetic rows:
+Apply all twelve additive migrations before deploying the runtime. Immediately verify, without inserting synthetic rows:
 
 - `social_publication_receipts` exists, has RLS enabled and exposes no anonymous/authenticated write privilege.
 - `commercial_unit_economics_events` exists, has RLS enabled and exposes no anonymous/authenticated write privilege.
@@ -127,7 +127,7 @@ After database readback succeeds:
 The safe rollback is runtime-first and non-destructive:
 
 1. Roll Netlify back to production base `9880e56df0b1f47089c0ea176d57a613c25847a5` or its known-good deploy `6a92ffe4dbebcf0008be7dd7`.
-2. Leave all eleven additive private tables/functions, constraint extensions and nullable columns in Supabase. The previous runtime does not query them, so retaining them preserves audit evidence and avoids destructive rollback.
+2. Leave all twelve additive private tables/functions, constraint extensions and nullable columns in Supabase. The previous runtime does not query them, so retaining them preserves audit evidence and avoids destructive rollback.
 3. Pause the scheduled social function only if the reverted runtime or credential state cannot be proven safe; do not repeat any pending or ambiguous provider operation.
 4. Keep the newsletter workflow disabled if runtime is rolled back below the consent-safe release.
 5. Do not drop tables, columns, functions or events during incident response. Any later schema removal requires a separate migration, backup and explicit approval.
