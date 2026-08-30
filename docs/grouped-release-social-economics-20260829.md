@@ -1,10 +1,10 @@
 # AeroTrade grouped release: social evidence, economics and conversion recovery
 
-Status: release candidate only. Production is unchanged.
+Status: explicitly authorized by Jordi on 2026-08-30; production is unchanged until the gates below pass.
 
 ## Purpose
 
-Ship twelve material, additive capabilities in one Netlify production deploy:
+Ship thirteen material, additive capabilities in one Netlify production deploy:
 
 1. Per-content, network and placement social-publication receipts with provider-ID acceptance, bounded retry and attributable links.
 2. Complete, evidence-backed unit economics on the existing commercial outcome, with unknown costs kept null and every measurement snapshotted immutably.
@@ -18,6 +18,7 @@ Ship twelve material, additive capabilities in one Netlify production deploy:
 10. Privacy-minimized measurement of those four localized entries inside the existing catalogue-demand ledger, separating genuine landing visits, listing openings and downstream high-intent journeys from ordinary catalogue searches and zero-result demand.
 11. One internal recovery escalation for a marketplace enquiry that remains untouched 48 hours after provider acceptance of its single seller reminder, surfaced in Control Tower without re-contacting the buyer or repeating the seller reminder.
 12. A direct bridge from successful owner availability confirmation to voluntary, attributable seller sharing of those same confirmed adverts, reusing the existing share links and sending nothing automatically.
+13. One non-promotional consent invitation for each existing non-admin account whose newsletter preference remains `NOT_REQUESTED`. Provider acceptance is recorded once, opening the private 30-day link performs no write, and only an explicit POST changes that account to `ACTIVE` with readback. Existing `ACTIVE` and `UNSUBSCRIBED` preferences are excluded.
 
 The release also activates a deployment-cost guard: future production builds require an explicit change to `release/netlify-production.json`. Ordinary runtime commits may be staged on `main` but cannot independently consume a production-deploy charge.
 
@@ -26,7 +27,7 @@ The release does not change prices, publish a post, send a message by itself, cr
 ## Exact source
 
 - Production base: `9880e56df0b1f47089c0ea176d57a613c25847a5`.
-- Runtime release candidate: `dfc54277364ea2482c71fad67c0271dc98220591`.
+- Runtime release candidate: `b0fe505`.
 - Material runtime commits: `2ba08b5`, `a569817`, `827cf84`, `ac3af21`, `2aba405`, `fb7bfa2`, `4f8373d`, `d810f3b`, `6a2d763`, `c34b940`, `e3577f3`, `8abde69`, `255f37e`, `c0589ea`, `5cddd94`, `611c9df` and `dfc5427`.
 - Required migrations, in order:
   1. `20260829490000_social_publication_receipts.sql`
@@ -40,11 +41,12 @@ The release does not change prices, publish a post, send a message by itself, cr
   9. `20260829570000_catalog_demand_entry_context.sql`
   10. `20260829580000_inquiry_seller_escalation.sql`
   11. `20260829590000_fix_listing_availability_conflict.sql`
+  12. `20260829600000_newsletter_consent_invitation.sql`
 - Explicit production release marker: `release/netlify-production.json` with release ID `2026-08-29-grouped-commercial-release`.
 
 ## Authorization gate
 
-Do not apply any production migration, merge/push to `main`, trigger a deploy or call a production dry run until Jordi explicitly approves this grouped release. One approval should name all eleven migrations, the one grouped deploy and the post-deploy read-only verification.
+Do not apply any production migration, merge/push to `main`, trigger a deploy or call a production dry run until Jordi explicitly approves this grouped release. Jordi gave complete authorization in the controlling thread on 2026-08-30 after reviewing the release, dry runs and the separate one-time consent invitation.
 
 Exact approval wording:
 
@@ -55,7 +57,7 @@ Exact approval wording:
 1. Confirm the feature branch and `origin/main` still resolve to the exact commits above or recalculate this plan.
 2. Confirm the worktree is clean and no secret or generated directory is tracked.
 3. Run `npm test`, `npm run audit:local`, `npm run lint`, `npx tsc --noEmit`, `git diff --check` and `npm run build`.
-4. Confirm the expected result remains 161/161 tests and 170/170 operational contracts.
+4. Confirm the expected result remains 162/162 tests and 173/173 operational contracts.
 5. Capture read-only counts of existing commercial outcomes and current Supabase migration versions without including personal data.
 6. Confirm GitHub Actions workflow `Send Bi-Weekly Newsletter Cron` remains `disabled_manually`; it was paused before the 1 September schedule so the old runtime cannot send another registration-based marketing batch.
 
@@ -85,6 +87,7 @@ Apply all eleven additive migrations before deploying the runtime. Immediately v
 - The private notification vocabulary accepts `inquiry_seller_escalation` without removing any prior notification type. It creates no row by migration, and runtime eligibility requires an open `NEW`/`SELLER_NOTIFIED` enquiry plus an `accepted` seller-reminder receipt at least 48 hours old.
 - Existing commercial-outcome row counts are unchanged and pre-existing rows have null economics fields.
 - No social receipt, economics event, proposal response, post, message, charge or other economic action was created by migration verification.
+- `newsletter_consent_invitation` is accepted by the closed private delivery vocabulary. The migration creates no receipt, email or consent, and does not change any existing preference.
 
 Abort before runtime deployment if any readback differs.
 
@@ -117,6 +120,7 @@ After database readback succeeds:
 7. Run Buyer Early Access recovery without `commit=1`. It may expose only the due count. Sending real recovery emails requires a separate explicit approval after that count is reviewed.
 8. Run the newsletter endpoint in dry-run mode. Immediately after migration the eligible real-recipient count must be zero because no legacy account is inferred as consented; do not supply a test email or run a live send.
 9. Re-enable the bi-weekly workflow only after the preference UI, signed unsubscribe route and zero-recipient dry run all pass production readback. Re-enabling the scheduler does not authorize a manual live send or infer consent for any existing account.
+10. Run the separate consent-invitation endpoint without `commit=1`. It must return only aggregate counts, exclude administrators and decided preferences, create no receipt and send no email. After the private route and POST-only activation pass production readback, the separately authorized live invitation may run once with the exact confirmation gate. Read back accepted/failed aggregate receipts before enabling the newsletter scheduler.
 
 ## Rollback plan
 
