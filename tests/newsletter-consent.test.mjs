@@ -2,10 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   isActiveNewsletterConsent,
+  newsletterConsentInvitationLifetimeMs,
   newsletterUnsubscribePlaceholder,
   normalizeNewsletterEmail,
   personalizeNewsletterHtml,
+  signNewsletterConsentInvitationCapability,
   signNewsletterUnsubscribeCapability,
+  verifyNewsletterConsentInvitationCapability,
   verifyNewsletterUnsubscribeCapability,
 } from '../src/utils/newsletter-consent.mjs'
 
@@ -34,4 +37,15 @@ test('newsletter content cannot be sent without one secure unsubscribe destinati
   assert.doesNotMatch(html, new RegExp(newsletterUnsubscribePlaceholder))
   assert.throws(() => personalizeNewsletterHtml('<p>No control</p>', 'https://aerotrade.app/newsletter/unsubscribe'), /placeholder/)
   assert.throws(() => personalizeNewsletterHtml(template, 'http://example.com'), /secure/)
+})
+
+test('newsletter consent invitation is purpose-bound, expiring and scanner-safe', () => {
+  const now = Date.parse('2026-08-30T10:00:00Z')
+  const expiresAt = now + newsletterConsentInvitationLifetimeMs
+  const token = signNewsletterConsentInvitationCapability({ userId, email: ' USER@example.com ', expiresAt, secret })
+  assert.match(token, /^[0-9a-f]{64}$/)
+  assert.equal(verifyNewsletterConsentInvitationCapability({ userId, email: 'user@example.com', expiresAt, token, secret, now }), true)
+  assert.equal(verifyNewsletterConsentInvitationCapability({ userId, email: 'other@example.com', expiresAt, token, secret, now }), false)
+  assert.equal(verifyNewsletterConsentInvitationCapability({ userId, email: 'user@example.com', expiresAt, token, secret, now: expiresAt + 1 }), false)
+  assert.equal(verifyNewsletterConsentInvitationCapability({ userId, email: 'user@example.com', expiresAt: expiresAt + 1, token, secret, now }), false)
 })

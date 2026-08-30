@@ -865,6 +865,22 @@ const checks = [
     required: ['updateNewsletterPreference', "rpc('set_own_newsletter_consent'", "const expectedStatus = enabled ? 'ACTIVE' : 'UNSUBSCRIBED'", 'Newsletter preference was not verified by readback'],
   },
   {
+    name: 'Newsletter consent invitation is one-time, preference-only and excludes decided accounts',
+    file: 'src/app/api/cron/newsletter-consent-invitation/route.ts',
+    required: [".eq('newsletter_consent_status', 'NOT_REQUESTED')", ".neq('role', 'admin')", 'SEND_ONE_TIME_CONSENT_INVITATIONS', 'newsletter-consent-invitation-v1-', "Date.parse('2026-09-28T23:59:59Z')", 'This invitation does not subscribe you by itself.', 'sent once and expires within 30 days'],
+    forbidden: ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM', 'View Listing'],
+  },
+  {
+    name: 'Opening a newsletter consent invitation cannot activate marketing',
+    file: 'src/app/newsletter/subscribe/actions.ts',
+    required: ['verifyNewsletterConsentInvitationCapability', "receipt?.status === 'accepted'", "profile.newsletter_consent_status !== 'NOT_REQUESTED'", ".eq('newsletter_consent_status', 'NOT_REQUESTED')", "newsletter_consent_status: 'ACTIVE'", 'could not verify your newsletter preference safely'],
+  },
+  {
+    name: 'Consent invitation delivery is part of the closed private receipt vocabulary',
+    file: 'supabase/migrations/20260829600000_newsletter_consent_invitation.sql',
+    required: ["'newsletter_consent_invitation'", 'Opening the link is read-only', 'does not activate consent on delivery or link open'],
+  },
+  {
     name: 'Partial email runs block unsafe automatic retries',
     file: 'supabase/migrations/20260731170000_track_partial_email_delivery.sql',
     required: ["status in ('running', 'sent', 'partial')", "status in ('running', 'sent', 'partial', 'failed', 'skipped')"],

@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export const newsletterUnsubscribePlaceholder = '__AEROTRADE_NEWSLETTER_UNSUBSCRIBE_URL__'
+export const newsletterConsentInvitationLifetimeMs = 30 * 24 * 60 * 60 * 1000
 
 export function normalizeNewsletterEmail(value) {
   const email = typeof value === 'string' ? value.trim().toLowerCase() : ''
@@ -26,6 +27,27 @@ export function signNewsletterUnsubscribeCapability({ userId, email, secret }) {
 
 export function verifyNewsletterUnsubscribeCapability({ userId, email, token, secret }) {
   const expected = signNewsletterUnsubscribeCapability({ userId, email, secret })
+  const supplied = typeof token === 'string' ? token.trim().toLowerCase() : ''
+  if (!expected || !/^[0-9a-f]{64}$/.test(supplied)) return false
+  return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(supplied, 'hex'))
+}
+
+export function signNewsletterConsentInvitationCapability({ userId, email, expiresAt, secret }) {
+  const normalizedEmail = normalizeNewsletterEmail(email)
+  const expiry = Number(expiresAt)
+  if (!uuidPattern.test(String(userId || '')) || !normalizedEmail) return null
+  if (!Number.isSafeInteger(expiry) || expiry <= 0) return null
+  if (typeof secret !== 'string' || secret.length < 20) return null
+  return createHmac('sha256', secret)
+    .update(`newsletter-consent-invitation|v1|${userId}|${normalizedEmail}|${expiry}`)
+    .digest('hex')
+}
+
+export function verifyNewsletterConsentInvitationCapability({ userId, email, expiresAt, token, secret, now = Date.now() }) {
+  const expiry = Number(expiresAt)
+  if (!Number.isSafeInteger(expiry) || expiry < now) return false
+  if (expiry - now > newsletterConsentInvitationLifetimeMs) return false
+  const expected = signNewsletterConsentInvitationCapability({ userId, email, expiresAt: expiry, secret })
   const supplied = typeof token === 'string' ? token.trim().toLowerCase() : ''
   if (!expected || !/^[0-9a-f]{64}$/.test(supplied)) return false
   return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(supplied, 'hex'))
