@@ -41,18 +41,23 @@ const checks = [
   {
     name: 'Production promotion is fast-forward, marker-bound and explicit',
     file: 'scripts/lib/production-release.mjs',
-    required: ['fast-forward descendant of production', 'productionBaseCommit', 'expectedProductionDeploys', 'requiresExplicitApproval', 'release/netlify-production.json', 'explicit production release marker changed'],
+    required: ['fast-forward descendant of production', 'productionBaseCommit', 'expectedProductionDeploys', 'requiresExplicitApproval', 'release/netlify-production.json', 'explicit production release marker changed', 'validateProductionMigrationMarker'],
+  },
+  {
+    name: 'Production migration manifest is content-bound and remote-ledger verified',
+    file: 'scripts/lib/production-migrations.mjs',
+    required: ['createHash', 'migrationManifestSha256', 'applyBeforeApplication', 'requiresExactConfirmation', 'validateAppendOnlyMigrationChanges', 'parseSupabaseMigrationList', 'remoteOnlyVersions', 'unexpectedPendingVersions', 'outOfOrderPendingVersions', 'schemaReady'],
   },
   {
     name: 'Production branch movement requires an exact release approval and full local verification',
     file: 'scripts/promote-netlify-production.mjs',
-    required: ['origin/production', 'origin/main', 'Worktree must be clean', 'CONFIRM_AEROTRADE_PRODUCTION_RELEASE', 'verify:production-release', 'refs/heads/production', 'ls-remote', 'netlifyDeploysRequested: 1'],
+    required: ['origin/production', 'origin/main', 'Worktree must be clean', 'CONFIRM_AEROTRADE_PRODUCTION_RELEASE', 'CONFIRM_AEROTRADE_DATABASE_MIGRATIONS', "'migration', 'list'", "'db', 'push'", 'allowRequiredPending: false', "git(['rev-parse', 'HEAD'])", 'verify:production-release', 'refs/heads/production', 'ls-remote', 'netlifyDeploysRequested: 1'],
     forbidden: ['netlify deploy', 'netlify api', 'NETLIFY_AUTH_TOKEN'],
   },
   {
     name: 'Release operations are documented as one consolidated production deploy',
     file: 'docs/aerotrade-production-release.md',
-    required: ['only from the remote `production` branch', 'pushing `main` must not create a production deploy', 'requests zero Netlify deploys', 'CONFIRM_AEROTRADE_PRODUCTION_RELEASE', 'one Git production event'],
+    required: ['only from the remote `production` branch', 'pushing `main` must not create a production deploy', 'requests zero Netlify deploys', 'CONFIRM_AEROTRADE_PRODUCTION_RELEASE', 'CONFIRM_AEROTRADE_DATABASE_MIGRATIONS', 'linked Supabase ledger', 'one Git production event'],
   },
   {
     name: 'Database recovery rehearsal is disposable, local-only and checksum-bound',

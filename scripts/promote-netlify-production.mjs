@@ -3,6 +3,19 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { validateProductionPromotion } from './lib/production-release.mjs'
+import {
+  assessProductionMigrationState,
+  assertProductionMigrationStateIsSafe,
+  createProductionMigrationManifest,
+  parseSupabaseMigrationList,
+  validateAppendOnlyMigrationChanges,
+} from './lib/production-migrations.mjs'
+
+const supabaseCliVersion = '2.116.0'
+let databaseMutationAttempted = false
+let databaseMutationVerified = false
+let productionBranchUpdated = false
+let netlifyDeploysRequested = 0
 
 process.on('uncaughtException', (error) => {
   console.error(JSON.stringify({
@@ -10,8 +23,10 @@ process.on('uncaughtException', (error) => {
     containsPii: false,
     result: 'blocked',
     reason: error instanceof Error ? error.message : 'Unknown production promotion failure',
-    productionBranchUpdated: false,
-    netlifyDeploysRequested: 0,
+    productionBranchUpdated,
+    netlifyDeploysRequested,
+    databaseMutationAttempted,
+    databaseMutationVerified,
   }, null, 2))
   process.exit(1)
 })
@@ -39,6 +54,13 @@ function git(args) {
   return run('git', args).stdout.trim()
 }
 
+function listProductionMigrations() {
+  const result = run('npx', [
+    '--yes', `supabase@${supabaseCliVersion}`, 'migration', 'list', '--linked', '--workdir', '.',
+  ])
+  return parseSupabaseMigrationList(result.stdout)
+}
+
 function output(receipt) {
   console.log(JSON.stringify({
     kind: 'aerotrade_netlify_production_promotion',
@@ -54,6 +76,23 @@ const productionCommit = git(['rev-parse', 'origin/production'])
 const candidateCommit = git(['rev-parse', 'origin/main'])
 const mergeBaseCommit = git(['merge-base', productionCommit, candidateCommit])
 const changedFiles = git(['diff', '--name-only', productionCommit, candidateCommit]).split(/\r?\n/).filter(Boolean)
+const migrationChanges = git(['diff', '--name-status', '--no-renames', productionCommit, candidateCommit])
+  .split(/\r?\n/)
+  .filter(Boolean)
+  .map((line) => {
+    const [status, ...pathParts] = line.split(/\t/)
+    return { status, path: pathParts.join('\t') }
+  })
+const migrationFiles = validateAppendOnlyMigrationChanges(migrationChanges)
+const migrationManifest = createProductionMigrationManifest(migrationFiles.map((path) => ({
+  path,
+  contents: run('git', ['show', `${candidateCommit}:${path}`]).stdout,
+})))
+const repositoryMigrationVersions = git(['ls-tree', '-r', '--name-only', candidateCommit, 'supabase/migrations'])
+  .split(/\r?\n/)
+  .map((path) => /^supabase\/migrations\/([0-9]{14})_[a-z0-9_]+\.sql$/.exec(path)?.[1] || null)
+  .filter(Boolean)
+  .toSorted()
 const markerText = git(['show', `${candidateCommit}:release/netlify-production.json`])
 const marker = JSON.parse(markerText)
 const gate = run(process.execPath, ['scripts/netlify-ignore-build.mjs'], {
@@ -69,14 +108,26 @@ const validation = validateProductionPromotion({
   changedFiles,
   gateStatus: gate.status,
   gateOutput: gate.stdout,
+  migrationManifest,
 })
+const migrationStateBefore = assessProductionMigrationState({
+  ledgerRows: listProductionMigrations(),
+  repositoryVersions: repositoryMigrationVersions,
+  requiredVersions: migrationManifest.migrationVersions,
+})
+assertProductionMigrationStateIsSafe(migrationStateBefore, { allowRequiredPending: true })
 
 if (!apply) {
   output({
     mode: 'dry_run',
-    result: 'ready_for_explicit_promotion',
+    result: migrationStateBefore.requiredPendingVersions.length > 0
+      ? 'ready_for_explicit_database_and_production_promotion'
+      : 'ready_for_explicit_production_promotion',
     productionBranchUpdated: false,
     netlifyDeploysRequested: 0,
+    databaseMutated: false,
+    pendingDatabaseMigrations: migrationStateBefore.requiredPendingVersions,
+    remoteLatestMigration: migrationStateBefore.remoteLatestVersion,
     ...validation,
   })
   process.exit(0)
@@ -87,9 +138,30 @@ assert.equal(
   marker.releaseId,
   'Set CONFIRM_AEROTRADE_PRODUCTION_RELEASE to the exact releaseId before using --apply',
 )
+assert.equal(
+  process.env.CONFIRM_AEROTRADE_DATABASE_MIGRATIONS,
+  migrationManifest.migrationManifestSha256,
+  'Set CONFIRM_AEROTRADE_DATABASE_MIGRATIONS to the exact migration manifest SHA-256 before using --apply',
+)
+assert.equal(git(['rev-parse', 'HEAD']), candidateCommit, 'Apply mode requires the checked-out HEAD to equal origin/main exactly')
 
 run('npm', ['run', 'verify:production-release'])
+if (migrationStateBefore.requiredPendingVersions.length > 0) {
+  databaseMutationAttempted = true
+  run('npx', [
+    '--yes', `supabase@${supabaseCliVersion}`, 'db', 'push', '--linked', '--include-all', '--yes', '--workdir', '.',
+  ])
+}
+const migrationStateAfter = assessProductionMigrationState({
+  ledgerRows: listProductionMigrations(),
+  repositoryVersions: repositoryMigrationVersions,
+  requiredVersions: migrationManifest.migrationVersions,
+})
+assertProductionMigrationStateIsSafe(migrationStateAfter, { allowRequiredPending: false })
+databaseMutationVerified = true
 run('git', ['push', '--porcelain', 'origin', `${candidateCommit}:refs/heads/production`])
+productionBranchUpdated = true
+netlifyDeploysRequested = 1
 const remoteProductionCommit = git(['ls-remote', '--heads', 'origin', 'refs/heads/production']).split(/\s+/)[0]
 assert.equal(remoteProductionCommit, candidateCommit, 'Remote production branch did not persist the promoted commit')
 
@@ -98,6 +170,9 @@ output({
   result: 'production_branch_promoted',
   productionBranchUpdated: true,
   netlifyDeploysRequested: 1,
+  databaseMutated: migrationStateBefore.requiredPendingVersions.length > 0,
+  databaseMigrationsApplied: migrationStateBefore.requiredPendingVersions,
+  remoteLatestMigration: migrationStateAfter.remoteLatestVersion,
   ...validation,
   remoteProductionCommit,
 })

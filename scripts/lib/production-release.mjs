@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { validateProductionMigrationMarker } from './production-migrations.mjs'
 
 const commitPattern = /^[0-9a-f]{40}$/i
 
@@ -10,13 +11,14 @@ export function validateProductionPromotion({
   changedFiles,
   gateStatus,
   gateOutput,
+  migrationManifest,
 }) {
   assert.match(productionCommit, commitPattern, 'Production commit must be a full Git SHA')
   assert.match(candidateCommit, commitPattern, 'Candidate commit must be a full Git SHA')
   assert.notEqual(candidateCommit, productionCommit, 'Production already points at the candidate commit')
   assert.equal(mergeBaseCommit, productionCommit, 'Candidate must be a fast-forward descendant of production')
 
-  assert.equal(marker?.schemaVersion, 1, 'Unsupported production release marker schema')
+  assert.equal(marker?.schemaVersion, 2, 'Unsupported production release marker schema')
   assert.equal(marker?.productionBaseCommit, productionCommit, 'Release marker does not target the current production commit')
   assert.equal(marker?.expectedProductionDeploys, 1, 'A release must request exactly one production deploy')
   assert.equal(marker?.requiresExplicitApproval, true, 'A release must retain the explicit approval requirement')
@@ -27,11 +29,14 @@ export function validateProductionPromotion({
   assert.equal(gateStatus, 1, 'Netlify gate must request one explicit build for the candidate')
   assert.match(gateOutput, /explicit production release marker changed/, 'Netlify gate did not recognize the explicit release marker')
 
+  const database = validateProductionMigrationMarker(marker.database, migrationManifest)
+
   return Object.freeze({
     productionCommit,
     candidateCommit,
     releaseId: marker.releaseId,
     changedFileCount: changedFiles.length,
     expectedProductionDeploys: 1,
+    ...database,
   })
 }
