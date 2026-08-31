@@ -63,7 +63,7 @@ export async function completeAccountRecovery(formData: FormData) {
     .is('consumed_at', null)
     .select('id,consumed_at')
     .maybeSingle()
-  if (claimError || claimed?.consumed_at !== consumedAt) {
+  if (claimError || !claimed?.id || !claimed.consumed_at) {
     redirect('/forgot-password?error=' + encodeURIComponent('This recovery link was already used. Request a new one.'))
   }
 

@@ -942,7 +942,7 @@ const checks = [
   {
     name: 'Account recovery email links reset in one scanner-safe, one-time, cross-device submission',
     file: 'src/app/account/recovery/actions.ts',
-    required: ['validateAccountPasswordChange', 'verifyAccountRecoveryCapability', ".eq('idempotency_key', requestId)", ".is('consumed_at', null)", 'admin.auth.admin.updateUserById', "update({ consumed_at: null })", "redirect('/login?message='"],
+    required: ['validateAccountPasswordChange', 'verifyAccountRecoveryCapability', ".eq('idempotency_key', requestId)", ".is('consumed_at', null)", '!claimed?.id', '!claimed.consumed_at', 'admin.auth.admin.updateUserById', "update({ consumed_at: null })", "redirect('/login?message='"],
   },
   {
     name: 'Account recovery delivery extends the closed private receipt vocabulary',
