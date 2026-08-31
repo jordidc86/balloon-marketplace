@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_buyer_enquiry_delivery_truth_verification",
+  "completedAt": "2026-08-31T11:21:30Z",
+  "containsPii": false,
+  "economicActionsPerformed": 0,
+  "externalMessagesSent": 0,
+  "release": {
+    "commit": "afe95611ce231603a47823971e01a4458b8012a6",
+    "netlifyDeployId": "6a95632b1e83d10008fd6b26",
+    "state": "ready",
+    "publishedAt": "2026-08-31T11:19:53.128Z",
+    "deployTimeSeconds": 44
+  },
+  "behavior": {
+    "acceptedSellerEmailClaimsDelivery": true,
+    "unverifiedSellerEmailClaimsDelivery": false,
+    "unverifiedSellerEmailNamesRecoveryState": true,
+    "retryAcknowledgementReadsStoredSellerDeliveryStatus": true
+  },
+  "gates": {
+    "testsPassed": 172,
+    "operationalContractsPassed": 188,
+    "lintPassed": true,
+    "buildPassed": true,
+    "edgeRuntimeDeprecationWarningOnly": true
+  },
+  "productionSmoke": {
+    "catalogStatusesAfterWarmup": [200, 200, 200, 200, 200],
+    "commercialControlTowerStatuses": [307, 307, 307, 307, 307],
+    "commercialControlTowerRedirect": "/login",
+    "privateInquiryStatusPageStatuses": [200, 200, 200, 200, 200],
+    "unauthorizedOpportunityFollowupStatus": 401,
+    "initialPostDeployTransient502Observed": true,
+    "transient502Repeated": false
+  }
+}
