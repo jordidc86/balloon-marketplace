@@ -21,7 +21,7 @@ This update combines the read-only production snapshot `marketplace-audit-2026-0
 | 9 | Automation, communications and follow-up | 99 | 70 | 90 | Paid alerts, negotiations, proposals, newsletters and recovery are provider-idempotent, bounded and receipt-readback bound. Four social placements and 14 one-time consent invitations were provider-accepted; only one newsletter consent is active. |
 | 10 | Analytics, Control Tower and commercial evidence | 99 | 60 | 87 | Control Tower separates closures, attribution, delivery and economics. The candidate adds pre-send seller outreach readiness; no seller digest has yet been sent. |
 | 11 | Security, privacy and transactional integrity | 99 | 90 | 96 | Sale evidence is append-only, seller outreach is cycle-bound and the candidate prevents stale timestamps from obscuring real listing mutations. |
-| 12 | Deployment, production reliability and operability | 99 | 95 | 98 | Netlify publishes only `production`, ordinary `main` pushes cause no deploy, and the current candidate passes 209 tests, 222 contracts, lint, types, build and a disposable 73-migration rehearsal. |
+| 12 | Deployment, production reliability and operability | 99 | 95 | 98 | Netlify publishes only `production`, ordinary `main` pushes cause no deploy, and the current candidate passes 211 tests, 225 contracts, lint, types, build and a disposable 74-migration rehearsal. |
 
 ## Aggregate
 

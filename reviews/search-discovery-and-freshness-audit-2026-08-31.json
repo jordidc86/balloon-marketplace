@@ -37,9 +37,9 @@
     "indexNowIncludesPublicSoldRecoveryPages": true,
     "futureListingMutationsRefreshUpdatedAt": true,
     "tests": {
-      "unitPassed": 209,
+      "unitPassed": 211,
       "unitFailed": 0,
-      "operationalContractsPassed": 222,
+      "operationalContractsPassed": 225,
       "lintPassed": true,
       "typecheckPassed": true,
       "productionBuildPassed": true

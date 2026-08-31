@@ -465,6 +465,21 @@ const checks = [
     required: ['parseWantedRequest(formData)', 'createWantedSubmissionKey', "from('wanted_requests')", 'duplicateCutoff', 'rateCutoff', "from('commercial_notification_receipts')", 'Wanted request ${stored.id} notification result could not be verified'],
   },
   {
+    name: 'Wanted buyers receive one durable transactional acknowledgement without marketing consent',
+    file: 'src/app/wanted/actions.ts',
+    required: ['buildWantedBuyerAcknowledgement', "notificationType: 'wanted_buyer_ack'", "entityType: 'wanted_request'", "recipientRole: 'buyer'", 'wanted-buyer-ack-${stored.id}', 'buyer acknowledgement could not be completed'],
+  },
+  {
+    name: 'Failed wanted-buyer acknowledgements rebuild current evidence and retry safely',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ["'wanted_buyer_ack'", 'dueWantedBuyerAcknowledgementRetries', "from('wanted_requests')", 'buildWantedBuyerAcknowledgement', 'wanted-buyer-ack-${wanted.id}', 'Wanted-equipment buyer acknowledgement retry failed'],
+  },
+  {
+    name: 'Wanted-buyer acknowledgement extends the closed private delivery vocabulary',
+    file: 'supabase/migrations/20260831720000_wanted_buyer_acknowledgement.sql',
+    required: ['wanted_buyer_ack', 'Closed transactional vocabulary', 'it grants no marketing consent'],
+  },
+  {
     name: 'Wanted demand records bounded source attribution without a raw visitor id',
     file: 'supabase/migrations/20260829160000_wanted_request_attribution.sql',
     required: ['referrer_host text', 'utm_source text', 'wanted_requests_attribution_idx', 'No raw visitor identifier'],

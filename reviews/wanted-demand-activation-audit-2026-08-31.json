@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_wanted_demand_activation_audit",
+  "containsPii": false,
+  "releaseId": "2026-08-31-acquisition-and-supply-activation",
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "capability": {
+    "storedBeforeDelivery": true,
+    "buyerAcknowledgementTransactional": true,
+    "marketingConsentInferred": false,
+    "providerIdempotent": true,
+    "retryBudget": 2,
+    "currentCatalogueEvidenceRebuiltOnRetry": true,
+    "controlTowerDeliveryEvidence": true
+  },
+  "verification": {
+    "unitTestsPassed": 211,
+    "unitTestsFailed": 0,
+    "operationalContractsPassed": 225,
+    "lintPassed": true,
+    "typesPassed": true,
+    "buildPassed": true,
+    "databaseRecovery": {
+      "productionAccessed": false,
+      "productionMutated": false,
+      "latestMigration": "20260831720000",
+      "migrationsVerified": 74,
+      "forwardMigrationsApplied": 25,
+      "aerotradeLintErrors": 0
+    }
+  },
+  "commercialBoundary": "The acknowledgement confirms only the stored wanted request, the buyer's selected match-alert preference and a basic current candidate count. It creates no reservation, sale, payment or marketing consent."
+}

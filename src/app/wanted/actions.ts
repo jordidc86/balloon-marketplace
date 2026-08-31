@@ -8,6 +8,8 @@ import { siteUrl } from '@/utils/site'
 import { headers } from 'next/headers'
 import { commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 import type { BrowserCommercialContext } from '@/utils/browser-attribution'
+import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
+import { buildWantedBuyerAcknowledgement } from '@/utils/wanted-buyer-acknowledgement.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
@@ -93,7 +95,7 @@ export async function submitWantedRequest(formData: FormData, rawContext?: Brows
   let matchQuery = supabaseAdmin
     .from('listings')
     .select('id', { count: 'exact', head: true })
-    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+    .or(`status.eq.ACTIVE_PUBLIC,and(status.eq.ACTIVE_PREMIUM,public_at.lte.${new Date().toISOString()})`)
     .eq('category', request.category)
     .eq('currency', request.currency)
   if (request.budget_max_minor !== null) matchQuery = matchQuery.lte('price', request.budget_max_minor / 100)
@@ -154,6 +156,26 @@ export async function submitWantedRequest(formData: FormData, rawContext?: Brows
     if (notificationError || notificationReadback?.status !== expectedStatus) {
       console.error(`Wanted request ${stored.id} notification result could not be verified`)
     }
+  }
+
+  try {
+    const acknowledgement = buildWantedBuyerAcknowledgement({
+      category: request.category,
+      notifyOnMatch: request.notify_on_match,
+      matchingCount: matchingCount || 0,
+    }, siteUrl)
+    await sendCommercialReceiptEmail(supabaseAdmin, {
+      notificationType: 'wanted_buyer_ack',
+      entityType: 'wanted_request',
+      entityId: stored.id,
+      recipientRole: 'buyer',
+      to: request.buyer_email,
+      subject: acknowledgement.subject,
+      html: acknowledgement.html,
+      idempotencyKey: `wanted-buyer-ack-${stored.id}`,
+    })
+  } catch (error) {
+    console.error(`Wanted request ${stored.id} buyer acknowledgement could not be completed:`, error)
   }
 
   return {

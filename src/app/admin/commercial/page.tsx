@@ -569,6 +569,10 @@ export default async function CommercialPage() {
   const acceptedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'accepted').length
   const failedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed').length
   const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
+  const wantedBuyerAcknowledgements = typedNotifications.filter((notification) => notification.notification_type === 'wanted_buyer_ack')
+  const acceptedWantedBuyerAcknowledgements = wantedBuyerAcknowledgements.filter((notification) => notification.status === 'accepted').length
+  const failedWantedBuyerAcknowledgements = wantedBuyerAcknowledgements.filter((notification) => notification.status === 'failed').length
+  const exhaustedWantedBuyerAcknowledgements = wantedBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
   const buyerEarlyAccessCheckoutRecoveries = typedNotifications.filter((notification) => notification.notification_type === 'buyer_early_access_checkout_recovery')
   const acceptedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'accepted').length
   const failedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed').length
@@ -967,6 +971,7 @@ export default async function CommercialPage() {
       <section className="rounded-2xl border bg-card overflow-hidden">
         <div className="border-b p-6"><h2 className="text-xl font-semibold">Buyer demand without a listing</h2><p className="mt-1 text-sm text-muted-foreground">Private wanted requests and basic matches against active supply. Consented buyers receive one deduplicated operational digest when new compatible listings appear.</p></div>
         {wantedMatchDispatchError ? <p className="border-b p-6 text-sm text-destructive">Wanted-match delivery evidence is unavailable: {wantedMatchDispatchError.message}</p> : null}
+        <p className={`border-b px-6 py-3 text-xs ${failedWantedBuyerAcknowledgements > 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>Initial buyer acknowledgements: {acceptedWantedBuyerAcknowledgements} accepted · {failedWantedBuyerAcknowledgements} failed · {exhaustedWantedBuyerAcknowledgements} exhausted after the safe retry.</p>
         {wantedError ? <p className="p-6 text-destructive">Wanted-demand pipeline unavailable: {wantedError.message}</p> : typedWantedRequests.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No tracked wanted-equipment requests yet.</p> : (
           <div className="divide-y">
             {typedWantedRequests.map((request) => {

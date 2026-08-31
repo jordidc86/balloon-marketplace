@@ -258,6 +258,8 @@ const newBalloonBuyerAcknowledgements = commercialNotifications.filter((notifica
 const exhaustedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const inquiryBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'inquiry_buyer_ack')
 const exhaustedInquiryBuyerAcknowledgements = inquiryBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
+const wantedBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'wanted_buyer_ack')
+const exhaustedWantedBuyerAcknowledgements = wantedBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const buyerEarlyAccessCheckoutRecoveries = commercialNotifications.filter((notification) => notification.notification_type === 'buyer_early_access_checkout_recovery')
 const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const listingAvailabilityRequests = commercialNotifications.filter((notification) => notification.notification_type === 'listing_availability_request')
@@ -524,6 +526,10 @@ const result = {
     inquiryBuyerAcknowledgementStatuses: countBy(inquiryBuyerAcknowledgements, 'status'),
     inquiryBuyerAcknowledgementAttempts: countBy(inquiryBuyerAcknowledgements, 'delivery_attempts'),
     exhaustedInquiryBuyerAcknowledgements: exhaustedInquiryBuyerAcknowledgements.length,
+    wantedBuyerAcknowledgements: wantedBuyerAcknowledgements.length,
+    wantedBuyerAcknowledgementStatuses: countBy(wantedBuyerAcknowledgements, 'status'),
+    wantedBuyerAcknowledgementAttempts: countBy(wantedBuyerAcknowledgements, 'delivery_attempts'),
+    exhaustedWantedBuyerAcknowledgements: exhaustedWantedBuyerAcknowledgements.length,
     buyerEarlyAccessCheckoutRecoveries: buyerEarlyAccessCheckoutRecoveries.length,
     buyerEarlyAccessCheckoutRecoveryStatuses: countBy(buyerEarlyAccessCheckoutRecoveries, 'status'),
     buyerEarlyAccessCheckoutRecoveryAttempts: countBy(buyerEarlyAccessCheckoutRecoveries, 'delivery_attempts'),

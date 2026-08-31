@@ -8,6 +8,7 @@ import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 import { siteUrl } from '@/utils/site'
 import { buildNewBalloonBuyerAcknowledgement } from '@/utils/new-balloon-buyer-acknowledgement.mjs'
 import { buildInquiryBuyerAcknowledgement } from '@/utils/inquiry-buyer-acknowledgement.mjs'
+import { buildWantedBuyerAcknowledgement } from '@/utils/wanted-buyer-acknowledgement.mjs'
 import { inquiryBuyerCapabilityLifetimeMs, inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerCapability, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
 import { buyerEarlyAccessProduct } from '@/utils/paid-product-labels.mjs'
 import { buildBuyerResponseSellerNotification, buildSellerResponseBuyerNotification, parseNegotiationNotificationEventId } from '@/utils/inquiry-negotiation-notifications.mjs'
@@ -57,7 +58,7 @@ type SellerAssistance = {
 }
 
 type BuyerAcknowledgementRetry = {
-  notification_type: 'new_balloon_buyer_ack' | 'inquiry_buyer_ack'
+  notification_type: 'new_balloon_buyer_ack' | 'inquiry_buyer_ack' | 'wanted_buyer_ack'
   entity_id: string
 }
 
@@ -75,6 +76,15 @@ type InquiryBuyerAcknowledgement = {
   initial_offer_amount_minor: number | null
   seller_notification_status: string
   listings: { id: string; title: string } | Array<{ id: string; title: string }> | null
+}
+
+type WantedBuyerAcknowledgement = {
+  id: string
+  buyer_email: string
+  category: string
+  currency: string
+  budget_max_minor: number | null
+  notify_on_match: boolean
 }
 
 type BuyerEarlyAccessCheckoutRecovery = {
@@ -282,7 +292,7 @@ export async function GET(request: Request) {
     supabase
       .from('commercial_notification_receipts')
       .select('notification_type,entity_id')
-      .in('notification_type', ['new_balloon_buyer_ack', 'inquiry_buyer_ack'])
+      .in('notification_type', ['new_balloon_buyer_ack', 'inquiry_buyer_ack', 'wanted_buyer_ack'])
       .in('status', ['pending', 'failed'])
       .lt('delivery_attempts', 2)
       .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
@@ -379,8 +389,10 @@ export async function GET(request: Request) {
   const sellerEnquiryEscalations = inquiries.filter((inquiry) => sellerEscalationInquiryIds.has(inquiry.id))
   const newBalloonBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'new_balloon_buyer_ack')
   const inquiryBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'inquiry_buyer_ack')
+  const wantedBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'wanted_buyer_ack')
   const buyerAcknowledgementQuoteIds = [...new Set(newBalloonBuyerAcknowledgementRetries.map((retry) => retry.entity_id))]
   const buyerAcknowledgementInquiryIds = [...new Set(inquiryBuyerAcknowledgementRetries.map((retry) => retry.entity_id))]
+  const buyerAcknowledgementWantedIds = [...new Set(wantedBuyerAcknowledgementRetries.map((retry) => retry.entity_id))]
   const negotiationEventIds = negotiationRetries
     .map((retry) => parseNegotiationNotificationEventId(retry.notification_type, retry.idempotency_key))
     .filter((eventId): eventId is string => Boolean(eventId))
@@ -395,7 +407,7 @@ export async function GET(request: Request) {
     .map((retry) => parseListingVerificationEvidenceInstructionKey(retry.idempotency_key))
     .filter((eventId): eventId is string => Boolean(eventId)))]
   const listingVerificationListingIds = [...new Set(listingVerificationInstructionRetries.map((retry) => retry.entity_id))]
-  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult, sellerAvailabilitySellersResult, sellerAvailabilityListingsResult, publicNewsletterSubscriptionsResult, listingVerificationEventsResult, listingVerificationListingsResult] = await Promise.all([
+  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, buyerAcknowledgementWantedResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult, sellerAvailabilitySellersResult, sellerAvailabilityListingsResult, publicNewsletterSubscriptionsResult, listingVerificationEventsResult, listingVerificationListingsResult] = await Promise.all([
     buyerAcknowledgementQuoteIds.length > 0
       ? supabase
         .from('quote_requests')
@@ -407,6 +419,12 @@ export async function GET(request: Request) {
         .from('marketplace_inquiries')
         .select('id,buyer_email,currency,initial_offer_amount_minor,seller_notification_status,listings(id,title)')
         .in('id', buyerAcknowledgementInquiryIds)
+      : Promise.resolve({ data: [], error: null }),
+    buyerAcknowledgementWantedIds.length > 0
+      ? supabase
+        .from('wanted_requests')
+        .select('id,buyer_email,category,currency,budget_max_minor,notify_on_match')
+        .in('id', buyerAcknowledgementWantedIds)
       : Promise.resolve({ data: [], error: null }),
     negotiationEventIds.length > 0
       ? supabase
@@ -470,7 +488,7 @@ export async function GET(request: Request) {
         .in('id', listingVerificationListingIds)
       : Promise.resolve({ data: [], error: null }),
   ])
-  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error || sellerAvailabilitySellersResult.error || sellerAvailabilityListingsResult.error || publicNewsletterSubscriptionsResult.error || listingVerificationEventsResult.error || listingVerificationListingsResult.error) {
+  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || buyerAcknowledgementWantedResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error || sellerAvailabilitySellersResult.error || sellerAvailabilityListingsResult.error || publicNewsletterSubscriptionsResult.error || listingVerificationEventsResult.error || listingVerificationListingsResult.error) {
     return NextResponse.json({ error: 'Commercial notification recovery data could not be loaded' }, { status: 500 })
   }
   const buyerAcknowledgementQuoteById = new Map(
@@ -478,6 +496,9 @@ export async function GET(request: Request) {
   )
   const buyerAcknowledgementInquiryById = new Map(
     ((buyerAcknowledgementInquiriesResult.data || []) as unknown as InquiryBuyerAcknowledgement[]).map((inquiry) => [inquiry.id, inquiry]),
+  )
+  const buyerAcknowledgementWantedById = new Map(
+    ((buyerAcknowledgementWantedResult.data || []) as WantedBuyerAcknowledgement[]).map((request) => [request.id, request]),
   )
   const negotiationEventById = new Map(
     ((negotiationEventsResult.data || []) as NegotiationEvent[]).map((event) => [event.id, event]),
@@ -565,6 +586,7 @@ export async function GET(request: Request) {
     dueSellerAssistance: sellerAssistance.length,
     dueNewBalloonBuyerAcknowledgementRetries: newBalloonBuyerAcknowledgementRetries.length,
     dueMarketplaceInquiryBuyerAcknowledgementRetries: inquiryBuyerAcknowledgementRetries.length,
+    dueWantedBuyerAcknowledgementRetries: wantedBuyerAcknowledgementRetries.length,
     dueNegotiationNotificationRetries: negotiationRetries.length,
     dueNewBalloonProposalDeliveryRetries: newBalloonProposalDeliveryRetries.length,
     dueNewBalloonResponseAdminNotificationRetries: newBalloonResponseAdminRetries.length,
@@ -1209,6 +1231,47 @@ export async function GET(request: Request) {
     } catch (error) {
       console.error('Negotiation notification recovery failed:', error)
       result.negotiationNotificationsFailed += 1
+    }
+  }
+
+  for (const retry of wantedBuyerAcknowledgementRetries) {
+    const wanted = buyerAcknowledgementWantedById.get(retry.entity_id)
+    if (!wanted?.buyer_email) {
+      result.configurationBlocked += 1
+      continue
+    }
+    try {
+      let matchQuery = supabase
+        .from('listings')
+        .select('id', { count: 'exact', head: true })
+        .or(`status.eq.ACTIVE_PUBLIC,and(status.eq.ACTIVE_PREMIUM,public_at.lte.${new Date().toISOString()})`)
+        .eq('category', wanted.category)
+        .eq('currency', wanted.currency)
+      if (wanted.budget_max_minor !== null) matchQuery = matchQuery.lte('price', wanted.budget_max_minor / 100)
+      const { count: matchingCount, error: matchingError } = await matchQuery
+      if (matchingError) throw new Error('Wanted acknowledgement catalogue evidence could not be rebuilt')
+      const acknowledgement = buildWantedBuyerAcknowledgement({
+        category: wanted.category,
+        notifyOnMatch: wanted.notify_on_match,
+        matchingCount: matchingCount || 0,
+      }, siteUrl)
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'wanted_buyer_ack',
+        entityType: 'wanted_request',
+        entityId: wanted.id,
+        recipientRole: 'buyer',
+        to: wanted.buyer_email,
+        subject: acknowledgement.subject,
+        html: acknowledgement.html,
+        idempotencyKey: `wanted-buyer-ack-${wanted.id}`,
+      })
+      if (delivery.duplicate) result.alreadyAccepted += 1
+      else if (delivery.success) result.accepted += 1
+      else if (delivery.skipped) result.retryDeferred += 1
+      else result.failed += 1
+    } catch (error) {
+      console.error('Wanted-equipment buyer acknowledgement retry failed:', error)
+      result.failed += 1
     }
   }
 
