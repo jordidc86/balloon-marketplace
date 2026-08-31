@@ -17,6 +17,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { rehearseMarketplaceTransaction } from './lib/marketplace-transaction-rehearsal.mjs'
+import { rehearseNewBalloonTransaction } from './lib/new-balloon-transaction-rehearsal.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const recoveryDir = join(root, 'supabase', 'recovery')
@@ -183,6 +184,9 @@ try {
   const transactionRehearsal = rehearseMarketplaceTransaction(
     (sql) => runDatabaseSql(containerName, sql),
   )
+  const newBalloonTransactionRehearsal = rehearseNewBalloonTransaction(
+    (sql) => runDatabaseSql(containerName, sql),
+  )
 
   const lintRun = run('npx', [
     '--yes', `supabase@${cliVersion}`, 'db', 'lint',
@@ -211,6 +215,7 @@ try {
     publicFunctions: integrityResult.public_functions,
     rlsTables: integrityResult.rls_tables,
     transactionRehearsal,
+    newBalloonTransactionRehearsal,
     aerotradeLintErrors: 0,
     knownSharedVoyagerLintErrors: lintIssues.length,
   }, null, 2))

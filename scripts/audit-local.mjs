@@ -89,6 +89,24 @@ const checks = [
     forbidden: ['DATABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'fetch(', 'resend', 'stripe.'],
   },
   {
+    name: 'A complete new-balloon intermediation is rehearsed without production or external messages',
+    file: 'scripts/lib/new-balloon-transaction-rehearsal.mjs',
+    required: [
+      'accept_new_balloon_proposal_delivery',
+      'record_new_balloon_proposal_response',
+      'record_commercial_outcome',
+      'record_commercial_unit_economics',
+      "authorizationGate: 'passed'",
+      "preDeliveryGate: 'passed'",
+      "deliveryIdempotencyGate: 'passed'",
+      "responseIdempotencyGate: 'passed'",
+      "immutableResponseGate: 'passed'",
+      'externalMessagesSent: 0',
+      'rollback;',
+    ],
+    forbidden: ['DATABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'fetch(', 'resend', 'stripe.'],
+  },
+  {
     name: 'Database recovery baseline is declared schema-only and credential-free',
     file: 'supabase/recovery/manifest.json',
     required: [

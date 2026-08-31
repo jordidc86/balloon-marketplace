@@ -6,9 +6,9 @@ Status: `Production is technically mature; the principal constraints are real ma
 ## Authoritative production state
 
 - Production: `https://aerotrade.app`, served from commit `e9630bda8507e7c609adad3148ab4c05df8bffd2` by ready Netlify deploy `6a95a2b7d784cef925c11da3` on the protected `production` branch.
-- Candidate validation: 212 automated tests, 230 operational contracts, ESLint, TypeScript, the optimized Next.js production build and a complete 75-migration disposable database recovery plus marketplace transaction rehearsal pass. Candidate capability is not counted as live production.
+- Candidate validation: 212 automated tests, 231 operational contracts, ESLint, TypeScript, the optimized Next.js production build and a complete 75-migration disposable database recovery plus marketplace and new-balloon transaction rehearsals pass. Candidate capability is not counted as live production.
 - Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v13.json`.
-- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v13.md` — mean technical readiness 97%, production/commercial proof 44%, evidence-weighted maturity 81%.
+- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v14.md` — mean technical readiness 97%, production/commercial proof 44%, evidence-weighted maturity 81%.
 - Supply: 12 active listings from 6 sellers; all 84 active image files are reachable; one additional listing remains pending payment.
 - Trust: 1/12 active listings has current owner availability evidence; 11 remain unconfirmed and no listing has document-verification evidence.
 - Demand and closing: no comparable stored marketplace enquiry, negotiation, new-balloon request or closed marketplace transaction exists yet.
@@ -16,6 +16,7 @@ Status: `Production is technically mature; the principal constraints are real ma
 - Inventory closure: one listing is immutably sold and excluded from available inventory. Its channel remains honestly undisclosed; Control Tower can now add one administrator-only, append-only clarification later without altering the closure, reopening inventory or creating revenue.
 - Deployment isolation: a measured shared-credit outage was traced to 83 production deploys. Netlify now publishes AeroTrade only from `production`, manual non-Git production deploys are blocked, and two subsequent `main` pushes created no Netlify deploy. Production and the sold-listing readback return HTTP 200. Evidence: `reviews/netlify-production-guard-verification-2026-08-31.json`.
 - Transaction integrity: one fully synthetic, disposable-database path now covers enquiry, seller counteroffer, buyer response, owner-authorized closure, atomic WON outcome and complete unit economics. It found and corrected an ordering ambiguity caused by tied transaction timestamps and random UUIDs; freshness now uses a monotonic database sequence. No production system or external recipient was touched. Evidence: `reviews/marketplace-transaction-rehearsal-2026-08-31.json`.
+- New-balloon integrity: a second fully synthetic path now covers stored request, operator proposal, provider-accepted delivery, immutable buyer interest, administrator-only commercial outcome and complete intermediation economics. Premature and unauthorized transitions fail closed, repeated delivery and buyer responses are idempotent, and no external message was sent. Evidence: `reviews/new-balloon-transaction-rehearsal-2026-08-31.json`.
 
 ## Newly live acquisition capability
 
@@ -35,7 +36,7 @@ Status: `Production is technically mature; the principal constraints are real ma
 1. **Fresh supply:** 11 active listings across 5 seller portfolios need genuine owner reconfirmation. The grouped, one-email-per-seller flow is technically ready, but sending it requires Jordi's exact outreach approval.
 2. **Qualified buyers:** the catalogue has traffic but no comparable post-instrumentation buyer enquiry. Public double opt-in can now accumulate consented demand; it has not yet produced a real subscriber or conversion.
 3. **Seller activation:** the pending-payment seller can either resume the 5 EUR promotion checkout or publish free. AeroTrade must not choose for the seller.
-4. **Commercial closing proof:** negotiation, proposal, outcome and economics ledgers now pass an end-to-end synthetic rehearsal, but no genuine equipment transaction has exercised them in production.
+4. **Commercial closing proof:** used-equipment and new-balloon revenue paths now pass end-to-end synthetic rehearsals, but no genuine equipment transaction has exercised either path in production.
 5. **Availability and verification:** current photos do not prove current ownership, availability, identity, documents or airworthiness. These states remain separate and evidence-bound.
 6. **Social distribution:** Meta accepted four historical placements, but two were image-only stories and only two carried the destination in post text or caption. No attributable AeroTrade action followed, and the current production Meta token is expired. Evidence: `reviews/social-publication-audit-2026-08-31.json`.
 

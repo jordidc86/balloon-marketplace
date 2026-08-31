@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_new_balloon_transaction_rehearsal",
+  "capturedAt": "2026-08-31",
+  "containsPii": false,
+  "syntheticOnly": true,
+  "productionAccessed": false,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "databaseRecovery": {
+    "snapshotSha256": "185e3894973527e9d944e150c0c1005511d48d861e39e9db3606ea07ead02b5d",
+    "baselineMigration": "20260829480000",
+    "latestMigration": "20260831730000",
+    "migrationsVerified": 75,
+    "forwardMigrationsApplied": 26,
+    "publicTables": 68,
+    "publicFunctions": 34,
+    "rlsTables": 56,
+    "aerotradeLintErrors": 0
+  },
+  "transaction": {
+    "quoteStatus": "WON",
+    "proposalDeliveryStatus": "accepted",
+    "proposalCount": 1,
+    "responseEvents": 1,
+    "responseType": "INTERESTED",
+    "outcomeEvents": 1,
+    "unitEconomicsEvents": 1,
+    "grossAmountMinor": 6000000,
+    "aerotradeRevenueMinor": 300000,
+    "contributionMarginMinor": 182000,
+    "authorizationGate": "passed",
+    "preDeliveryGate": "passed",
+    "deliveryIdempotencyGate": "passed",
+    "responseIdempotencyGate": "passed",
+    "immutableResponseGate": "passed"
+  },
+  "commercialProof": false
+}
