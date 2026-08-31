@@ -16,6 +16,7 @@ let databaseMutationAttempted = false
 let databaseMutationVerified = false
 let productionBranchUpdated = false
 let netlifyDeploysRequested = 0
+let liveReleaseVerified = false
 
 process.on('uncaughtException', (error) => {
   console.error(JSON.stringify({
@@ -27,6 +28,7 @@ process.on('uncaughtException', (error) => {
     netlifyDeploysRequested,
     databaseMutationAttempted,
     databaseMutationVerified,
+    liveReleaseVerified,
   }, null, 2))
   process.exit(1)
 })
@@ -85,6 +87,26 @@ function verifyBackwardCompatibility() {
   assert.equal(receipt.liveData?.checked, true, 'Backward compatibility verification did not inspect live production vocabularies')
   assert.equal(receipt.destructiveDdl?.hardDestructiveOperations, 0, 'Release contains hard destructive DDL')
   assert.equal(receipt.buyerFunction?.stable, true, 'Deployed buyer negotiation function contract is not stable')
+  return receipt
+}
+
+function verifyLiveRelease(candidateCommit, releaseId) {
+  const result = run(process.execPath, ['scripts/verify-production-live-release.mjs'], {
+    env: {
+      EXPECTED_PRODUCTION_COMMIT: candidateCommit,
+      EXPECTED_RELEASE_ID: releaseId,
+    },
+  })
+  const receipt = JSON.parse(result.stdout)
+  assert.equal(receipt.expectedCommit, candidateCommit, 'Live release verification returned another commit')
+  assert.equal(receipt.releaseId, releaseId, 'Live release verification returned another release')
+  assert.equal(receipt.deployState, 'ready', 'Exact Netlify deploy is not ready')
+  assert.equal(receipt.exactDeployCount, 1, 'Live release verification did not find exactly one deploy')
+  assert.equal(receipt.immutableOriginVerified, true, 'Immutable deploy origin was not verified')
+  assert.equal(receipt.canonicalOriginVerified, true, 'Canonical production origin was not verified')
+  assert.equal(receipt.externalMessagesSent, 0, 'Live release verification sent an external message')
+  assert.equal(receipt.economicActionsPerformed, 0, 'Live release verification performed an economic action')
+  liveReleaseVerified = true
   return receipt
 }
 
@@ -160,6 +182,7 @@ if (!apply) {
     pendingDatabaseMigrations: migrationStateBefore.requiredPendingVersions,
     remoteLatestMigration: migrationStateBefore.remoteLatestVersion,
     backwardCompatibilityVerified: true,
+    postDeployVerificationConfigured: true,
     liveCompatibilityRowsChecked:
       backwardCompatibility.liveData.notificationTypes.rowCount
       + backwardCompatibility.liveData.sellerStages.rowCount,
@@ -197,16 +220,22 @@ productionBranchUpdated = true
 netlifyDeploysRequested = 1
 const remoteProductionCommit = git(['ls-remote', '--heads', 'origin', 'refs/heads/production']).split(/\s+/)[0]
 assert.equal(remoteProductionCommit, candidateCommit, 'Remote production branch did not persist the promoted commit')
+const liveRelease = verifyLiveRelease(candidateCommit, marker.releaseId)
 
 output({
   mode: 'apply',
-  result: 'production_branch_promoted',
+  result: 'production_release_verified',
   productionBranchUpdated: true,
   netlifyDeploysRequested: 1,
   databaseMutated: migrationStateBefore.requiredPendingVersions.length > 0,
   databaseMigrationsApplied: migrationStateBefore.requiredPendingVersions,
   remoteLatestMigration: migrationStateAfter.remoteLatestVersion,
   backwardCompatibilityVerified: true,
+  liveReleaseVerified,
+  netlifyDeployId: liveRelease.deployId,
+  netlifyDeployPublishedAt: liveRelease.deployPublishedAt,
+  immutableEndpointChecks: liveRelease.immutableChecks.length,
+  canonicalEndpointChecks: liveRelease.canonicalChecks.length,
   liveCompatibilityRowsChecked:
     backwardCompatibility.liveData.notificationTypes.rowCount
     + backwardCompatibility.liveData.sellerStages.rowCount,

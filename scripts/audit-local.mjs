@@ -56,8 +56,14 @@ const checks = [
   {
     name: 'Production branch movement requires an exact release approval and full local verification',
     file: 'scripts/promote-netlify-production.mjs',
-    required: ['origin/production', 'origin/main', 'Worktree must be clean', 'CONFIRM_AEROTRADE_PRODUCTION_RELEASE', 'CONFIRM_AEROTRADE_DATABASE_MIGRATIONS', 'verifyBackwardCompatibility', "'migration', 'list'", "'db', 'push'", 'allowRequiredPending: false', "git(['rev-parse', 'HEAD'])", 'verify:production-release', 'refs/heads/production', 'ls-remote', 'netlifyDeploysRequested: 1'],
+    required: ['origin/production', 'origin/main', 'Worktree must be clean', 'CONFIRM_AEROTRADE_PRODUCTION_RELEASE', 'CONFIRM_AEROTRADE_DATABASE_MIGRATIONS', 'verifyBackwardCompatibility', 'verifyLiveRelease', "'migration', 'list'", "'db', 'push'", 'allowRequiredPending: false', "git(['rev-parse', 'HEAD'])", 'verify:production-release', 'refs/heads/production', 'ls-remote', 'netlifyDeploysRequested: 1', "result: 'production_release_verified'"],
     forbidden: ['netlify deploy', 'netlify api', 'NETLIFY_AUTH_TOKEN'],
+  },
+  {
+    name: 'Exact production deploy is provider-bound and publicly health checked before success',
+    file: 'scripts/verify-production-live-release.mjs',
+    required: ['EXPECTED_PRODUCTION_COMMIT', 'EXPECTED_RELEASE_ID', 'listSiteDeploys', 'classifyExactProductionDeploy', 'immutableChecks', 'canonicalChecks', 'exactDeployCount: 1', 'externalMessagesSent: 0', 'economicActionsPerformed: 0'],
+    forbidden: ['deploy:create', 'git push', 'SUPABASE_SERVICE_ROLE_KEY', 'resend', 'stripe'],
   },
   {
     name: 'Release operations are documented as one consolidated production deploy',
