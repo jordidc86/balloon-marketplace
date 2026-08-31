@@ -10,6 +10,7 @@ import {
   publicNewsletterSubmissionKey,
 } from '@/utils/newsletter-public-subscription.mjs'
 import { buildPublicNewsletterConfirmation } from '@/utils/newsletter-public-confirmation.mjs'
+import { commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 
 export type PublicNewsletterRequestState = { success: boolean; message: string }
 
@@ -27,6 +28,13 @@ export async function requestPublicNewsletterOptIn(
   }
 
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const attribution = normalizeCommercialContext({
+    visitorId: formData.get('attribution_visitor_id'),
+    referrer: formData.get('attribution_referrer'),
+    utmSource: formData.get('attribution_utm_source'),
+    utmMedium: formData.get('attribution_utm_medium'),
+    utmCampaign: formData.get('attribution_utm_campaign'),
+  })
   const requestHeaders = await headers()
   const clientAddress = requestHeaders.get('x-nf-client-connection-ip')
     || requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim()
@@ -42,6 +50,12 @@ export async function requestPublicNewsletterOptIn(
     p_email: request.email,
     p_email_hash: emailHash,
     p_request_key: submissionKey,
+    p_source_context: request.source_context,
+    p_journey_key: commercialJourneyKey({ principal: attribution.visitorId, secret }),
+    p_referrer_host: attribution.referrer_host,
+    p_utm_source: attribution.utm_source,
+    p_utm_medium: attribution.utm_medium,
+    p_utm_campaign: attribution.utm_campaign,
   })
   const claim = Array.isArray(data) ? data[0] : data
   if (error || !claim?.subscription_id) {

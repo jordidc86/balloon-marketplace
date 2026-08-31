@@ -8,6 +8,7 @@ import {
   publicNewsletterConfirmationLifetimeMs,
   publicNewsletterEmailHash,
   publicNewsletterSubmissionKey,
+  normalizePublicNewsletterSourceContext,
   signPublicNewsletterConfirmation,
   signPublicNewsletterUnsubscribe,
   verifyPublicNewsletterConfirmation,
@@ -21,7 +22,9 @@ test('public newsletter request is explicit, normalized and bot resistant', () =
   const form = new FormData()
   form.set('email', ' Pilot@Example.com ')
   form.set('privacy_consent', 'yes')
-  assert.deepEqual(parsePublicNewsletterOptIn(form), { email: 'pilot@example.com' })
+  form.set('source_context', 'catalog')
+  assert.deepEqual(parsePublicNewsletterOptIn(form), { email: 'pilot@example.com', source_context: 'catalog' })
+  assert.equal(normalizePublicNewsletterSourceContext('https://attacker.example'), 'unknown')
   assert.equal(publicNewsletterEmailHash('pilot@example.com', secret)?.length, 64)
   assert.equal(publicNewsletterSubmissionKey('203.0.113.1', 'test-agent', secret)?.length, 64)
 

@@ -248,7 +248,7 @@ export default async function Home() {
 
       <section className="border-t bg-slate-50 py-10">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <PublicNewsletterSignup />
+          <PublicNewsletterSignup sourceContext="home" />
         </div>
       </section>
 

@@ -1015,7 +1015,18 @@ const checks = [
   {
     name: 'Public newsletter request is generic, explicit and creates no consent on delivery',
     file: 'src/app/newsletter/actions.ts',
-    required: ['parsePublicNewsletterOptIn', 'publicNewsletterEmailHash', 'publicNewsletterSubmissionKey', "rpc('begin_public_newsletter_optin'", 'buildPublicNewsletterConfirmation', "notificationType: 'newsletter_public_optin_confirmation'", 'Nothing is subscribed until you confirm it'],
+    required: ['parsePublicNewsletterOptIn', 'publicNewsletterEmailHash', 'publicNewsletterSubmissionKey', 'normalizeCommercialContext', 'commercialJourneyKey', "rpc('begin_public_newsletter_optin'", 'p_source_context', 'p_journey_key', 'buildPublicNewsletterConfirmation', "notificationType: 'newsletter_public_optin_confirmation'", 'Nothing is subscribed until you confirm it'],
+  },
+  {
+    name: 'Public newsletter form reuses the existing commercial attribution fields',
+    file: 'src/components/PublicNewsletterSignup.tsx',
+    required: ['CommercialAttributionFields', "sourceContext: 'home' | 'catalog'", 'name="source_context"', 'value={sourceContext}'],
+  },
+  {
+    name: 'Public newsletter acquisition extends the existing privacy-minimized journey',
+    file: 'supabase/migrations/20260831680000_public_newsletter_attribution.sql',
+    required: ['source_context text', "source_context in ('home','catalog','unknown')", 'journey_key text', 'referrer_host text', 'utm_source text', 'p_source_context text', 'p_journey_key text', 'Backward-compatible service-only request claim', 'grant execute on function public.begin_public_newsletter_optin(text, text, text, text, text, text, text, text, text) to service_role', 'contains no raw visitor identifier'],
+    forbidden: ['visitor_id text', 'raw_url', 'ip_address'],
   },
   {
     name: 'Public newsletter confirmation and stop links require explicit signed POST and readback',

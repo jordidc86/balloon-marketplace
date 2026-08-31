@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { useActionState } from 'react'
 import { Mail } from 'lucide-react'
 import { requestPublicNewsletterOptIn, type PublicNewsletterRequestState } from '@/app/newsletter/actions'
+import CommercialAttributionFields from '@/components/CommercialAttributionFields'
 
 const initialState: PublicNewsletterRequestState = { success: false, message: '' }
 
-export default function PublicNewsletterSignup({ compact = false }: { compact?: boolean }) {
+export default function PublicNewsletterSignup({ compact = false, sourceContext }: { compact?: boolean; sourceContext: 'home' | 'catalog' }) {
   const [state, action, pending] = useActionState(requestPublicNewsletterOptIn, initialState)
   return (
     <section className={`rounded-2xl border border-primary/20 bg-primary/5 ${compact ? 'p-5' : 'p-6 sm:p-8'}`}>
@@ -21,6 +22,8 @@ export default function PublicNewsletterSignup({ compact = false }: { compact?: 
       {state.message ? <p className={`mt-4 rounded-lg border p-3 text-sm ${state.success ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-900'}`}>{state.message}</p> : null}
       {!state.success ? (
         <form action={action} className="mt-5 space-y-3">
+          <CommercialAttributionFields />
+          <input type="hidden" name="source_context" value={sourceContext} />
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="sr-only" htmlFor={`newsletter-email-${compact ? 'compact' : 'full'}`}>Email address</label>
             <input id={`newsletter-email-${compact ? 'compact' : 'full'}`} name="email" type="email" autoComplete="email" required maxLength={320} placeholder="you@example.com" className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2.5" />

@@ -7,12 +7,16 @@ export const publicNewsletterConfirmationLifetimeMs = 7 * 24 * 60 * 60 * 1000
 
 const text = (formData, name) => typeof formData.get(name) === 'string' ? formData.get(name).trim() : ''
 
+export function normalizePublicNewsletterSourceContext(value) {
+  return ['home', 'catalog'].includes(String(value || '').trim()) ? String(value).trim() : 'unknown'
+}
+
 export function parsePublicNewsletterOptIn(formData) {
   if (text(formData, 'website')) throw new Error('Unable to request marketplace updates.')
   const email = normalizeNewsletterEmail(text(formData, 'email'))
   if (!email) throw new Error('Please enter a valid email address.')
   if (formData.get('privacy_consent') !== 'yes') throw new Error('Please accept the privacy notice.')
-  return { email }
+  return { email, source_context: normalizePublicNewsletterSourceContext(text(formData, 'source_context')) }
 }
 
 export function publicNewsletterEmailHash(email, secret) {

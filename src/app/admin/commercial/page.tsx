@@ -261,6 +261,17 @@ type SocialPublicationReceipt = {
   accepted_at: string | null
 }
 
+type PublicNewsletterSubscriptionEvidence = {
+  id: string
+  status: 'PENDING' | 'ACTIVE' | 'UNSUBSCRIBED'
+  source_context: 'home' | 'catalog' | 'unknown'
+  utm_source: string | null
+  journey_key: string | null
+  requested_at: string
+  confirmed_at: string | null
+  unsubscribed_at: string | null
+}
+
 const formatDate = (value: string) => new Intl.DateTimeFormat('en-GB', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -277,7 +288,7 @@ export default async function CommercialPage() {
   const nowMs = Date.now()
   /* eslint-enable react-hooks/purity */
   const defaultProposalValidUntil = new Date(nowMs + 30 * 86_400_000).toISOString().slice(0, 10)
-  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: proposalResponses, error: proposalResponsesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }, { data: socialPublicationReceipts, error: socialPublicationError }] = await Promise.all([
+  const [{ data: inquiries, error: inquiriesError }, { data: negotiationEvents, error: negotiationEventsError }, { data: quotes, error: quotesError }, { data: proposals, error: proposalsError }, { data: proposalResponses, error: proposalResponsesError }, { data: wantedRequests, error: wantedError }, { data: wantedMatchDispatches, error: wantedMatchDispatchError }, { data: matchableListings }, { data: searchEvents, error: searchEventsError }, { data: sellerFunnelEvents, error: sellerFunnelError }, { data: sellerPipelineListings, error: sellerListingsError }, { data: sellerUsers, error: sellerUsersError }, { data: sellerAssistance, error: sellerAssistanceError }, { data: receipts }, { data: events }, { data: notifications, error: notificationsError }, { data: outcomes, error: outcomesError }, { data: indexingReceipts, error: indexingError }, { data: listingWatchers, error: listingWatchersError }, { data: listingWatchDispatches, error: listingWatchDispatchesError }, { data: socialPublicationReceipts, error: socialPublicationError }, { data: newsletterPublicSubscriptions, error: newsletterPublicSubscriptionsError }] = await Promise.all([
     supabase.from('marketplace_inquiries').select('id,listing_id,buyer_name,buyer_email,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,journey_key,listings(id,title)').order('created_at', { ascending: false }).limit(100),
     supabase.from('marketplace_inquiry_offer_events').select('id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('quote_requests').select('id,name,email,equipment_type,manufacturer_preference,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
@@ -299,6 +310,7 @@ export default async function CommercialPage() {
     supabase.from('listing_watchers').select('id,listing_id,status,journey_key,created_at,confirmed_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('listing_watch_dispatches').select('id,watcher_id,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('social_publication_receipts').select('status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(1000),
+    supabase.from('newsletter_public_subscriptions').select('id,status,source_context,utm_source,journey_key,requested_at,confirmed_at,unsubscribed_at').gte('requested_at', thirtyDaysAgo).order('requested_at', { ascending: false }).limit(1000),
   ])
 
   const typedInquiries = (inquiries || []) as unknown as Inquiry[]
@@ -319,6 +331,7 @@ export default async function CommercialPage() {
   const typedListingWatchers = (listingWatchers || []) as ListingWatcher[]
   const typedListingWatchDispatches = (listingWatchDispatches || []) as ListingWatchDispatch[]
   const typedSocialPublicationReceipts = (socialPublicationReceipts || []) as SocialPublicationReceipt[]
+  const typedPublicNewsletterSubscriptions = (newsletterPublicSubscriptions || []) as PublicNewsletterSubscriptionEvidence[]
   const { data: listingAvailabilityConfirmations, error: listingAvailabilityError } = await supabase
     .from('listing_availability_confirmations')
     .select('listing_id,confirmed_at')
@@ -554,6 +567,15 @@ export default async function CommercialPage() {
   const instagramSocialPublications = acceptedSocialPublications.filter((receipt) => receipt.network === 'instagram').length
   const facebookSocialPublications = acceptedSocialPublications.filter((receipt) => receipt.network === 'facebook').length
   const socialPublicationAttention = pendingSocialPublications.length + failedSocialPublications.length
+  const pendingPublicNewsletterSubscriptions = typedPublicNewsletterSubscriptions.filter((subscription) => subscription.status === 'PENDING').length
+  const activePublicNewsletterSubscriptions = typedPublicNewsletterSubscriptions.filter((subscription) => subscription.status === 'ACTIVE' && subscription.confirmed_at && !subscription.unsubscribed_at).length
+  const stoppedPublicNewsletterSubscriptions = typedPublicNewsletterSubscriptions.filter((subscription) => subscription.status === 'UNSUBSCRIBED').length
+  const attributedPublicNewsletterSubscriptions = typedPublicNewsletterSubscriptions.filter((subscription) => subscription.journey_key || subscription.utm_source).length
+  const publicNewsletterSourceCounts = typedPublicNewsletterSubscriptions.reduce<Map<string, number>>((counts, subscription) => {
+    const source = subscription.utm_source || subscription.source_context
+    counts.set(source, (counts.get(source) || 0) + 1)
+    return counts
+  }, new Map())
 
   return (
     <div className="space-y-8">
@@ -616,6 +638,24 @@ export default async function CommercialPage() {
             <Metric title="Failed placements" value={failedSocialPublications.length} icon={<TriangleAlert className="h-5 w-5" />} detail={`${retryableSocialPublications.length} bounded safe retry`} warning={failedSocialPublications.length > 0} />
             <Metric title="Attributed social views" value={typedListingEvents.filter((event) => ['instagram', 'facebook'].includes(event.utm_source || '')).length} icon={<Plane className="h-5 w-5" />} detail="Comparable against accepted publication evidence" />
           </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">Public newsletter acquisition (30d)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Visitors without an account enter the existing newsletter only after double opt-in. Counts are aggregate and retain no raw visitor, IP address, browser string or URL.</p>
+        {newsletterPublicSubscriptionsError ? <p className="mt-4 text-sm text-destructive">Public newsletter acquisition evidence is unavailable: {newsletterPublicSubscriptionsError.message}</p> : (
+          <>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Metric title="Requests" value={typedPublicNewsletterSubscriptions.length} icon={<BellRing className="h-5 w-5" />} detail={`${attributedPublicNewsletterSubscriptions} with bounded acquisition context`} />
+              <Metric title="Awaiting confirmation" value={pendingPublicNewsletterSubscriptions} icon={<TriangleAlert className="h-5 w-5" />} detail="Not part of the newsletter audience" />
+              <Metric title="Confirmed" value={activePublicNewsletterSubscriptions} icon={<CheckCircle2 className="h-5 w-5" />} detail="Provider accepted + signed explicit confirmation" />
+              <Metric title="Stopped" value={stoppedPublicNewsletterSubscriptions} icon={<BellRing className="h-5 w-5" />} detail="Excluded immediately from delivery" />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              {publicNewsletterSourceCounts.size === 0 ? <span className="text-muted-foreground">No public newsletter request has been recorded yet.</span> : [...publicNewsletterSourceCounts.entries()].map(([source, count]) => <span key={source} className="rounded-full border bg-background px-3 py-1 font-semibold">{source} · {count}</span>)}
+            </div>
+          </>
         )}
       </section>
 

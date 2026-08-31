@@ -325,7 +325,7 @@ export async function CatalogExperience({
       </div>
 
       <div className="mt-10">
-        <PublicNewsletterSignup compact />
+        <PublicNewsletterSignup compact sourceContext="catalog" />
       </div>
     </div>
   )
