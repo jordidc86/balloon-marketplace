@@ -1,19 +1,33 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { createAdminClient, createClient } from '@/utils/supabase/server'
-import { verifyAccountRecoveryCapability } from '@/utils/account-recovery.mjs'
-import { siteUrl } from '@/utils/site'
+import { createAdminClient } from '@/utils/supabase/server'
+import { validateAccountPasswordChange, verifyAccountRecoveryCapability } from '@/utils/account-recovery.mjs'
 
 const value = (formData: FormData, name: string) => {
   const item = formData.get(name)
   return typeof item === 'string' ? item.trim() : ''
 }
 
-export async function beginAccountRecovery(formData: FormData) {
+const recoveryFormUrl = (formData: FormData, error: string) => {
+  const params = new URLSearchParams({
+    id: value(formData, 'id'),
+    expires: value(formData, 'expires'),
+    request: value(formData, 'request'),
+    token: value(formData, 'token'),
+    error,
+  })
+  return `/account/recovery?${params.toString()}`
+}
+
+export async function completeAccountRecovery(formData: FormData) {
   const userId = value(formData, 'id')
   const expiresAt = value(formData, 'expires')
+  const requestId = value(formData, 'request')
   const token = value(formData, 'token')
+  const validation = validateAccountPasswordChange(formData.get('password'), formData.get('password_confirmation'))
+  if (!validation.valid) redirect(recoveryFormUrl(formData, validation.error || 'The new password is not valid.'))
+
   const admin = await createAdminClient()
   const [{ data: profile }, { data: receipt }] = await Promise.all([
     admin.from('users').select('id,email').eq('id', userId).maybeSingle(),
@@ -23,8 +37,7 @@ export async function beginAccountRecovery(formData: FormData) {
       .eq('notification_type', 'account_password_recovery')
       .eq('entity_type', 'user')
       .eq('entity_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
+      .eq('idempotency_key', requestId)
       .maybeSingle(),
   ])
 
@@ -34,21 +47,12 @@ export async function beginAccountRecovery(formData: FormData) {
       userId: profile.id,
       email: profile.email,
       expiresAt,
+      requestId,
       token,
       secret: process.env.SUPABASE_SERVICE_ROLE_KEY,
     }))
   if (!authorized || !profile || !receipt) {
     redirect('/forgot-password?error=' + encodeURIComponent('This recovery link is invalid, expired or already used. Request a new one.'))
-  }
-
-  const { data: generated, error: generateError } = await admin.auth.admin.generateLink({
-    type: 'recovery',
-    email: profile.email,
-    options: { redirectTo: `${siteUrl}/reset-password` },
-  })
-  const tokenHash = generated?.properties?.hashed_token
-  if (generateError || !tokenHash) {
-    redirect('/forgot-password?error=' + encodeURIComponent('A secure recovery session could not be created. Request a new link.'))
   }
 
   const consumedAt = new Date().toISOString()
@@ -63,10 +67,10 @@ export async function beginAccountRecovery(formData: FormData) {
     redirect('/forgot-password?error=' + encodeURIComponent('This recovery link was already used. Request a new one.'))
   }
 
-  const session = await createClient()
-  const { error: verifyError } = await session.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash })
-  if (verifyError) {
-    redirect('/forgot-password?error=' + encodeURIComponent('The recovery session could not be verified. Request a new link.'))
+  const { error: updateError } = await admin.auth.admin.updateUserById(profile.id, { password: validation.password })
+  if (updateError) {
+    await admin.from('commercial_notification_receipts').update({ consumed_at: null }).eq('id', receipt.id).eq('consumed_at', consumedAt)
+    redirect(recoveryFormUrl(formData, 'The password could not be changed. Request a new recovery email and try again.'))
   }
-  redirect('/reset-password')
+  redirect('/login?message=' + encodeURIComponent('Password updated. Log in with your new password.'))
 }

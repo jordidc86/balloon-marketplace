@@ -11,6 +11,7 @@ import {
 } from '../src/utils/account-recovery.mjs'
 
 const userId = '6d35b941-3795-4ebc-8b22-9ba586986db1'
+const requestId = `account-password-recovery-${userId}-12345`
 const secret = 'account-recovery-test-secret-with-safe-length'
 
 test('account recovery normalizes valid email without accepting malformed input', () => {
@@ -31,9 +32,11 @@ test('password recovery requires a bounded matching password', () => {
 test('account recovery capability is account, email and expiry bound', () => {
   const now = Date.parse('2026-08-31T08:00:00Z')
   const expiresAt = now + accountRecoveryCapabilityLifetimeMs
-  const token = signAccountRecoveryCapability({ userId, email: ' Seller@example.com ', expiresAt, secret })
+  const token = signAccountRecoveryCapability({ userId, email: ' Seller@example.com ', expiresAt, requestId, secret })
   assert.match(token, /^[0-9a-f]{64}$/)
-  assert.equal(verifyAccountRecoveryCapability({ userId, email: 'seller@example.com', expiresAt, token, secret, now }), true)
-  assert.equal(verifyAccountRecoveryCapability({ userId, email: 'other@example.com', expiresAt, token, secret, now }), false)
-  assert.equal(verifyAccountRecoveryCapability({ userId, email: 'seller@example.com', expiresAt, token, secret, now: expiresAt + 1 }), false)
+  assert.equal(verifyAccountRecoveryCapability({ userId, email: 'seller@example.com', expiresAt, requestId, token, secret, now }), true)
+  assert.equal(verifyAccountRecoveryCapability({ userId, email: 'other@example.com', expiresAt, requestId, token, secret, now }), false)
+  assert.equal(verifyAccountRecoveryCapability({ userId, email: 'seller@example.com', expiresAt, requestId: `${requestId}6`, token, secret, now }), false)
+  assert.equal(signAccountRecoveryCapability({ userId, email: 'seller@example.com', expiresAt, requestId: 'account-password-recovery-00000000-0000-4000-8000-000000000000-12345', secret }), null)
+  assert.equal(verifyAccountRecoveryCapability({ userId, email: 'seller@example.com', expiresAt, requestId, token, secret, now: expiresAt + 1 }), false)
 })

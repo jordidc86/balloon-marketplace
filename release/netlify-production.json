@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-cross-device-account-recovery",
-  "productionBaseCommit": "5607f797ef26b97bee7b1732caffb4020c29d16c",
+  "releaseId": "2026-08-31-single-step-account-recovery",
+  "productionBaseCommit": "0f43c9b45d963bff1e91ac9d18013ac4e4f6ce6f",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

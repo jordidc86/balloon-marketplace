@@ -940,9 +940,9 @@ const checks = [
     forbidden: ['resetPasswordForEmail', 'generateLink'],
   },
   {
-    name: 'Account recovery email links are scanner-safe, one-time and cross-device',
+    name: 'Account recovery email links reset in one scanner-safe, one-time, cross-device submission',
     file: 'src/app/account/recovery/actions.ts',
-    required: ['verifyAccountRecoveryCapability', "type: 'recovery'", 'hashed_token', ".is('consumed_at', null)", "session.auth.verifyOtp({ type: 'recovery'", "redirect('/reset-password')"],
+    required: ['validateAccountPasswordChange', 'verifyAccountRecoveryCapability', ".eq('idempotency_key', requestId)", ".is('consumed_at', null)", 'admin.auth.admin.updateUserById', "update({ consumed_at: null })", "redirect('/login?message='"],
   },
   {
     name: 'Account recovery delivery extends the closed private receipt vocabulary',

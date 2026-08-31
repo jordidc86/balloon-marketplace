@@ -34,16 +34,18 @@ export async function requestPasswordReset(formData: FormData) {
         .maybeSingle()
       if (!recent?.id) {
         const expiresAt = Date.now() + accountRecoveryCapabilityLifetimeMs
+        const recoveryWindow = Math.floor(Date.now() / accountRecoveryRequestCooldownMs)
+        const idempotencyKey = `account-password-recovery-${profile.id}-${recoveryWindow}`
         const token = signAccountRecoveryCapability({
           userId: profile.id,
           email: profile.email,
           expiresAt,
+          requestId: idempotencyKey,
           secret: process.env.SUPABASE_SERVICE_ROLE_KEY,
         })
         if (!token) throw new Error('Recovery capability could not be created')
-        const params = new URLSearchParams({ id: profile.id, expires: String(expiresAt), token })
+        const params = new URLSearchParams({ id: profile.id, expires: String(expiresAt), request: idempotencyKey, token })
         const recoveryUrl = `${siteUrl}/account/recovery?${params.toString()}`
-        const recoveryWindow = Math.floor(Date.now() / accountRecoveryRequestCooldownMs)
         await sendCommercialReceiptEmail(admin, {
           notificationType: 'account_password_recovery',
           entityType: 'user',
@@ -52,7 +54,7 @@ export async function requestPasswordReset(formData: FormData) {
           to: profile.email,
           subject: 'Recover your AeroTrade account',
           html: `<h2>Recover your AeroTrade account</h2><p>A password reset was requested for this email address.</p><p><a href="${escapeHtml(recoveryUrl)}">Continue securely</a></p><p>Opening the link does not change the password. You must explicitly confirm before choosing a new one. The link expires after 30 minutes.</p><p>If you did not request this, ignore the email.</p>`,
-          idempotencyKey: `account-password-recovery-${profile.id}-${recoveryWindow}`,
+          idempotencyKey,
         })
       }
     }
