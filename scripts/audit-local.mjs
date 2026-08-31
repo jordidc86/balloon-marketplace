@@ -336,7 +336,7 @@ const checks = [
   {
     name: 'Undisclosed sale clarification is append-only, admin-only and cannot invent revenue or reopen inventory',
     file: 'supabase/migrations/20260831700000_listing_sale_clarification.sql',
-    required: ['listing_sale_clarifications', 'lifecycle_event_id uuid not null unique', "actor_role text not null check (actor_role = 'ADMIN')", "sale_channel text not null check (sale_channel in ('AEROTRADE', 'OTHER_CHANNEL'))", 'prevent_listing_sale_clarification_mutation', 'Listing sale clarifications are append-only', 'clarify_listing_sale_by_admin', 'for update', "v_event.sale_channel <> 'NOT_DISCLOSED'", "status <> 'SPAM'", 'An AeroTrade clarification requires a matching non-spam enquiry', 'never creates a commercial outcome or revenue'],
+    required: ['listing_sale_clarifications', 'extensions.uuid_generate_v4()', 'lifecycle_event_id uuid not null unique', "actor_role text not null check (actor_role = 'ADMIN')", "sale_channel text not null check (sale_channel in ('AEROTRADE', 'OTHER_CHANNEL'))", 'prevent_listing_sale_clarification_mutation', 'Listing sale clarifications are append-only', 'clarify_listing_sale_by_admin', 'for update', "v_event.sale_channel <> 'NOT_DISCLOSED'", "status <> 'SPAM'", 'An AeroTrade clarification requires a matching non-spam enquiry', 'never creates a commercial outcome or revenue'],
     forbidden: ['insert into public.commercial_outcomes', 'update public.listings set', 'update public.listing_lifecycle_events'],
   },
   {

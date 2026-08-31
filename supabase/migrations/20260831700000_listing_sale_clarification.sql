@@ -2,7 +2,7 @@
 -- immutable clarification when the original sale channel was not disclosed.
 
 create table if not exists public.listing_sale_clarifications (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default extensions.uuid_generate_v4(),
   lifecycle_event_id uuid not null unique references public.listing_lifecycle_events(id) on delete restrict,
   listing_id uuid not null unique references public.listings(id) on delete restrict,
   recorded_by uuid not null references public.users(id) on delete restrict,
