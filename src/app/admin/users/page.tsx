@@ -1,28 +1,51 @@
 import { createAdminClient } from '@/utils/supabase/server'
-import { sendPremiumPaymentLink, togglePremiumStatus } from '../actions'
+import { removeNewsletterConsentInvitationExclusion, sendPremiumPaymentLink, setNewsletterConsentInvitationExclusion, togglePremiumStatus } from '../actions'
 import { formatDistanceToNow } from 'date-fns'
 import { Mail, Star, Shield, ShieldOff } from 'lucide-react'
+import { normalizeNewsletterEmail } from '@/utils/newsletter-consent.mjs'
+import { newsletterConsentInvitationBatchKey } from '@/utils/newsletter-consent-invitation.mjs'
+import NewsletterConsentBatchForm from './NewsletterConsentBatchForm'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminUsersPage() {
   const supabase = await createAdminClient()
 
-  const { data: users, error } = await supabase
-    .from('users')
-    .select('*')
-    .order('created_at', { ascending: false })
+  const [{ data: users, error }, { data: exclusions, error: exclusionsError }, { data: invitationReceipts, error: invitationReceiptsError }] = await Promise.all([
+    supabase.from('users').select('*').order('created_at', { ascending: false }),
+    supabase.from('newsletter_consent_invitation_exclusions').select('user_id,reason,excluded_at'),
+    supabase.from('commercial_notification_receipts').select('entity_id,status,accepted_at').eq('notification_type', 'newsletter_consent_invitation').eq('entity_type', 'user'),
+  ])
 
-  if (error) {
+  if (error || exclusionsError || invitationReceiptsError) {
     return <div className="p-4 bg-destructive/10 text-destructive rounded-xl">Error loading users.</div>
   }
+
+  const exclusionByUser = new Map((exclusions || []).map((exclusion) => [exclusion.user_id, exclusion]))
+  const acceptedInvitationByUser = new Map((invitationReceipts || [])
+    .filter((receipt) => receipt.status === 'accepted')
+    .map((receipt) => [receipt.entity_id, receipt]))
+  const exactConsentRecipients = (users || []).filter((user) => Boolean(
+    user.role !== 'admin'
+    && user.newsletter_consent_status === 'NOT_REQUESTED'
+    && !user.newsletter_consented_at
+    && !user.newsletter_unsubscribed_at
+    && normalizeNewsletterEmail(user.email)
+    && !exclusionByUser.has(user.id)
+    && !acceptedInvitationByUser.has(user.id),
+  )).map((user) => ({ id: user.id, email: user.email }))
+  const exactConsentBatchKey = newsletterConsentInvitationBatchKey(exactConsentRecipients.map((user) => user.id))
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Manage Users</h1>
-        <p className="text-muted-foreground mt-1">View all registered pilots and manage their premium status.</p>
+        <p className="text-muted-foreground mt-1">Manage account access, Premium and exact consent outreach. Registration alone never authorizes marketing.</p>
       </div>
+
+      {exactConsentBatchKey ? <NewsletterConsentBatchForm batchKey={exactConsentBatchKey} recipients={exactConsentRecipients} /> : (
+        <div className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">No account currently needs a one-time newsletter preference invitation.</div>
+      )}
 
       <div className="bg-card border rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
@@ -34,6 +57,7 @@ export default async function AdminUsersPage() {
                 <th className="px-6 py-4 font-semibold">Joined</th>
                 <th className="px-6 py-4 font-semibold">Role</th>
                 <th className="px-6 py-4 font-semibold">Premium Status</th>
+                <th className="px-6 py-4 font-semibold">Newsletter outreach</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
@@ -63,6 +87,32 @@ export default async function AdminUsersPage() {
                       </div>
                     ) : (
                       <span className="text-muted-foreground">Basic</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {u.role === 'admin' ? <span className="text-muted-foreground">Admin excluded</span> : exclusionByUser.has(u.id) ? (
+                      <div className="space-y-2">
+                        <span className="block text-xs font-semibold text-amber-800">Excluded · {exclusionByUser.get(u.id)?.reason.replaceAll('_', ' ')}</span>
+                        <form action={removeNewsletterConsentInvitationExclusion.bind(null, u.id)}>
+                          <button className="text-xs font-semibold underline">Restore eligibility</button>
+                        </form>
+                      </div>
+                    ) : acceptedInvitationByUser.has(u.id) ? (
+                      <span className="text-xs font-semibold text-emerald-700">Invitation accepted by provider</span>
+                    ) : u.newsletter_consent_status === 'ACTIVE' ? (
+                      <span className="text-xs font-semibold text-emerald-700">Consented</span>
+                    ) : u.newsletter_consent_status === 'UNSUBSCRIBED' ? (
+                      <span className="text-xs font-semibold text-muted-foreground">Unsubscribed</span>
+                    ) : (
+                      <form action={setNewsletterConsentInvitationExclusion.bind(null, u.id)} className="flex items-center gap-2">
+                        <select name="reason" required defaultValue="" className="rounded-md border bg-background px-2 py-1 text-xs">
+                          <option value="" disabled>Exclude reason</option>
+                          <option value="NON_CUSTOMER">Not a customer</option>
+                          <option value="TEST_ACCOUNT">Test account</option>
+                          <option value="OPERATOR_EXCLUDED">Operator excluded</option>
+                        </select>
+                        <button className="text-xs font-semibold underline">Exclude</button>
+                      </form>
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -101,7 +151,7 @@ export default async function AdminUsersPage() {
               ))}
               {users?.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">No users found.</td>
+                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">No users found.</td>
                 </tr>
               )}
             </tbody>

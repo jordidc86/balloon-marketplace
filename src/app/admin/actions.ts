@@ -25,6 +25,12 @@ import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityBatchKe
 import { sellerAvailabilityCapabilityLifetimeMs, signSellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
 import { buildSellerAvailabilityDigestNotification } from '@/utils/seller-availability-notification.mjs'
 import { parseListingSaleClarification } from '@/utils/listing-closure.mjs'
+import {
+  newsletterConsentInvitationLifetimeMs,
+  normalizeNewsletterEmail,
+  signNewsletterConsentInvitationCapability,
+} from '@/utils/newsletter-consent.mjs'
+import { newsletterConsentInvitationBatchKey } from '@/utils/newsletter-consent-invitation.mjs'
 
 async function checkAdmin() {
   const sessionSupabase = await createClient()
@@ -107,6 +113,145 @@ export async function sendPremiumPaymentLink(userId: string) {
   )
 
   revalidatePath('/admin/users')
+}
+
+const newsletterConsentInvitationKey = (userId: string) => `newsletter-consent-invitation-v1-${userId}`
+
+const newsletterConsentInvitationHtml = (confirmationUrl: string) => `
+  <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#0f172a;line-height:1.6">
+    <h1 style="font-size:24px">Would you like AeroTrade marketplace updates?</h1>
+    <p>You have an AeroTrade account. We are separating the optional bi-weekly marketplace newsletter from account and service messages.</p>
+    <p>If you would like to receive up to two emails per month about current hot-air-balloon equipment, choose below. This invitation does not subscribe you by itself.</p>
+    <p style="margin:28px 0"><a href="${escapeHtml(confirmationUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:13px 20px;border-radius:8px;font-weight:700">Yes, I want AeroTrade updates</a></p>
+    <p style="font-size:13px;color:#64748b">If you do nothing, you will not receive the newsletter. This invitation is sent once and expires within 30 days. Operational account, listing, enquiry and payment messages are separate.</p>
+  </div>`
+
+export async function setNewsletterConsentInvitationExclusion(userId: string, formData: FormData) {
+  const { supabase, adminUserId } = await checkAdmin()
+  const reason = String(formData.get('reason') || '')
+  if (!['NON_CUSTOMER', 'TEST_ACCOUNT', 'OPERATOR_EXCLUDED'].includes(reason)) {
+    throw new Error('Choose a valid closed exclusion reason')
+  }
+  const { data: target, error: targetError } = await supabase
+    .from('users')
+    .select('id,role,newsletter_consent_status')
+    .eq('id', userId)
+    .single()
+  if (targetError || !target || target.role === 'admin') throw new Error('Account is not eligible for this exclusion')
+
+  const { error } = await supabase.from('newsletter_consent_invitation_exclusions').upsert({
+    user_id: target.id,
+    reason,
+    excluded_by: adminUserId,
+    excluded_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' })
+  if (error) throw new Error('Invitation exclusion could not be stored')
+  const { data: readback, error: readbackError } = await supabase
+    .from('newsletter_consent_invitation_exclusions')
+    .select('user_id,reason,excluded_by')
+    .eq('user_id', target.id)
+    .single()
+  if (readbackError || readback?.reason !== reason || readback.excluded_by !== adminUserId) {
+    throw new Error('Invitation exclusion could not be verified by readback')
+  }
+  revalidatePath('/admin/users')
+}
+
+export async function removeNewsletterConsentInvitationExclusion(userId: string) {
+  const { supabase } = await checkAdmin()
+  const { error } = await supabase.from('newsletter_consent_invitation_exclusions').delete().eq('user_id', userId)
+  if (error) throw new Error('Invitation exclusion could not be removed')
+  const { data: readback, error: readbackError } = await supabase
+    .from('newsletter_consent_invitation_exclusions')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (readbackError || readback) throw new Error('Invitation exclusion removal could not be verified')
+  revalidatePath('/admin/users')
+}
+
+export async function sendNewsletterConsentInvitationBatch(formData: FormData) {
+  const { supabase } = await checkAdmin()
+  if (formData.get('newsletter_consent_batch_authorization') !== 'yes') {
+    return { success: false, message: 'Explicit authorization for this exact consent batch is required.' }
+  }
+  const expectedBatchKey = String(formData.get('expected_batch_key') || '')
+
+  const { data: profiles, error: profileError } = await supabase
+    .from('users')
+    .select('id,email,role,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
+    .eq('newsletter_consent_status', 'NOT_REQUESTED')
+    .neq('role', 'admin')
+    .order('id')
+    .limit(500)
+  if (profileError) return { success: false, message: 'Current invitation candidates could not be read. No email was sent.' }
+
+  const candidates = (profiles || []).filter((profile) => Boolean(
+    normalizeNewsletterEmail(profile.email)
+    && !profile.newsletter_consented_at
+    && !profile.newsletter_unsubscribed_at,
+  ))
+  const candidateIds = candidates.map((profile) => profile.id)
+  const [{ data: exclusions, error: exclusionError }, { data: receipts, error: receiptError }] = await Promise.all([
+    candidateIds.length
+      ? supabase.from('newsletter_consent_invitation_exclusions').select('user_id').in('user_id', candidateIds)
+      : Promise.resolve({ data: [], error: null }),
+    candidateIds.length
+      ? supabase.from('commercial_notification_receipts').select('entity_id,status').eq('notification_type', 'newsletter_consent_invitation').eq('entity_type', 'user').in('entity_id', candidateIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (exclusionError || receiptError) return { success: false, message: 'Invitation safeguards could not be read. No email was sent.' }
+  const excludedIds = new Set((exclusions || []).map((row) => row.user_id))
+  const invitedIds = new Set((receipts || []).filter((row) => row.status === 'accepted').map((row) => row.entity_id))
+  const eligible = candidates.filter((profile) => !excludedIds.has(profile.id) && !invitedIds.has(profile.id))
+  const currentBatchKey = newsletterConsentInvitationBatchKey(eligible.map((profile) => profile.id))
+  if (!currentBatchKey || currentBatchKey !== expectedBatchKey) {
+    return { success: false, message: 'The reviewed consent batch changed. No email was sent; refresh before authorizing.' }
+  }
+
+  const expiresAt = Date.now() + newsletterConsentInvitationLifetimeMs
+  const prepared = eligible.map((profile) => {
+    const token = signNewsletterConsentInvitationCapability({
+      userId: profile.id,
+      email: profile.email,
+      expiresAt,
+      secret: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    })
+    if (!token) throw new Error('Consent capability preparation failed')
+    const params = new URLSearchParams({ id: profile.id, expires: String(expiresAt), token })
+    return {
+      profile,
+      confirmationUrl: `${siteUrl}/newsletter/subscribe?${params.toString()}`,
+    }
+  })
+
+  const deliveries = await Promise.allSettled(prepared.map(async ({ profile, confirmationUrl }) => {
+    const delivery = await sendCommercialReceiptEmail(supabase, {
+      notificationType: 'newsletter_consent_invitation',
+      entityType: 'user',
+      entityId: profile.id,
+      recipientRole: 'buyer',
+      to: profile.email,
+      subject: 'Choose whether to receive AeroTrade marketplace updates',
+      html: newsletterConsentInvitationHtml(confirmationUrl),
+      idempotencyKey: newsletterConsentInvitationKey(profile.id),
+    })
+    if (!delivery.success || !delivery.providerMessageId) throw new Error('Provider acceptance was not confirmed')
+    const { data: receipt, error } = await supabase
+      .from('commercial_notification_receipts')
+      .select('status,provider_message_id')
+      .eq('idempotency_key', newsletterConsentInvitationKey(profile.id))
+      .single()
+    if (error || receipt?.status !== 'accepted' || receipt.provider_message_id !== delivery.providerMessageId) {
+      throw new Error('Provider acceptance readback failed')
+    }
+  }))
+  const accepted = deliveries.filter((delivery) => delivery.status === 'fulfilled').length
+  const failed = deliveries.length - accepted
+  revalidatePath('/admin/users')
+  return failed === 0
+    ? { success: true, message: `${accepted} exact consent invitation${accepted === 1 ? '' : 's'} accepted and verified. No account was subscribed automatically.` }
+    : { success: false, message: `${accepted} invitation${accepted === 1 ? '' : 's'} accepted and ${failed} failed safely. Refresh before retrying.` }
 }
 
 export async function forcePublishListing(listingId: string) {

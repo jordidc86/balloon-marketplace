@@ -1147,10 +1147,22 @@ const checks = [
     required: ['updateNewsletterPreference', "rpc('set_own_newsletter_consent'", "const expectedStatus = enabled ? 'ACTIVE' : 'UNSUBSCRIBED'", 'Newsletter preference was not verified by readback'],
   },
   {
-    name: 'Newsletter consent invitation is one-time, preference-only and excludes decided accounts',
+    name: 'Newsletter consent invitation dry-run excludes decided, previously invited and operator-excluded accounts',
     file: 'src/app/api/cron/newsletter-consent-invitation/route.ts',
-    required: [".eq('newsletter_consent_status', 'NOT_REQUESTED')", ".neq('role', 'admin')", 'SEND_ONE_TIME_CONSENT_INVITATIONS', 'newsletter-consent-invitation-v1-', "Date.parse('2026-09-28T23:59:59Z')", 'This invitation does not subscribe you by itself.', 'sent once and expires within 30 days'],
-    forbidden: ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM', 'View Listing'],
+    required: [".eq('newsletter_consent_status', 'NOT_REQUESTED')", ".neq('role', 'admin')", 'blanket cron delivery is disabled', 'newsletter_consent_invitation_exclusions', 'alreadyInvitedCount', 'excludedCount'],
+    forbidden: ['sendCommercialReceiptEmail', 'ACTIVE_PUBLIC', 'ACTIVE_PREMIUM', 'View Listing'],
+  },
+  {
+    name: 'Newsletter consent outreach requires an exact reviewed batch and verified provider acceptance',
+    file: 'src/app/admin/actions.ts',
+    required: ['newsletter_consent_batch_authorization', 'newsletterConsentInvitationBatchKey', 'The reviewed consent batch changed. No email was sent', 'Date.now() + newsletterConsentInvitationLifetimeMs', 'This invitation does not subscribe you by itself.', 'sent once and expires within 30 days', 'Provider acceptance readback failed'],
+    forbidden: ['View Listing'],
+  },
+  {
+    name: 'Consent invitation exclusions are durable, private and use a closed non-PII reason',
+    file: 'supabase/migrations/20260831740000_newsletter_consent_invitation_exclusions.sql',
+    required: ['newsletter_consent_invitation_exclusions', "reason in ('NON_CUSTOMER', 'TEST_ACCOUNT', 'OPERATOR_EXCLUDED')", 'enable row level security', 'changes no consent preference and grants no marketing permission'],
+    forbidden: ['grant select', 'grant insert', 'grant update'],
   },
   {
     name: 'Opening a newsletter consent invitation cannot activate marketing',

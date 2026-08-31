@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_newsletter_consent_exact_batch_verification",
+  "capturedAt": "2026-08-31T19:30:00.000Z",
+  "containsPii": false,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "productionBaseline": {
+    "candidateAccountsBeforeOperatorExclusions": 13,
+    "source": "production-automation-dry-run-2026-08-31.json",
+    "invitationsSent": 0
+  },
+  "candidateControls": {
+    "blanketCronDeliveryDisabled": true,
+    "durableClosedReasonExclusions": true,
+    "previouslyAcceptedInvitationsExcluded": true,
+    "exactBatchFingerprintRequired": true,
+    "allCurrentRecipientsVisibleBeforeAuthorization": true,
+    "explicitAuthorizationCheckboxRequired": true,
+    "providerAcceptanceReadbackRequired": true,
+    "automaticConsentActivation": false
+  },
+  "validation": {
+    "automatedTestsPassed": 219,
+    "operationalContractsPassed": 239,
+    "eslintPassed": true,
+    "typescriptPassed": true,
+    "optimizedBuildPassed": true
+  },
+  "releaseState": "candidate_only_requires_migration_and_explicit_consolidated_release"
+}
