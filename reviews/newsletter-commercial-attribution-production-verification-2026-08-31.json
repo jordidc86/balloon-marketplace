@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_newsletter_commercial_attribution_verification",
+  "completedAt": "2026-08-31T13:18:02Z",
+  "containsPii": false,
+  "economicActionsPerformed": 0,
+  "externalMessagesSent": 0,
+  "release": {
+    "commit": "0368941c38c30f9008a38206744d17f607b2a9a5",
+    "netlifyDeployId": "6a957dd3bb140000082bd7e3",
+    "state": "ready",
+    "publishedAt": "2026-08-31T13:13:42.557Z"
+  },
+  "supersededReleaseCheck": {
+    "commit": "dd3a9c5bd841ead6e6047a0d073b21b795674d6c",
+    "netlifyDeployId": "6a957c6c2277790007958be9",
+    "dryRunStatus": 500,
+    "cause": "dry_run_audit_key_was_not_the_canonical_campaign_period",
+    "providerDispatchStarted": false,
+    "externalMessagesSent": 0,
+    "supersededByHotfix": true
+  },
+  "productionDryRun": {
+    "success": true,
+    "dryRun": true,
+    "canonicalPeriod": "2026-09-16",
+    "eligibleRecipientsObserved": 1,
+    "listingsSelected": 10,
+    "attributedListingLinks": 10,
+    "allLinksAttributed": true,
+    "utmSource": "newsletter",
+    "utmMedium": "email",
+    "utmCampaign": "biweekly_marketplace_2026-09-16",
+    "runStatusReadback": "skipped",
+    "sentCountReadback": 0,
+    "failedCountReadback": 0,
+    "recipientLedgerRows": 0
+  },
+  "journeyCoverage": {
+    "listingViewConsumesBrowserAttribution": true,
+    "listingIntentConsumesBrowserAttribution": true,
+    "marketplaceInquiryConsumesBrowserAttribution": true,
+    "wantedRequestConsumesBrowserAttribution": true,
+    "newBalloonRequestConsumesBrowserAttribution": true,
+    "internalNavigationPreservesCampaign": true,
+    "rawRecipientOrUserIdentifiersInLinks": false
+  },
+  "historicalBoundary": {
+    "successfulLiveNewsletterRuns": 3,
+    "acceptedHistoricalDeliveries": 45,
+    "historicalDeliveriesRetroactivelyAttributed": false,
+    "historicalViewsWithUnknownSource": 60,
+    "caveat": "Only newsletters generated after this release can create newsletter-attributed journeys. Historical delivery or view evidence is not rewritten."
+  },
+  "gates": {
+    "testsPassed": 187,
+    "operationalContractsPassed": 201,
+    "lintPassed": true,
+    "buildPassed": true,
+    "releaseGateRehearsalPassed": true,
+    "homeStatus": 200,
+    "catalogStatus": 200
+  }
+}
