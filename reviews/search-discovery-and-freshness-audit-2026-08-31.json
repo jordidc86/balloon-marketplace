@@ -39,7 +39,7 @@
     "tests": {
       "unitPassed": 211,
       "unitFailed": 0,
-      "operationalContractsPassed": 225,
+      "operationalContractsPassed": 226,
       "lintPassed": true,
       "typecheckPassed": true,
       "productionBuildPassed": true

@@ -35,6 +35,11 @@ const sumByCurrency = (items, amount) => items.reduce((totals, item) => {
 
 const relevantEndpoints = endpointPage.data.filter((endpoint) => /aerotrade|netlify/i.test(endpoint.url))
 const successfulCharges = chargePage.data.filter((charge) => charge.paid && charge.status === 'succeeded')
+const completedPaidSessions = sessionPage.data.filter((session) => session.status === 'complete' && session.payment_status === 'paid')
+const completedSessionUserIds = [...new Set(completedPaidSessions.map((session) => String(session.metadata?.user_id || '').trim()).filter(Boolean))]
+const completedSessionIds = completedPaidSessions.map((session) => session.id)
+const completedSessionEmails = [...new Set(completedPaidSessions.map((session) => String(session.customer_details?.email || session.customer_email || '').trim().toLowerCase()).filter(Boolean))]
+const completedSubscriptionIds = [...new Set(completedPaidSessions.map((session) => typeof session.subscription === 'string' ? session.subscription : session.subscription?.id).filter(Boolean))]
 const requiredEvents = [
   'checkout.session.completed',
   'checkout.session.expired',
@@ -49,16 +54,54 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (supabaseUrl && supabaseKey) {
   const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
-  const [{ count: paymentReceipts, error: receiptError }, { count: processedEvents, error: eventError }] = await Promise.all([
+  const [{ count: paymentReceipts, error: receiptError }, { count: processedEvents, error: eventError }, stripePremiumUserResult, completedUserResult, completedEmailUserResult, completedSubscriptionUserResult, completedIntentResult] = await Promise.all([
     supabase.from('payment_notification_receipts').select('charge_id', { count: 'exact', head: true }).eq('livemode', true),
     supabase.from('stripe_webhook_events').select('event_id', { count: 'exact', head: true }).eq('status', 'processed'),
+    supabase.from('users').select('id,stripe_subscription_id').eq('is_premium', true).eq('premium_source', 'stripe'),
+    completedSessionUserIds.length > 0
+      ? supabase.from('users').select('id,is_premium,premium_source').in('id', completedSessionUserIds)
+      : Promise.resolve({ data: [], error: null }),
+    completedSessionEmails.length > 0
+      ? supabase.from('users').select('id,is_premium,premium_source,email').in('email', completedSessionEmails)
+      : Promise.resolve({ data: [], error: null }),
+    completedSubscriptionIds.length > 0
+      ? supabase.from('users').select('id,is_premium,premium_source,stripe_subscription_id').in('stripe_subscription_id', completedSubscriptionIds)
+      : Promise.resolve({ data: [], error: null }),
+    completedSessionIds.length > 0
+      ? supabase.from('premium_checkout_intents').select('stripe_session_id,status,source').in('stripe_session_id', completedSessionIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
-  if (receiptError || eventError) throw receiptError || eventError
-  internalEvidence = { livePaymentReceipts: paymentReceipts || 0, processedStripeEvents: processedEvents || 0 }
+  if (receiptError || eventError || stripePremiumUserResult.error || completedUserResult.error || completedEmailUserResult.error || completedSubscriptionUserResult.error || completedIntentResult.error) {
+    throw receiptError || eventError || stripePremiumUserResult.error || completedUserResult.error || completedEmailUserResult.error || completedSubscriptionUserResult.error || completedIntentResult.error
+  }
+  const stripePremiumRows = stripePremiumUserResult.data || []
+  const entitlementSubscriptionIds = [...new Set(stripePremiumRows.map((user) => String(user.stripe_subscription_id || '').trim()).filter(Boolean))]
+  const entitlementSubscriptions = await Promise.all(entitlementSubscriptionIds.map((subscriptionId) => stripe.subscriptions.retrieve(subscriptionId)))
+  const completedUsers = completedUserResult.data || []
+  const completedEmailUsers = completedEmailUserResult.data || []
+  const completedSubscriptionUsers = completedSubscriptionUserResult.data || []
+  const completedIntents = completedIntentResult.data || []
+  internalEvidence = {
+    livePaymentReceipts: paymentReceipts || 0,
+    processedStripeEvents: processedEvents || 0,
+    stripePremiumUsers: stripePremiumRows.length,
+    stripePremiumUsersWithSubscription: entitlementSubscriptionIds.length,
+    stripePremiumSubscriptionStatuses: countBy(entitlementSubscriptions, (subscription) => subscription.status),
+    stripePremiumUsersWithoutSubscription: stripePremiumRows.length - entitlementSubscriptionIds.length,
+    completedPaidSessionsWithUserMetadata: completedSessionUserIds.length,
+    completedPaidSessionsLinkedToPremiumEntitlement: completedUsers.filter((user) => user.is_premium && user.premium_source === 'stripe').length,
+    completedPaidSessionsWithCustomerEmail: completedSessionEmails.length,
+    completedPaidSessionsLinkedByEmailToAccount: completedEmailUsers.length,
+    completedPaidSessionsLinkedByEmailToPremiumEntitlement: completedEmailUsers.filter((user) => user.is_premium && user.premium_source === 'stripe').length,
+    completedPaidSessionsWithSubscription: completedSubscriptionIds.length,
+    completedPaidSessionsLinkedBySubscriptionToPremiumEntitlement: completedSubscriptionUsers.filter((user) => user.is_premium && user.premium_source === 'stripe').length,
+    completedPaidSessionsInCheckoutIntentLedger: completedIntents.length,
+    completedPaidSessionsInCompletedCheckoutIntentLedger: completedIntents.filter((intent) => intent.status === 'COMPLETED').length,
+  }
 }
 
 const report = {
-  version: 1,
+  version: 2,
   projectId: 'aerotrade',
   readOnly: true,
   containsPii: false,
@@ -78,6 +121,7 @@ const report = {
     successful: successfulCharges.length,
     grossMinorByCurrency: sumByCurrency(successfulCharges, (charge) => charge.amount),
     refundedMinorByCurrency: sumByCurrency(successfulCharges, (charge) => charge.amount_refunded),
+    successfulCreatedAt: successfulCharges.map((charge) => new Date(charge.created * 1000).toISOString()).sort(),
   },
   checkouts: {
     total: sessionPage.data.length,
@@ -85,9 +129,14 @@ const report = {
     paid: sessionPage.data.filter((session) => session.payment_status === 'paid').length,
     byType: countBy(sessionPage.data, (session) => session.metadata?.type),
     byStatus: countBy(sessionPage.data, (session) => session.status),
+    completedPaidCreatedAt: completedPaidSessions.map((session) => new Date(session.created * 1000).toISOString()).sort(),
+    completedPaidWithUserMetadata: completedSessionUserIds.length,
+    completedPaidWithListingMetadata: completedPaidSessions.filter((session) => Boolean(String(session.metadata?.listing_id || '').trim())).length,
+    completedPaidPredatingReceiptLedgerMigrationDate: completedPaidSessions.filter((session) => session.created < Date.parse('2026-08-28T00:00:00.000Z') / 1000).length,
+    completedPaidPredatingCheckoutIntentLedgerMigrationDate: completedPaidSessions.filter((session) => session.created < Date.parse('2026-08-29T00:00:00.000Z') / 1000).length,
   },
   internalEvidence,
-  caveat: 'Stripe gross charges are not net revenue. Historical charges without current metadata are not assigned to a product by inference.',
+  caveat: 'Stripe gross charges are not net revenue. Historical charges without current metadata are not assigned to a product by inference. Subscription status is provider state at capture time, not proof of future collection.',
 }
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true })

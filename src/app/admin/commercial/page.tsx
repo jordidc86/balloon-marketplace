@@ -133,6 +133,9 @@ type SellerPipelineListing = {
 type SellerUser = {
   id: string
   email: string
+  is_premium: boolean
+  premium_source: string | null
+  stripe_subscription_id: string | null
 }
 
 type SellerAssistance = {
@@ -319,7 +322,7 @@ export default async function CommercialPage() {
     supabase.from('catalog_search_events').select('id,entry_context,query_text,category,country,result_count,zero_results,utm_source,journey_key,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,entry_context,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
-    supabase.from('users').select('id,email').limit(500),
+    supabase.from('users').select('id,email,is_premium,premium_source,stripe_subscription_id').limit(500),
     supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,existing_listing_url,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,stripe_checkout_session_id,user_id,listing_id,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,utm_source,created_at').gte('created_at', thirtyDaysAgo),
@@ -579,6 +582,8 @@ export default async function CommercialPage() {
   const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
   const liveLinkedReceipts = liveReceipts.filter((receipt) => receipt.user_id || receipt.listing_id)
+  const stripePremiumEntitlements = typedSellerUsers.filter((user) => user.is_premium && user.premium_source === 'stripe')
+  const stripePremiumEntitlementsWithSubscription = stripePremiumEntitlements.filter((user) => user.stripe_subscription_id).length
   const completedSellerLaunchCheckouts = (listingCheckoutIntents || []).filter((intent) => intent.status === 'COMPLETED').length
   const openSellerLaunchCheckouts = (listingCheckoutIntents || []).filter((intent) => intent.status === 'STARTED').length
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
@@ -764,6 +769,7 @@ export default async function CommercialPage() {
         <h2 className="text-xl font-semibold">Revenue evidence</h2>
         <p className="mt-1 text-sm text-muted-foreground">{liveReceipts.length} live payment notification receipt(s) · {(liveGross / 100).toLocaleString('en-IE', { style: 'currency', currency: 'EUR' })} gross EUR represented. This is not net revenue.</p>
         <p className={`mt-2 text-sm ${liveLinkedReceipts.length < liveReceipts.length ? 'font-semibold text-amber-700' : 'text-muted-foreground'}`}>Entitlement traceability: {liveLinkedReceipts.length}/{liveReceipts.length} live receipt(s) linked to an AeroTrade user or listing · Seller Launch checkout intents: {completedSellerLaunchCheckouts} completed, {openSellerLaunchCheckouts} open.</p>
+        <p className={`mt-2 text-sm ${stripePremiumEntitlementsWithSubscription < stripePremiumEntitlements.length ? 'font-semibold text-amber-700' : 'text-muted-foreground'}`}>Stripe Premium entitlements: {stripePremiumEntitlements.length} active in AeroTrade · {stripePremiumEntitlementsWithSubscription} linked to a Stripe subscription. Historical entitlements may predate the receipt and checkout-intent ledgers and are not treated as new revenue.</p>
         {listingCheckoutIntentsError ? <p className="mt-2 text-xs font-semibold text-destructive">Seller Launch checkout evidence unavailable: {listingCheckoutIntentsError.message}</p> : null}
         <p className="mt-2 text-sm text-muted-foreground">{typedOutcomes.length} recorded commercial outcome(s) · gross outcomes {formatCurrencyTotals(reportedGrossByCurrency)} · settled AeroTrade revenue {formatCurrencyTotals(settledRevenueByCurrency)}.</p>
         <p className={`mt-2 text-sm ${failedBuyerEarlyAccessCheckoutRecoveries > 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>Buyer Early Access checkout recovery: {acceptedBuyerEarlyAccessCheckoutRecoveries} accepted · {failedBuyerEarlyAccessCheckoutRecoveries} failed · {exhaustedBuyerEarlyAccessCheckoutRecoveries} exhausted.</p>

@@ -177,6 +177,11 @@ const checks = [
     required: ['buyerEarlyAccessCheckoutRecoveries', 'acceptedBuyerEarlyAccessCheckoutRecoveries', 'failedBuyerEarlyAccessCheckoutRecoveries', 'exhaustedBuyerEarlyAccessCheckoutRecoveries', 'Buyer Early Access checkout recovery:'],
   },
   {
+    name: 'Control Tower distinguishes current Stripe entitlements from historical receipt coverage',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['is_premium,premium_source,stripe_subscription_id', 'stripePremiumEntitlements', 'stripePremiumEntitlementsWithSubscription', 'Historical entitlements may predate the receipt and checkout-intent ledgers and are not treated as new revenue.'],
+  },
+  {
     name: 'Admin Premium payment links use the same recoverable checkout ledger',
     file: 'src/app/admin/actions.ts',
     required: ['createPremiumMembershipCheckout', "source: 'admin'", 'checkout.url'],
