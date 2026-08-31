@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_public_acquisition_readiness",
+  "verifiedAt": "2026-08-31T20:20:09Z",
+  "containsPii": false,
+  "readOnly": true,
+  "productionCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+  "productionMutated": false,
+  "publicRoutes": {
+    "checked": 9,
+    "http200": 9,
+    "canonical": 9,
+    "explicitNoIndex": 0,
+    "paths": [
+      "/",
+      "/catalog",
+      "/used-hot-air-balloons-for-sale",
+      "/sell-hot-air-balloon",
+      "/catalog/category/complete",
+      "/catalog/category/envelopes",
+      "/catalog/category/burners",
+      "/wanted",
+      "/new-balloon"
+    ]
+  },
+  "discovery": {
+    "robotsAllowsPublicRoutes": true,
+    "robotsDisallowsApiRoutes": true,
+    "sitemapUrlCount": 39,
+    "scheduledIndexNowRunsChecked": 2,
+    "scheduledIndexNowRunsSuccessful": 2,
+    "latestRunProviderStatus": 200,
+    "latestRunAccepted": true,
+    "latestRunUrlCount": 37
+  },
+  "externalSearchObservation": {
+    "homepageFoundForGeneralHighIntentQuery": true,
+    "specificAcquisitionPagesFoundForExactSiteQueries": false,
+    "interpretation": "Technical discovery is healthy, but the newer acquisition pages have not yet produced observable specific-page search visibility. Search-provider indexing and ranking are external outcomes, not inferred from sitemap acceptance."
+  },
+  "merchantCenter": {
+    "selected": false,
+    "reason": "Official Merchant Center vehicle policy excludes aircraft and vehicles requiring a special licence; building a product feed would create a likely policy rejection rather than qualified acquisition."
+  },
+  "result": "public_discovery_operational_distribution_activation_pending"
+}
