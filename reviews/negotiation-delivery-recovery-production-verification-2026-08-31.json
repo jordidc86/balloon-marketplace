@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_negotiation_delivery_recovery_verification",
+  "completedAt": "2026-08-31T11:35:00Z",
+  "containsPii": false,
+  "economicActionsPerformed": 0,
+  "externalMessagesSent": 0,
+  "release": {
+    "commit": "84e6beb3a8324d8dbe39d0bc13066c37f22c78d3",
+    "netlifyDeployId": "6a95667ad042530008fdf935",
+    "state": "ready",
+    "publishedAt": "2026-08-31T11:34:01.908Z",
+    "deployTimeSeconds": 45
+  },
+  "behavior": {
+    "sellerResponseToBuyerRetryBounded": true,
+    "buyerResponseToSellerRetryBounded": true,
+    "acceptedDeliveryNeverRepeated": true,
+    "supersededNegotiationNeverRevived": true,
+    "providerResultReadbackRequired": true,
+    "privateCapabilityRecreatedFromStoredEvent": true
+  },
+  "gates": {
+    "testsPassed": 175,
+    "operationalContractsPassed": 190,
+    "lintPassed": true,
+    "buildPassed": true,
+    "edgeRuntimeDeprecationWarningOnly": true
+  },
+  "productionDryRun": {
+    "status": 200,
+    "dryRun": true,
+    "dueNegotiationNotificationRetries": 0,
+    "configurationBlocked": 0,
+    "mutationsPerformed": 0,
+    "messagesSent": 0
+  },
+  "productionSmoke": {
+    "catalogStatuses": [200, 200, 200],
+    "commercialControlTowerStatuses": [307, 307, 307],
+    "commercialControlTowerRedirect": "/login",
+    "privateInquiryStatusPageStatuses": [200, 200, 200]
+  }
+}
