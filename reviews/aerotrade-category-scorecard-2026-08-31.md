@@ -35,3 +35,5 @@ This scorecard is based on the production snapshots in `marketplace-audit-2026-0
 ## Next bottleneck selected
 
 The first intervention is sold-inventory demand recovery. Previously, a public listing closed as sold became a 404, wasting Google, social and shared-link traffic. The new path keeps only previously public sold listings accessible, marks them `SoldOut`, closes all seller-contact/enquiry/watch actions, proposes comparable active inventory, and routes unmet demand to the existing wanted or new-balloon funnels with bounded attribution. Sold traffic is measured separately as `SOLD_VIEW`, so it cannot inflate the active-listing conversion funnel.
+
+The post-deployment read-only snapshot at `2026-08-31T10:26:54.718Z` proves that the new counters are queryable in production and start truthfully at zero sold-page visits, zero recovered used-equipment requests, zero recovered new-balloon requests and zero joined recoveries. No synthetic visitor or lead was created to inflate proof.
