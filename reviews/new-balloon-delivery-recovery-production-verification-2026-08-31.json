@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_new_balloon_delivery_recovery_verification",
+  "completedAt": "2026-08-31T12:03:12Z",
+  "containsPii": false,
+  "economicActionsPerformed": 0,
+  "externalMessagesSent": 0,
+  "release": {
+    "commit": "4ab3a283ab58e8c591563ba7df58b27991e6e9b7",
+    "netlifyDeployId": "6a956ca416850d00084abd6b",
+    "state": "ready",
+    "publishedAt": "2026-08-31T12:00:25.404Z",
+    "deployTimeSeconds": 51
+  },
+  "database": {
+    "migration": "20260831640000",
+    "localRemoteMatch": true,
+    "serviceRoleRecoveryRpcReachable": true,
+    "unknownProposalFailsSafely": true
+  },
+  "productionEvidence": {
+    "newBalloonQuoteRequests": 0,
+    "newBalloonProposals": 0,
+    "newBalloonProposalResponses": 0,
+    "productionProofWasNotInferred": true
+  },
+  "behavior": {
+    "failedProposalDeliveryRetryBounded": true,
+    "failedBuyerResponseAdminNotificationRetryBounded": true,
+    "acceptedProviderDeliveryReconciledWithoutResend": true,
+    "expiredOrSupersededProposalNeverResent": true,
+    "advancedBuyerResponseNeverRevived": true,
+    "providerAndDatabaseReadbackRequired": true
+  },
+  "gates": {
+    "testsPassed": 180,
+    "operationalContractsPassed": 193,
+    "lintPassed": true,
+    "buildPassed": true,
+    "releaseGateRehearsalPassed": true,
+    "edgeRuntimeDeprecationWarningOnly": true
+  },
+  "productionDryRun": {
+    "status": 200,
+    "dryRun": true,
+    "dueNewBalloonProposalDeliveryRetries": 0,
+    "dueNewBalloonResponseAdminNotificationRetries": 0,
+    "configurationBlocked": 0,
+    "mutationsPerformed": 0,
+    "messagesSent": 0
+  },
+  "productionSmoke": {
+    "catalogStatuses": [200, 200, 200],
+    "newBalloonProposalPageStatuses": [200, 200, 200],
+    "soldListingStatuses": [200, 200, 200],
+    "soldListingMarkerPresent": true,
+    "commercialControlTowerStatuses": [307, 307, 307],
+    "commercialControlTowerRedirect": "/login",
+    "unauthorizedCronStatus": 401
+  }
+}

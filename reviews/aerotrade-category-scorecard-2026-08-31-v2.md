@@ -1,6 +1,6 @@
 # AeroTrade category scorecard — 2026-08-31 v2
 
-This update is based on the read-only production snapshots `marketplace-audit-2026-08-31-v3.json` and `stripe-commercial-audit-2026-08-31-v2.json`, the paid-product verification receipt, the deployed database migration and the local release gates. It contains no personal data.
+This update is based on the read-only production snapshots `marketplace-audit-2026-08-31-v3.json` and `stripe-commercial-audit-2026-08-31-v2.json`, the paid-product, negotiation and new-balloon delivery verification receipts, the deployed database migrations and the local release gates. It contains no personal data.
 
 ## Method
 
@@ -17,19 +17,19 @@ This update is based on the read-only production snapshots `marketplace-audit-20
 | 4 | Catalogue, search and buyer experience | 96 | 30 | 76 | Public catalogue, bounded search, mobile routes, international landings and sold-listing recovery are live. Genuine attributable buyer demand remains low. |
 | 5 | Buyer conversion, enquiry and marketplace closing | 97 | 5 | 69 | Account-free enquiry, negotiation, follow-up and closure paths are implemented. Buyer receipts distinguish accepted delivery from stored recovery, and failed negotiation updates now retry safely in both directions without reviving superseded messages. The comparable funnel still has no real stored enquiry or closed transaction. |
 | 6 | Premium, payments and monetisation | 99 | 70 | 90 | New Seller Launch checkouts are single-live, seller/listing-bound and fail closed if the ledger cannot persist. Signed Stripe fulfillment verifies entitlement, seller confirmation, Premium alert and readback. Future charge receipts link to the exact user/listing. The one historical payment predates this ledger and remains truthfully unlinked. |
-| 7 | New-balloon sales: Pasha and Schroeder | 94 | 0 | 66 | Request, proposal, buyer response, outcome and settlement evidence paths exist. Production still has zero genuine requests or proposals. |
+| 7 | New-balloon sales: Pasha and Schroeder | 97 | 0 | 68 | Request, proposal, buyer response, outcome and settlement evidence paths exist. Failed proposal and internal response deliveries now retry from trusted stored evidence, reconcile provider acceptance without resending, and retire expired or superseded work. Production still has zero genuine requests or proposals, so proof remains zero. |
 | 8 | SEO, international acquisition and distribution | 93 | 20 | 71 | Localised acquisition, structured data, IndexNow and measured social distribution exist. Four social placements were accepted, but no attributable landing journey has converted. |
-| 9 | Automation, communications and follow-up | 97 | 70 | 89 | Paid alerts and negotiation updates are provider-idempotent, bounded and receipt-readback bound. Newsletter selection prioritises every never-included paid promotion before rotating by exposure. The next real newsletter run must provide production proof of the new rotation. |
+| 9 | Automation, communications and follow-up | 98 | 70 | 90 | Paid alerts, used-equipment negotiations and new-balloon proposals are provider-idempotent, bounded and receipt-readback bound. Accepted provider deliveries can be reconciled without a duplicate email, while stale commercial state is never revived. Newsletter selection prioritises every never-included paid promotion before rotating by exposure. |
 | 10 | Analytics, Control Tower and commercial evidence | 99 | 60 | 87 | Control Tower now distinguishes gross receipt evidence, exact paid entitlement links and Seller Launch intent state. Historic pre-ledger payment evidence is intentionally not backfilled. |
 | 11 | Security, privacy and transactional integrity | 99 | 90 | 96 | A delayed or superseded checkout cannot publish the wrong listing; seller, plan and lifecycle are re-read before fulfillment. Private ledgers remain inaccessible to clients and unsigned webhooks fail closed. |
-| 12 | Deployment, production reliability and operability | 98 | 85 | 94 | 175 tests and 190 contracts pass. Both paid-fulfilment migrations match production, the negotiation-recovery release is live, its protected production dry-run passed and deployment receipts were read back. The remaining build warning is the non-outage Edge Runtime deprecation. |
+| 12 | Deployment, production reliability and operability | 98 | 85 | 94 | 180 tests and 193 contracts pass. The new-balloon recovery migration matches production, the service-role boundary was verified with a safe negative case, the protected production dry-run passed and Netlify deploy `6a956ca416850d00084abd6b` was read back as ready. The remaining build warning is the non-outage Edge Runtime deprecation. |
 
 ## Aggregate
 
-- Mean technical readiness: **95%**.
+- Mean technical readiness: **96%**.
 - Mean production/commercial proof: **45%**.
-- Mean evidence-weighted maturity: **80%**.
-- This release raises real payment reliability, but deliberately does not raise demand or transaction proof without external users.
+- Mean evidence-weighted maturity: **81%**.
+- This release raises operational delivery reliability, but deliberately does not raise demand or transaction proof without external users.
 
 ## Next highest-value constraint
 
