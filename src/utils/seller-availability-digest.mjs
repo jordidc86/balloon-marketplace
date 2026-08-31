@@ -58,3 +58,42 @@ export function changedSellerAvailabilityDigestIsCoolingDown(latestReceipt, curr
   const ageMs = now.getTime() - createdAt.getTime()
   return ageMs >= 0 && ageMs < sellerAvailabilityDigestChangeCooldownMs
 }
+
+/**
+ * @param {{
+ *   hasContact?: boolean,
+ *   currentKey?: string,
+ *   latestReceipt?: {idempotency_key?: string, status?: string, accepted_at?: string | null, created_at?: string | null, next_attempt_at?: string | null} | null,
+ *   now?: Date
+ * }} input
+ */
+export function sellerAvailabilityDigestReadiness({ hasContact, currentKey, latestReceipt, now = new Date() } = {}) {
+  const current = now instanceof Date ? now : new Date(now)
+  const currentInventoryKey = sellerAvailabilityDigestInventoryKey(currentKey)
+  if (!hasContact) return { status: 'missing_contact', actionable: false }
+  if (!currentInventoryKey || !Number.isFinite(current.getTime())) return { status: 'invalid_inventory', actionable: false }
+  if (!latestReceipt) return { status: 'ready_new', actionable: true }
+
+  if (changedSellerAvailabilityDigestIsCoolingDown(latestReceipt, currentInventoryKey, current)) {
+    return { status: 'cooling_down', actionable: false }
+  }
+
+  const sameInventory = sellerAvailabilityDigestInventoryKey(latestReceipt.idempotency_key) === currentInventoryKey
+  if (sameInventory && latestReceipt.status === 'accepted') {
+    if (!latestReceipt.accepted_at) return { status: 'invalid_receipt', actionable: false }
+    const acceptedAt = new Date(latestReceipt.accepted_at)
+    if (!Number.isFinite(acceptedAt.getTime())) return { status: 'invalid_receipt', actionable: false }
+    const ageMs = current.getTime() - acceptedAt.getTime()
+    if (ageMs >= 0 && ageMs < sellerAvailabilityDigestRequestLifetimeMs) {
+      return { status: 'current', actionable: false }
+    }
+    return { status: 'ready_reissue', actionable: true }
+  }
+
+  const retryAt = latestReceipt.next_attempt_at ? new Date(latestReceipt.next_attempt_at) : null
+  if (sameInventory && retryAt && Number.isFinite(retryAt.getTime()) && retryAt.getTime() > current.getTime()) {
+    return { status: 'retry_pending', actionable: false }
+  }
+
+  return { status: sameInventory ? 'ready_retry' : 'ready_new', actionable: true }
+}

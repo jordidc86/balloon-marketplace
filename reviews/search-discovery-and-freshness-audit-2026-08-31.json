@@ -4,7 +4,7 @@
   "completedAt": "2026-08-31T16:33:01Z",
   "containsPii": false,
   "productionMutated": false,
-  "releaseId": "2026-08-31-acquisition-routing-and-indexing",
+  "releaseId": "2026-08-31-acquisition-and-supply-activation",
   "productionEvidence": {
     "robotsStatus": 200,
     "sitemapStatus": 200,
@@ -37,9 +37,9 @@
     "indexNowIncludesPublicSoldRecoveryPages": true,
     "futureListingMutationsRefreshUpdatedAt": true,
     "tests": {
-      "unitPassed": 208,
+      "unitPassed": 209,
       "unitFailed": 0,
-      "operationalContractsPassed": 221,
+      "operationalContractsPassed": 222,
       "lintPassed": true,
       "typecheckPassed": true,
       "productionBuildPassed": true

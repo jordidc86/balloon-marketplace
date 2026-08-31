@@ -11,6 +11,7 @@ import { isOptionalSupabaseSchemaError } from '../src/utils/audit-schema-compati
 import { isActiveNewsletterConsent, normalizeNewsletterEmail } from '../src/utils/newsletter-consent.mjs'
 import { isActivePublicNewsletterConsent } from '../src/utils/newsletter-recipients.mjs'
 import { isSellerEnquiryEscalationDue } from '../src/utils/opportunity-followup.mjs'
+import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestReadiness } from '../src/utils/seller-availability-digest.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only after explicit approval for a read-only production audit.')
@@ -40,7 +41,7 @@ async function optionalRows(table, columns) {
 
 // Named query specifications prevent a positional result from ever being attributed to the wrong dataset.
 const querySpecs = {
-  users: ['users', 'id,is_premium,premium_source,created_at'],
+  users: ['users', 'id,email,is_premium,premium_source,created_at'],
   listings: ['listings', 'id,seller_id,category,status,price,currency,condition,location_country,contact_phone,details,created_at,updated_at,public_at,instagram_posted,facebook_posted'],
   images: ['images', 'listing_id,url,is_primary'],
   events: ['listing_events', 'listing_id,user_id,event_type,utm_source,utm_medium,utm_campaign,created_at'],
@@ -53,7 +54,7 @@ const querySpecs = {
   inquiries: ['marketplace_inquiries', 'id,listing_id,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,closed_at'],
   negotiationEvents: ['marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,responding_to_event_id,created_at'],
   verifications: ['listing_verifications', 'listing_id,status,identity_checked,supporting_documents_checked,verified_at'],
-  commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,created_at,attempted_at,accepted_at'],
+  commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,entity_id,status,idempotency_key,delivery_attempts,next_attempt_at,created_at,attempted_at,accepted_at'],
   commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'],
   newBalloonProposals: ['new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'],
   wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,journey_key,created_at,last_activity_at,closed_at'],
@@ -174,12 +175,13 @@ for (const image of images) {
 }
 
 const activeListingIds = new Set(activeListings.map((listing) => listing.id))
-const latestAvailabilityByListing = [...listingAvailabilityConfirmations]
+const latestAvailabilityRowsByListing = [...listingAvailabilityConfirmations]
   .sort((left, right) => String(right.confirmed_at).localeCompare(String(left.confirmed_at)))
   .reduce((latest, confirmation) => {
-    if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation.confirmed_at)
+    if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation)
     return latest
   }, new Map())
+const latestAvailabilityByListing = new Map([...latestAvailabilityRowsByListing].map(([listingId, confirmation]) => [listingId, confirmation.confirmed_at]))
 const availabilityStateByListing = new Map(activeListings.map((listing) => [
   listing.id,
   getListingAvailabilityState(latestAvailabilityByListing.get(listing.id), now),
@@ -221,6 +223,12 @@ const sellerListingCounts = countBy(activeListings, 'seller_id')
 const sellerConcentration = Object.values(sellerListingCounts).sort((a, b) => b - a)
 const availabilityDueListings = activeListings.filter((listing) => !availabilityStateByListing.get(listing.id)?.publiclyFresh)
 const availabilityDueBySeller = countBy(availabilityDueListings, 'seller_id')
+const availabilityDueListingRowsBySeller = availabilityDueListings.reduce((grouped, listing) => {
+  const due = grouped.get(listing.seller_id) || []
+  due.push(listing)
+  grouped.set(listing.seller_id, due)
+  return grouped
+}, new Map())
 const availabilityDuePortfolioDistribution = Object.values(availabilityDueBySeller).reduce((distribution, listingCount) => {
   const key = String(listingCount)
   distribution[key] = (distribution[key] || 0) + 1
@@ -254,6 +262,25 @@ const buyerEarlyAccessCheckoutRecoveries = commercialNotifications.filter((notif
 const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const listingAvailabilityRequests = commercialNotifications.filter((notification) => notification.notification_type === 'listing_availability_request')
 const sellerAvailabilityDigests = commercialNotifications.filter((notification) => notification.notification_type === 'seller_availability_digest')
+const latestSellerDigestBySeller = [...sellerAvailabilityDigests]
+  .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))
+  .reduce((latest, receipt) => {
+    if (!latest.has(receipt.entity_id)) latest.set(receipt.entity_id, receipt)
+    return latest
+  }, new Map())
+const sellerAvailabilityReadiness = [...availabilityDueListingRowsBySeller].map(([sellerId, dueListings]) => {
+  const currentKey = sellerAvailabilityDigestIdempotencyKey(sellerId, dueListings.map((listing) => ({
+    listingId: listing.id,
+    confirmationId: latestAvailabilityRowsByListing.get(listing.id)?.id || null,
+  })))
+  return sellerAvailabilityDigestReadiness({
+    hasContact: Boolean(users.find((user) => user.id === sellerId)?.email),
+    currentKey,
+    latestReceipt: latestSellerDigestBySeller.get(sellerId),
+    now,
+  })
+})
+const sellerAvailabilityReadinessCounts = countBy(sellerAvailabilityReadiness, 'status')
 const listingVerificationEvidenceInstructions = commercialNotifications.filter((notification) => notification.notification_type === 'listing_verification_evidence_instructions')
 const sellerFollowupByInquiry = new Map(commercialNotifications
   .filter((notification) => notification.notification_type === 'inquiry_seller_followup')
@@ -331,6 +358,8 @@ const result = {
       sellerDigestReceipts: sellerAvailabilityDigests.length,
       acceptedSellerDigests: sellerAvailabilityDigests.filter((request) => request.status === 'accepted').length,
       failedSellerDigests: sellerAvailabilityDigests.filter((request) => request.status === 'failed').length,
+      sellerReadiness: sellerAvailabilityReadinessCounts,
+      actionableGroupedRequests: sellerAvailabilityReadiness.filter((readiness) => readiness.actionable).length,
       caveat: 'Counts are grouped without seller identifiers. A request is delivery evidence, not seller confirmation; only a seller-authenticated confirmation makes availability current.',
     },
     listingClosures: {

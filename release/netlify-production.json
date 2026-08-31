@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-acquisition-routing-and-indexing",
+  "releaseId": "2026-08-31-acquisition-and-supply-activation",
   "productionBaseCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true

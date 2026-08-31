@@ -6,6 +6,7 @@ import {
   sellerAvailabilityDigestChangeCooldownMs,
   sellerAvailabilityDigestIdempotencyKey,
   sellerAvailabilityDigestInventoryKey,
+  sellerAvailabilityDigestReadiness,
   sellerAvailabilityDigestRequestKey,
 } from '../src/utils/seller-availability-digest.mjs'
 
@@ -61,4 +62,29 @@ test('a changed digest is held during the bounded anti-churn window but the same
   assert.equal(changedSellerAvailabilityDigestIsCoolingDown({ idempotency_key: 'older-cycle', created_at: 'invalid' }, currentKey, now), true)
   const realBaseKey = sellerAvailabilityDigestIdempotencyKey(sellerId, [{ listingId: listingOne, confirmationId: null }])
   assert.equal(changedSellerAvailabilityDigestIsCoolingDown({ idempotency_key: `${realBaseKey}-20260815`, created_at: now.toISOString() }, realBaseKey, now), false)
+})
+
+test('seller availability outreach readiness explains every safe operator state before sending', () => {
+  const now = new Date('2026-08-31T18:00:00.000Z')
+  const currentKey = sellerAvailabilityDigestIdempotencyKey(sellerId, [{ listingId: listingOne, confirmationId: null }])
+  assert.deepEqual(sellerAvailabilityDigestReadiness({ hasContact: false, currentKey, now }), { status: 'missing_contact', actionable: false })
+  assert.deepEqual(sellerAvailabilityDigestReadiness({ hasContact: true, currentKey, now }), { status: 'ready_new', actionable: true })
+
+  const currentAccepted = {
+    idempotency_key: currentKey,
+    status: 'accepted',
+    accepted_at: '2026-08-25T18:00:00.000Z',
+    created_at: '2026-08-25T18:00:00.000Z',
+    next_attempt_at: null,
+  }
+  assert.deepEqual(sellerAvailabilityDigestReadiness({ hasContact: true, currentKey, latestReceipt: currentAccepted, now }), { status: 'current', actionable: false })
+  assert.deepEqual(sellerAvailabilityDigestReadiness({ hasContact: true, currentKey, latestReceipt: { ...currentAccepted, accepted_at: '2026-08-10T18:00:00.000Z' }, now }), { status: 'ready_reissue', actionable: true })
+  assert.deepEqual(sellerAvailabilityDigestReadiness({ hasContact: true, currentKey, latestReceipt: { ...currentAccepted, accepted_at: null }, now }), { status: 'invalid_receipt', actionable: false })
+
+  const retryPending = { ...currentAccepted, status: 'failed', accepted_at: null, next_attempt_at: '2026-08-31T19:00:00.000Z' }
+  assert.deepEqual(sellerAvailabilityDigestReadiness({ hasContact: true, currentKey, latestReceipt: retryPending, now }), { status: 'retry_pending', actionable: false })
+  assert.deepEqual(sellerAvailabilityDigestReadiness({ hasContact: true, currentKey, latestReceipt: { ...retryPending, next_attempt_at: null }, now }), { status: 'ready_retry', actionable: true })
+
+  const changedKey = sellerAvailabilityDigestIdempotencyKey(sellerId, [{ listingId: listingOne, confirmationId: confirmation }])
+  assert.deepEqual(sellerAvailabilityDigestReadiness({ hasContact: true, currentKey: changedKey, latestReceipt: currentAccepted, now }), { status: 'cooling_down', actionable: false })
 })

@@ -738,6 +738,11 @@ const checks = [
     required: ['requestSellerAvailabilityDigest', 'sellerAvailabilityDigestIdempotencyKey', 'changedSellerAvailabilityDigestIsCoolingDown', 'sellerAvailabilityDigestRequestKey', 'buildSellerAvailabilityDigestNotification', "notificationType: 'seller_availability_digest'", "entityType: 'user'", 'Seller availability digest acceptance was not verified by readback'],
   },
   {
+    name: 'Control Tower explains seller outreach readiness before an operator can send',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['sellerAvailabilityDigestIdempotencyKey', 'sellerAvailabilityDigestReadiness', 'latestAvailabilityRowsByListing', "readiness.status === 'cooling_down'", 'readiness.actionable'],
+  },
+  {
     name: 'Expired grouped seller authority can be explicitly reissued without changing its inventory scope',
     file: 'src/utils/seller-availability-digest.mjs',
     required: ['sellerAvailabilityDigestRequestLifetimeMs', 'sellerAvailabilityDigestInventoryKey', 'sellerAvailabilityDigestRequestKey', 'current.toISOString()', 'latestReceipt.status'],

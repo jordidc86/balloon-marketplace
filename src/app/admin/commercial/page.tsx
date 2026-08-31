@@ -6,7 +6,7 @@ import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/ut
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '@/utils/buyer-funnel.mjs'
 import { isSellerEnquiryEscalationDue } from '@/utils/opportunity-followup.mjs'
-import { sellerAvailabilityDigestRequestLifetimeMs } from '@/utils/seller-availability-digest.mjs'
+import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestReadiness } from '@/utils/seller-availability-digest.mjs'
 import { clarifyListingSale, recordCommercialOutcome, recordCommercialUnitEconomics, requestSellerAvailabilityDigest, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -167,6 +167,7 @@ type CommercialNotification = {
   entity_type: string
   entity_id: string
   status: string
+  idempotency_key: string
   delivery_attempts: number
   next_attempt_at: string | null
   accepted_at: string | null
@@ -191,6 +192,7 @@ type ListingWatchDispatch = {
 }
 
 type ListingAvailabilityConfirmation = {
+  id: string
   listing_id: string
   confirmed_at: string
 }
@@ -321,7 +323,7 @@ export default async function CommercialPage() {
     supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,existing_listing_url,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
     supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,stripe_checkout_session_id,user_id,listing_id,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,utm_source,created_at').gte('created_at', thirtyDaysAgo),
-    supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,accepted_at,created_at').order('created_at', { ascending: false }).limit(500),
+    supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,idempotency_key,delivery_attempts,next_attempt_at,accepted_at,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_evidence_reference,economics_notes,economics_recorded_at,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
     supabase.from('indexing_submission_receipts').select('id,provider,url_count,status,attempts,provider_status_code,attempted_at,accepted_at').order('created_at', { ascending: false }).limit(10),
     supabase.from('listing_watchers').select('id,listing_id,status,journey_key,created_at,confirmed_at').order('created_at', { ascending: false }).limit(500),
@@ -351,7 +353,7 @@ export default async function CommercialPage() {
   const typedPublicNewsletterSubscriptions = (newsletterPublicSubscriptions || []) as PublicNewsletterSubscriptionEvidence[]
   const { data: listingAvailabilityConfirmations, error: listingAvailabilityError } = await supabase
     .from('listing_availability_confirmations')
-    .select('listing_id,confirmed_at')
+    .select('id,listing_id,confirmed_at')
     .order('confirmed_at', { ascending: false })
     .limit(2000)
   const { data: listingCheckoutIntents, error: listingCheckoutIntentsError } = await supabase
@@ -369,10 +371,11 @@ export default async function CommercialPage() {
     .select('id,lifecycle_event_id,listing_id,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,actor_role,created_at')
     .order('created_at', { ascending: false })
     .limit(500)
-  const latestAvailabilityByListing = ((listingAvailabilityConfirmations as ListingAvailabilityConfirmation[] | null) || []).reduce<Map<string, string>>((latest, confirmation) => {
-    if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation.confirmed_at)
+  const latestAvailabilityRowsByListing = ((listingAvailabilityConfirmations as ListingAvailabilityConfirmation[] | null) || []).reduce<Map<string, ListingAvailabilityConfirmation>>((latest, confirmation) => {
+    if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation)
     return latest
   }, new Map())
+  const latestAvailabilityByListing = new Map([...latestAvailabilityRowsByListing].map(([listingId, confirmation]) => [listingId, confirmation.confirmed_at]))
   const negotiationEventsByInquiry = typedNegotiationEvents.reduce<Map<string, NegotiationEvent[]>>((byInquiry, event) => {
     const inquiryEvents = byInquiry.get(event.inquiry_id) || []
     inquiryEvents.push(event)
@@ -709,15 +712,17 @@ export default async function CommercialPage() {
             <div className="mt-5 divide-y rounded-xl border">
               {Array.from(availabilityDueBySeller.entries()).map(([sellerId, dueListings]) => {
                 const request = availabilityDigestBySeller.get(sellerId)
-                const retryAt = request?.next_attempt_at ? new Date(request.next_attempt_at) : null
-                const waitingForRetry = Boolean(retryAt && retryAt.getTime() > nowMs)
-                const acceptedAtMs = request?.accepted_at ? new Date(request.accepted_at).getTime() : Number.NaN
-                const acceptedCapabilityCurrent = request?.status === 'accepted'
-                  && Number.isFinite(acceptedAtMs)
-                  && nowMs - acceptedAtMs >= 0
-                  && nowMs - acceptedAtMs < sellerAvailabilityDigestRequestLifetimeMs
-                const acceptedReceiptInvalid = request?.status === 'accepted' && !Number.isFinite(acceptedAtMs)
-                return <div key={sellerId} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-semibold">{sellerEmailById.get(sellerId) || 'Seller contact unavailable'} · {dueListings.length} active listing{dueListings.length === 1 ? '' : 's'}</p><ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground">{dueListings.map((listing) => <li key={listing.id}>{listing.title} · {latestAvailabilityByListing.has(listing.id) ? 'confirmation expired' : 'never confirmed'}</li>)}</ul>{request ? <p className="mt-1 text-xs text-muted-foreground">Latest grouped request: {request.status} · {request.delivery_attempts} attempt{request.delivery_attempts === 1 ? '' : 's'}</p> : null}</div>{acceptedCapabilityCurrent ? <span className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700">Grouped request accepted · link current</span> : acceptedReceiptInvalid ? <span className="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-800">Accepted receipt needs review</span> : waitingForRetry ? <span className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-800">Automatic safe retry after {formatDate(request!.next_attempt_at!)}</span> : sellerEmailById.has(sellerId) ? <form action={requestSellerAvailabilityDigest.bind(null, sellerId)}><button className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted">{request?.status === 'accepted' ? 'Reissue expired grouped request' : request ? 'Retry grouped request' : `Request all ${dueListings.length} confirmations`}</button></form> : <span className="text-xs font-semibold text-destructive">Seller email missing</span>}</div>
+                const currentKey = sellerAvailabilityDigestIdempotencyKey(sellerId, dueListings.map((listing) => ({
+                  listingId: listing.id,
+                  confirmationId: latestAvailabilityRowsByListing.get(listing.id)?.id || null,
+                })))
+                const readiness = sellerAvailabilityDigestReadiness({
+                  hasContact: sellerEmailById.has(sellerId),
+                  currentKey,
+                  latestReceipt: request,
+                  now: new Date(nowMs),
+                })
+                return <div key={sellerId} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="font-semibold">{sellerEmailById.get(sellerId) || 'Seller contact unavailable'} · {dueListings.length} active listing{dueListings.length === 1 ? '' : 's'}</p><ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground">{dueListings.map((listing) => <li key={listing.id}>{listing.title} · {latestAvailabilityByListing.has(listing.id) ? 'confirmation expired' : 'never confirmed'}</li>)}</ul>{request ? <p className="mt-1 text-xs text-muted-foreground">Latest grouped request: {request.status} · {request.delivery_attempts} attempt{request.delivery_attempts === 1 ? '' : 's'}</p> : null}</div>{readiness.status === 'current' ? <span className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700">Grouped request accepted · link current</span> : readiness.status === 'invalid_receipt' || readiness.status === 'invalid_inventory' ? <span className="rounded-lg bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-800">Availability request evidence needs review</span> : readiness.status === 'retry_pending' ? <span className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-800">Automatic safe retry after {formatDate(request!.next_attempt_at!)}</span> : readiness.status === 'cooling_down' ? <span className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-800">Inventory changed · outreach cooldown protects the seller</span> : readiness.status === 'missing_contact' ? <span className="text-xs font-semibold text-destructive">Seller email missing</span> : readiness.actionable ? <form action={requestSellerAvailabilityDigest.bind(null, sellerId)}><button className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-muted">{readiness.status === 'ready_reissue' ? 'Reissue expired grouped request' : readiness.status === 'ready_retry' ? 'Retry grouped request' : `Request all ${dueListings.length} confirmations`}</button></form> : null}</div>
               })}
             </div>
           </>
