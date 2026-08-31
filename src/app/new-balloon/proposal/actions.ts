@@ -2,9 +2,10 @@
 
 import { createAdminClient } from '@/utils/supabase/server'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
-import { escapeHtml } from '@/utils/html'
 import { newBalloonProposalResponseExpiry, verifyNewBalloonProposalCapability } from '@/utils/new-balloon-proposal-capability.mjs'
+import { buildNewBalloonProposalResponseAdminNotification } from '@/utils/new-balloon-proposal-notifications.mjs'
 import { newBalloonProposalResponseLabel, parseNewBalloonProposalResponse } from '@/utils/new-balloon-proposal-response.mjs'
+import { siteUrl } from '@/utils/site'
 
 export type NewBalloonProposalResponseState = { success: boolean; message: string }
 
@@ -81,14 +82,21 @@ export async function submitNewBalloonProposalResponse(_state: NewBalloonProposa
     let notificationError: string | null = adminEmail ? 'Provider acceptance was not confirmed.' : 'ADMIN_EMAIL is not configured.'
     if (adminEmail) {
       try {
+        const notification = buildNewBalloonProposalResponseAdminNotification({
+          quote,
+          proposal,
+          event,
+          responseLabel: newBalloonProposalResponseLabel(event.response_type),
+          commercialPipelineUrl: `${siteUrl}/admin/commercial#quote-${quote.id}`,
+        })
         const delivery = await sendCommercialReceiptEmail(admin, {
           notificationType: 'new_balloon_proposal_response_admin',
           entityType: 'quote_proposal',
           entityId: proposal.id,
           recipientRole: 'admin',
           to: adminEmail,
-          subject: `AeroTrade new-balloon proposal response: ${newBalloonProposalResponseLabel(event.response_type)}`,
-          html: `<h2>${escapeHtml(newBalloonProposalResponseLabel(event.response_type))}</h2><p><strong>Buyer:</strong> ${escapeHtml(quote.name)}</p><p><strong>Manufacturer:</strong> ${escapeHtml(proposal.manufacturer === 'pasha' ? 'Pasha' : 'Schroeder')}</p>${event.note ? `<p><strong>Buyer note:</strong><br />${escapeHtml(event.note).replaceAll('\n', '<br />')}</p>` : ''}<p>This is a non-binding response. It does not create an order, reservation, payment or sale contract. Review the opportunity in the AeroTrade Commercial Pipeline.</p>`,
+          subject: notification.subject,
+          html: notification.html,
           idempotencyKey: `new-balloon-proposal-response-admin-${event.id}`,
         })
         notificationStatus = delivery.success ? 'accepted' : 'failed'

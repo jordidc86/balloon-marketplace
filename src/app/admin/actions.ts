@@ -18,6 +18,7 @@ import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeSellerAssistanceStatus } from '@/utils/seller-assistance.mjs'
 import { newBalloonProposalFingerprint, parseNewBalloonProposal } from '@/utils/new-balloon-proposal.mjs'
 import { newBalloonProposalResponseExpiry, signNewBalloonProposalCapability } from '@/utils/new-balloon-proposal-capability.mjs'
+import { buildNewBalloonProposalBuyerNotification } from '@/utils/new-balloon-proposal-notifications.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { listingAvailabilityRequestIdempotencyKey } from '@/utils/listing-availability-request.mjs'
 import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityDigestIdempotencyKey } from '@/utils/seller-availability-digest.mjs'
@@ -422,7 +423,6 @@ export async function sendNewBalloonProposal(requestId: string, formData: FormDa
     stored = data
   }
 
-  const amount = `${(proposal.amount_min_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: proposal.currency })}–${(proposal.amount_max_minor / 100).toLocaleString('en-IE', { style: 'currency', currency: proposal.currency })}`
   const responseExpiry = newBalloonProposalResponseExpiry(proposal.valid_until)
   const responseToken = responseExpiry ? signNewBalloonProposalCapability({
     proposalId: stored.id,
@@ -435,10 +435,11 @@ export async function sendNewBalloonProposal(requestId: string, formData: FormDa
   const responseUrl = new URL('/new-balloon/proposal', siteUrl)
   responseUrl.searchParams.set('id', stored.id)
   responseUrl.searchParams.set('token', responseToken)
+  const notification = buildNewBalloonProposalBuyerNotification({ quote, proposal, responseUrl: responseUrl.toString() })
   const delivery = await sendCommercialReceiptEmail(supabase, {
     notificationType: 'new_balloon_proposal_buyer', entityType: 'quote_proposal', entityId: stored.id, recipientRole: 'buyer', to: quote.email,
-    subject: `AeroTrade indicative ${proposal.manufacturer === 'pasha' ? 'Pasha' : 'Schroeder'} balloon proposal`,
-    html: `<h2>Your indicative new-balloon proposal</h2><p>Hello ${escapeHtml(quote.name)},</p><p>AeroTrade has prepared an initial, non-binding price direction for a factory-new <strong>${proposal.manufacturer === 'pasha' ? 'Pasha' : 'Schroeder'}</strong> balloon.</p><p><strong>Indicative range:</strong> ${escapeHtml(amount)}</p><p><strong>Configuration:</strong><br>${escapeHtml(proposal.configuration_summary).replaceAll('\n', '<br>')}</p><p><strong>Delivery guidance:</strong> ${escapeHtml(proposal.delivery_guidance)}</p><p><strong>Valid for discussion until:</strong> ${escapeHtml(proposal.valid_until)}</p>${proposal.terms ? `<p><strong>Conditions:</strong><br>${escapeHtml(proposal.terms).replaceAll('\n', '<br>')}</p>` : ''}<p>This is an invitation to discuss configuration and price. It is not a binding factory quotation, reservation, order or sale contract.</p><p><a href="${escapeHtml(responseUrl.toString())}" style="display:inline-block;padding:12px 18px;background:#0f766e;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Respond securely to this proposal</a></p><p>You can indicate interest, ask a question or decline. You may also reply to this email.</p>`,
+    subject: notification.subject,
+    html: notification.html,
     idempotencyKey: `new-balloon-proposal-${fingerprint}`,
   })
 

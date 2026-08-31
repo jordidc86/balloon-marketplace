@@ -11,6 +11,15 @@ import { buildInquiryBuyerAcknowledgement } from '@/utils/inquiry-buyer-acknowle
 import { inquiryBuyerCapabilityLifetimeMs, inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerCapability, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
 import { buyerEarlyAccessProduct } from '@/utils/paid-product-labels.mjs'
 import { buildBuyerResponseSellerNotification, buildSellerResponseBuyerNotification, parseNegotiationNotificationEventId } from '@/utils/inquiry-negotiation-notifications.mjs'
+import { newBalloonProposalResponseExpiry, signNewBalloonProposalCapability } from '@/utils/new-balloon-proposal-capability.mjs'
+import {
+  buildNewBalloonProposalBuyerNotification,
+  buildNewBalloonProposalResponseAdminNotification,
+  getNewBalloonProposalDeliveryRecoveryDecision,
+  getNewBalloonResponseNotificationRecoveryDecision,
+  parseNewBalloonProposalResponseNotificationEventId,
+} from '@/utils/new-balloon-proposal-notifications.mjs'
+import { newBalloonProposalResponseLabel } from '@/utils/new-balloon-proposal-response.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,6 +106,47 @@ type NegotiationInquiry = {
   listings: { id: string; title: string; contact_email: string } | Array<{ id: string; title: string; contact_email: string }> | null
 }
 
+type NewBalloonNotificationRetryReceipt = {
+  id: string
+  notification_type: 'new_balloon_proposal_buyer' | 'new_balloon_proposal_response_admin'
+  entity_id: string
+  idempotency_key: string
+  status: 'pending' | 'failed' | 'accepted'
+  provider_message_id: string | null
+}
+
+type NewBalloonProposalRecovery = {
+  id: string
+  quote_request_id: string
+  proposal_fingerprint: string
+  manufacturer: 'pasha' | 'schroeder'
+  currency: string
+  amount_min_minor: number
+  amount_max_minor: number
+  configuration_summary: string
+  delivery_guidance: string
+  valid_until: string
+  terms: string | null
+  delivery_status: 'pending' | 'accepted' | 'failed'
+  created_at: string
+}
+
+type NewBalloonProposalResponseRecovery = {
+  id: string
+  proposal_id: string
+  quote_request_id: string
+  response_type: 'INTERESTED' | 'QUESTION' | 'DECLINED'
+  note: string | null
+  admin_notification_status: 'pending' | 'accepted' | 'failed'
+}
+
+type NewBalloonQuoteRecovery = {
+  id: string
+  name: string
+  email: string
+  status: string
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -118,7 +168,7 @@ export async function GET(request: Request) {
   const sellerEscalationCutoff = getSellerEnquiryEscalationCutoff()
   const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult] = await Promise.all([
+  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult, newBalloonNotificationRetryResult, acceptedNewBalloonNotificationResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -175,15 +225,31 @@ export async function GET(request: Request) {
       .limit(100),
     supabase
       .from('commercial_notification_receipts')
-      .select('id,notification_type,entity_id,idempotency_key')
+      .select('id,notification_type,entity_id,idempotency_key,status,provider_message_id')
       .in('notification_type', ['inquiry_buyer_seller_response', 'inquiry_seller_buyer_response'])
       .in('status', ['pending', 'failed'])
       .lt('delivery_attempts', 2)
       .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
       .order('created_at', { ascending: true })
       .limit(100),
+    supabase
+      .from('commercial_notification_receipts')
+      .select('id,notification_type,entity_id,idempotency_key')
+      .in('notification_type', ['new_balloon_proposal_buyer', 'new_balloon_proposal_response_admin'])
+      .in('status', ['pending', 'failed'])
+      .lt('delivery_attempts', 2)
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+      .order('created_at', { ascending: true })
+      .limit(100),
+    supabase
+      .from('commercial_notification_receipts')
+      .select('id,notification_type,entity_id,idempotency_key,status,provider_message_id')
+      .in('notification_type', ['new_balloon_proposal_buyer', 'new_balloon_proposal_response_admin'])
+      .eq('status', 'accepted')
+      .order('accepted_at', { ascending: false })
+      .limit(500),
   ])
-  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error) {
+  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error || newBalloonNotificationRetryResult.error || acceptedNewBalloonNotificationResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
@@ -196,6 +262,12 @@ export async function GET(request: Request) {
   const buyerEarlyAccessRecoveries = (buyerEarlyAccessRecoveryResult.data || []) as BuyerEarlyAccessCheckoutRecovery[]
   const acceptedSellerFollowups = (acceptedSellerFollowupResult.data || []) as AcceptedSellerFollowup[]
   const negotiationRetries = (negotiationRetryResult.data || []) as NegotiationRetryReceipt[]
+  const newBalloonNotificationCandidates = [...new Map(
+    ([...(newBalloonNotificationRetryResult.data || []), ...(acceptedNewBalloonNotificationResult.data || [])] as NewBalloonNotificationRetryReceipt[])
+      .map((receipt) => [receipt.id, receipt]),
+  ).values()]
+  const newBalloonProposalDeliveryCandidates = newBalloonNotificationCandidates.filter((retry) => retry.notification_type === 'new_balloon_proposal_buyer')
+  const newBalloonResponseAdminCandidates = newBalloonNotificationCandidates.filter((retry) => retry.notification_type === 'new_balloon_proposal_response_admin')
   const sellerEscalationInquiryIds = new Set(acceptedSellerFollowups.map((receipt) => receipt.entity_id))
   const sellerEnquiryEscalations = inquiries.filter((inquiry) => sellerEscalationInquiryIds.has(inquiry.id))
   const newBalloonBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'new_balloon_buyer_ack')
@@ -206,7 +278,11 @@ export async function GET(request: Request) {
     .map((retry) => parseNegotiationNotificationEventId(retry.notification_type, retry.idempotency_key))
     .filter((eventId): eventId is string => Boolean(eventId))
   const negotiationInquiryIds = [...new Set(negotiationRetries.map((retry) => retry.entity_id))]
-  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult] = await Promise.all([
+  const newBalloonProposalIds = [...new Set(newBalloonNotificationCandidates.map((retry) => retry.entity_id))]
+  const newBalloonResponseEventIds = newBalloonResponseAdminCandidates
+    .map((retry) => parseNewBalloonProposalResponseNotificationEventId(retry.idempotency_key))
+    .filter((eventId): eventId is string => Boolean(eventId))
+  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult] = await Promise.all([
     buyerAcknowledgementQuoteIds.length > 0
       ? supabase
         .from('quote_requests')
@@ -239,8 +315,20 @@ export async function GET(request: Request) {
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
       : Promise.resolve({ data: [], error: null }),
+    newBalloonProposalIds.length > 0
+      ? supabase
+        .from('new_balloon_quote_proposals')
+        .select('id,quote_request_id,proposal_fingerprint,manufacturer,currency,amount_min_minor,amount_max_minor,configuration_summary,delivery_guidance,valid_until,terms,delivery_status,created_at')
+        .in('id', newBalloonProposalIds)
+      : Promise.resolve({ data: [], error: null }),
+    newBalloonResponseEventIds.length > 0
+      ? supabase
+        .from('new_balloon_proposal_response_events')
+        .select('id,proposal_id,quote_request_id,response_type,note,admin_notification_status')
+        .in('id', newBalloonResponseEventIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
-  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error) {
+  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error) {
     return NextResponse.json({ error: 'Commercial notification recovery data could not be loaded' }, { status: 500 })
   }
   const buyerAcknowledgementQuoteById = new Map(
@@ -259,6 +347,43 @@ export async function GET(request: Request) {
   for (const event of latestNegotiationEventsResult.data || []) {
     if (!latestNegotiationEventByInquiry.has(event.inquiry_id)) latestNegotiationEventByInquiry.set(event.inquiry_id, event.id)
   }
+  const newBalloonProposalById = new Map(
+    ((newBalloonProposalsResult.data || []) as NewBalloonProposalRecovery[]).map((proposal) => [proposal.id, proposal]),
+  )
+  const newBalloonResponseEventById = new Map(
+    ((newBalloonResponseEventsResult.data || []) as NewBalloonProposalResponseRecovery[]).map((event) => [event.id, event]),
+  )
+  const newBalloonQuoteIds = [...new Set([...newBalloonProposalById.values()].map((proposal) => proposal.quote_request_id))]
+  const [newBalloonQuotesResult, allRelevantNewBalloonProposalsResult] = await Promise.all([
+    newBalloonQuoteIds.length > 0
+      ? supabase.from('quote_requests').select('id,name,email,status').in('id', newBalloonQuoteIds)
+      : Promise.resolve({ data: [], error: null }),
+    newBalloonQuoteIds.length > 0
+      ? supabase
+        .from('new_balloon_quote_proposals')
+        .select('id,quote_request_id,created_at')
+        .in('quote_request_id', newBalloonQuoteIds)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (newBalloonQuotesResult.error || allRelevantNewBalloonProposalsResult.error) {
+    return NextResponse.json({ error: 'New-balloon proposal recovery relationships could not be loaded' }, { status: 500 })
+  }
+  const newBalloonQuoteById = new Map(
+    ((newBalloonQuotesResult.data || []) as NewBalloonQuoteRecovery[]).map((quote) => [quote.id, quote]),
+  )
+  const latestNewBalloonProposalByQuote = new Map<string, string>()
+  for (const proposal of allRelevantNewBalloonProposalsResult.data || []) {
+    if (!latestNewBalloonProposalByQuote.has(proposal.quote_request_id)) latestNewBalloonProposalByQuote.set(proposal.quote_request_id, proposal.id)
+  }
+  const newBalloonProposalDeliveryRetries = newBalloonProposalDeliveryCandidates.filter((receipt) =>
+    receipt.status !== 'accepted' || newBalloonProposalById.get(receipt.entity_id)?.delivery_status !== 'accepted',
+  )
+  const newBalloonResponseAdminRetries = newBalloonResponseAdminCandidates.filter((receipt) => {
+    const eventId = parseNewBalloonProposalResponseNotificationEventId(receipt.idempotency_key)
+    return receipt.status !== 'accepted' || !eventId || newBalloonResponseEventById.get(eventId)?.admin_notification_status !== 'accepted'
+  })
   const result = {
     dueSellerEnquiries: inquiries.length,
     dueSellerEnquiryEscalations: sellerEnquiryEscalations.length,
@@ -269,6 +394,8 @@ export async function GET(request: Request) {
     dueNewBalloonBuyerAcknowledgementRetries: newBalloonBuyerAcknowledgementRetries.length,
     dueMarketplaceInquiryBuyerAcknowledgementRetries: inquiryBuyerAcknowledgementRetries.length,
     dueNegotiationNotificationRetries: negotiationRetries.length,
+    dueNewBalloonProposalDeliveryRetries: newBalloonProposalDeliveryRetries.length,
+    dueNewBalloonResponseAdminNotificationRetries: newBalloonResponseAdminRetries.length,
     dueBuyerEarlyAccessCheckoutRecoveries: buyerEarlyAccessRecoveries.length,
     accepted: 0,
     alreadyAccepted: 0,
@@ -280,9 +407,257 @@ export async function GET(request: Request) {
     negotiationNotificationsDeferred: 0,
     negotiationNotificationsFailed: 0,
     negotiationNotificationsSuperseded: 0,
+    newBalloonProposalDeliveriesAccepted: 0,
+    newBalloonProposalDeliveriesAlreadyAccepted: 0,
+    newBalloonProposalDeliveriesDeferred: 0,
+    newBalloonProposalDeliveriesFailed: 0,
+    newBalloonProposalDeliveriesSuperseded: 0,
+    newBalloonResponseNotificationsAccepted: 0,
+    newBalloonResponseNotificationsAlreadyAccepted: 0,
+    newBalloonResponseNotificationsDeferred: 0,
+    newBalloonResponseNotificationsFailed: 0,
+    newBalloonResponseNotificationsSuperseded: 0,
     dryRun: !commit,
   }
   if (!commit) return NextResponse.json(result)
+
+  const adminEmail = process.env.ADMIN_EMAIL?.trim()
+  const exhaustNewBalloonReceipt = async (receiptId: string, message: string) => {
+    const { data, error } = await supabase
+      .from('commercial_notification_receipts')
+      .update({ status: 'failed', delivery_attempts: 2, next_attempt_at: null, error_message: message })
+      .eq('id', receiptId)
+      .in('status', ['pending', 'failed'])
+      .select('id,delivery_attempts,next_attempt_at')
+      .single()
+    return !error && data?.delivery_attempts === 2 && data.next_attempt_at === null
+  }
+
+  for (const retry of newBalloonProposalDeliveryRetries) {
+    const proposal = newBalloonProposalById.get(retry.entity_id)
+    const quote = proposal ? newBalloonQuoteById.get(proposal.quote_request_id) : null
+    const exactReceipt = Boolean(proposal && retry.idempotency_key === `new-balloon-proposal-${proposal.proposal_fingerprint}`)
+
+    const proposalRecoveryDecision = getNewBalloonProposalDeliveryRecoveryDecision({
+      receiptStatus: retry.status,
+      hasProviderMessageId: Boolean(retry.provider_message_id),
+      proposal,
+      quoteStatus: quote?.status,
+      exactReceipt,
+      latestProposalId: proposal ? latestNewBalloonProposalByQuote.get(proposal.quote_request_id) : null,
+    })
+    if (proposalRecoveryDecision === 'blocked') {
+      result.configurationBlocked += 1
+      continue
+    }
+    if (proposalRecoveryDecision === 'reconcile') {
+      if (!proposal || !retry.provider_message_id || !exactReceipt) {
+        result.configurationBlocked += 1
+        continue
+      }
+      try {
+        const { data: acceptedId, error } = await supabase.rpc('accept_new_balloon_proposal_delivery', {
+          p_proposal_id: proposal.id,
+          p_provider_message_id: retry.provider_message_id,
+        })
+        const { data: readback, error: readbackError } = await supabase
+          .from('new_balloon_quote_proposals')
+          .select('id,delivery_status,provider_message_id,accepted_at')
+          .eq('id', proposal.id)
+          .single()
+        if (error || readbackError || acceptedId !== proposal.id || readback?.delivery_status !== 'accepted' || readback.provider_message_id !== retry.provider_message_id || !readback.accepted_at) {
+          throw new Error('Accepted proposal delivery reconciliation failed')
+        }
+        result.newBalloonProposalDeliveriesAlreadyAccepted += 1
+      } catch (error) {
+        console.error('Accepted new-balloon proposal delivery could not be reconciled:', error)
+        result.newBalloonProposalDeliveriesFailed += 1
+      }
+      continue
+    }
+
+    if (proposalRecoveryDecision === 'superseded') {
+      const exhausted = await exhaustNewBalloonReceipt(retry.id, 'Proposal delivery recovery was superseded by current commercial state.')
+      if (proposal && proposal.delivery_status !== 'accepted') {
+        await supabase
+          .from('new_balloon_quote_proposals')
+          .update({ delivery_status: 'failed', provider_message_id: null, delivery_error: 'Delivery recovery superseded by current commercial state.', accepted_at: null })
+          .eq('id', proposal.id)
+      }
+      if (exhausted) result.newBalloonProposalDeliveriesSuperseded += 1
+      else result.newBalloonProposalDeliveriesFailed += 1
+      continue
+    }
+
+    const responseExpiry = proposal ? newBalloonProposalResponseExpiry(proposal.valid_until) : null
+    if (!proposal || !quote || !responseExpiry) {
+      result.configurationBlocked += 1
+      continue
+    }
+
+    const responseToken = signNewBalloonProposalCapability({
+      proposalId: proposal.id,
+      quoteRequestId: quote.id,
+      buyerEmail: quote.email,
+      expiresAt: responseExpiry,
+      secret: serviceRoleKey,
+    })
+    if (!responseToken) {
+      result.configurationBlocked += 1
+      continue
+    }
+    const responseUrl = new URL('/new-balloon/proposal', siteUrl)
+    responseUrl.searchParams.set('id', proposal.id)
+    responseUrl.searchParams.set('token', responseToken)
+    const notification = buildNewBalloonProposalBuyerNotification({ quote, proposal, responseUrl: responseUrl.toString() })
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'new_balloon_proposal_buyer',
+        entityType: 'quote_proposal',
+        entityId: proposal.id,
+        recipientRole: 'buyer',
+        to: quote.email,
+        subject: notification.subject,
+        html: notification.html,
+        idempotencyKey: retry.idempotency_key,
+      })
+      if (delivery.skipped) {
+        result.newBalloonProposalDeliveriesDeferred += 1
+        continue
+      }
+      if (!delivery.success || !delivery.providerMessageId) {
+        const { data: failedReadback, error: failedError } = await supabase
+          .from('new_balloon_quote_proposals')
+          .update({ delivery_status: 'failed', provider_message_id: null, delivery_error: 'Provider acceptance was not confirmed after the retry budget.', accepted_at: null })
+          .eq('id', proposal.id)
+          .select('delivery_status')
+          .single()
+        if (failedError || failedReadback?.delivery_status !== 'failed') throw new Error('Failed proposal recovery result could not be persisted')
+        result.newBalloonProposalDeliveriesFailed += 1
+        continue
+      }
+      const { data: acceptedId, error: acceptanceError } = await supabase.rpc('accept_new_balloon_proposal_delivery', {
+        p_proposal_id: proposal.id,
+        p_provider_message_id: delivery.providerMessageId,
+      })
+      const [{ data: proposalReadback }, { data: quoteReadback }] = await Promise.all([
+        supabase.from('new_balloon_quote_proposals').select('id,delivery_status,provider_message_id,accepted_at').eq('id', proposal.id).single(),
+        supabase.from('quote_requests').select('id,status').eq('id', quote.id).single(),
+      ])
+      if (acceptanceError || acceptedId !== proposal.id || proposalReadback?.delivery_status !== 'accepted' || proposalReadback.provider_message_id !== delivery.providerMessageId || !proposalReadback.accepted_at || quoteReadback?.status !== 'QUOTE_SENT') {
+        throw new Error('Recovered proposal delivery transition was not verified')
+      }
+      if (delivery.duplicate) result.newBalloonProposalDeliveriesAlreadyAccepted += 1
+      else result.newBalloonProposalDeliveriesAccepted += 1
+    } catch (error) {
+      console.error('New-balloon proposal delivery recovery failed:', error)
+      result.newBalloonProposalDeliveriesFailed += 1
+    }
+  }
+
+  for (const retry of newBalloonResponseAdminRetries) {
+    const eventId = parseNewBalloonProposalResponseNotificationEventId(retry.idempotency_key)
+    const event = eventId ? newBalloonResponseEventById.get(eventId) : null
+    const proposal = newBalloonProposalById.get(retry.entity_id)
+    const quote = proposal ? newBalloonQuoteById.get(proposal.quote_request_id) : null
+    const exactRelationships = Boolean(event && proposal && quote
+      && event.proposal_id === proposal.id
+      && event.quote_request_id === quote.id)
+
+    const responseRecoveryDecision = getNewBalloonResponseNotificationRecoveryDecision({
+      receiptStatus: retry.status,
+      hasProviderMessageId: Boolean(retry.provider_message_id),
+      event,
+      exactRelationships,
+      quoteStatus: quote?.status,
+    })
+    if (responseRecoveryDecision === 'blocked') {
+      result.configurationBlocked += 1
+      continue
+    }
+    if (responseRecoveryDecision === 'reconcile') {
+      if (!event || !retry.provider_message_id || !exactRelationships) {
+        result.configurationBlocked += 1
+        continue
+      }
+      const { data: readback, error } = await supabase
+        .from('new_balloon_proposal_response_events')
+        .update({ admin_notification_status: 'accepted', admin_notification_provider_id: retry.provider_message_id, admin_notification_error: null })
+        .eq('id', event.id)
+        .eq('proposal_id', proposal!.id)
+        .select('admin_notification_status,admin_notification_provider_id')
+        .single()
+      if (error || readback?.admin_notification_status !== 'accepted' || readback.admin_notification_provider_id !== retry.provider_message_id) {
+        result.newBalloonResponseNotificationsFailed += 1
+      } else {
+        result.newBalloonResponseNotificationsAlreadyAccepted += 1
+      }
+      continue
+    }
+
+    if (responseRecoveryDecision === 'superseded') {
+      const exhausted = await exhaustNewBalloonReceipt(retry.id, 'Proposal response notification recovery was superseded by current commercial state.')
+      if (event && event.admin_notification_status !== 'accepted') {
+        await supabase
+          .from('new_balloon_proposal_response_events')
+          .update({ admin_notification_status: 'failed', admin_notification_provider_id: null, admin_notification_error: 'Notification recovery superseded by current commercial state.' })
+          .eq('id', event.id)
+      }
+      if (exhausted) result.newBalloonResponseNotificationsSuperseded += 1
+      else result.newBalloonResponseNotificationsFailed += 1
+      continue
+    }
+    if (!event || !proposal || !quote || !exactRelationships) {
+      result.configurationBlocked += 1
+      continue
+    }
+    if (!adminEmail) {
+      result.configurationBlocked += 1
+      continue
+    }
+    const notification = buildNewBalloonProposalResponseAdminNotification({
+      quote,
+      proposal,
+      event,
+      responseLabel: newBalloonProposalResponseLabel(event.response_type),
+      commercialPipelineUrl: `${siteUrl}/admin/commercial#quote-${quote.id}`,
+    })
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'new_balloon_proposal_response_admin',
+        entityType: 'quote_proposal',
+        entityId: proposal.id,
+        recipientRole: 'admin',
+        to: adminEmail,
+        subject: notification.subject,
+        html: notification.html,
+        idempotencyKey: retry.idempotency_key,
+      })
+      if (delivery.skipped) {
+        result.newBalloonResponseNotificationsDeferred += 1
+        continue
+      }
+      const notificationStatus = delivery.success ? 'accepted' : 'failed'
+      const { data: readback, error } = await supabase
+        .from('new_balloon_proposal_response_events')
+        .update({
+          admin_notification_status: notificationStatus,
+          admin_notification_provider_id: delivery.providerMessageId,
+          admin_notification_error: delivery.success ? null : 'Provider acceptance was not confirmed after the retry budget.',
+        })
+        .eq('id', event.id)
+        .eq('proposal_id', proposal.id)
+        .select('admin_notification_status,admin_notification_provider_id')
+        .single()
+      if (error || readback?.admin_notification_status !== notificationStatus) throw new Error('New-balloon response notification retry readback failed')
+      if (delivery.duplicate) result.newBalloonResponseNotificationsAlreadyAccepted += 1
+      else if (delivery.success) result.newBalloonResponseNotificationsAccepted += 1
+      else result.newBalloonResponseNotificationsFailed += 1
+    } catch (error) {
+      console.error('New-balloon response admin notification recovery failed:', error)
+      result.newBalloonResponseNotificationsFailed += 1
+    }
+  }
 
   for (const retry of negotiationRetries) {
     const eventId = parseNegotiationNotificationEventId(retry.notification_type, retry.idempotency_key)
@@ -579,7 +954,6 @@ export async function GET(request: Request) {
     }
   }
 
-  const adminEmail = process.env.ADMIN_EMAIL?.trim()
   for (const inquiry of sellerEnquiryEscalations) {
     if (!adminEmail) {
       result.configurationBlocked += 1

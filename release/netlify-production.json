@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-negotiation-delivery-recovery",
-  "productionBaseCommit": "afe95611ce231603a47823971e01a4458b8012a6",
+  "releaseId": "2026-08-31-new-balloon-delivery-recovery",
+  "productionBaseCommit": "84e6beb3a8324d8dbe39d0bc13066c37f22c78d3",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

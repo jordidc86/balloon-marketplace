@@ -347,7 +347,17 @@ const checks = [
   {
     name: 'New-balloon proposal stores before sending and advances only after provider acceptance',
     file: 'src/app/admin/actions.ts',
-    required: ['sendNewBalloonProposal', 'parseNewBalloonProposal', "from('new_balloon_quote_proposals').insert", 'new_balloon_proposal_buyer', "rpc('accept_new_balloon_proposal_delivery'", 'Provider accepted the proposal, but its commercial transition was not verified', 'signNewBalloonProposalCapability', '/new-balloon/proposal', 'Respond securely to this proposal'],
+    required: ['sendNewBalloonProposal', 'parseNewBalloonProposal', "from('new_balloon_quote_proposals').insert", 'new_balloon_proposal_buyer', "rpc('accept_new_balloon_proposal_delivery'", 'Provider accepted the proposal, but its commercial transition was not verified', 'signNewBalloonProposalCapability', '/new-balloon/proposal', 'buildNewBalloonProposalBuyerNotification'],
+  },
+  {
+    name: 'Failed new-balloon proposal deliveries recover without resending stale commercial state',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ['dueNewBalloonProposalDeliveryRetries', 'newBalloonProposalDeliveriesSuperseded', 'latestNewBalloonProposalByQuote', 'getNewBalloonProposalDeliveryRecoveryDecision', 'signNewBalloonProposalCapability', 'buildNewBalloonProposalBuyerNotification', "rpc('accept_new_balloon_proposal_delivery'", 'Recovered proposal delivery transition was not verified'],
+  },
+  {
+    name: 'Provider-accepted proposal delivery is reconcilable by service role without reopening closed work',
+    file: 'supabase/migrations/20260831640000_new_balloon_proposal_delivery_recovery.sql',
+    required: ["auth.jwt() ->> 'role'", "grant execute on function public.accept_new_balloon_proposal_delivery(uuid,text) to authenticated, service_role", "status not in ('WON', 'LOST')", 'records provider-confirmed proposal delivery'],
   },
   {
     name: 'New-balloon buyer responses are immutable, idempotent and non-binding',
@@ -365,6 +375,11 @@ const checks = [
     file: 'src/app/new-balloon/proposal/actions.ts',
     required: ['verifyNewBalloonProposalCapability', 'parseNewBalloonProposalResponse', "rpc('record_new_balloon_proposal_response'", "from('new_balloon_proposal_response_events')", "quoteReadback?.status !== 'BUYER_RESPONDED'", 'Your response was processed, but AeroTrade could not verify its complete state.', 'new_balloon_proposal_response_admin'],
     forbidden: ['quote.email =', 'commercial_outcomes', 'payment_intent'],
+  },
+  {
+    name: 'Failed new-balloon response notifications recover from immutable response evidence',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ['dueNewBalloonResponseAdminNotificationRetries', 'parseNewBalloonProposalResponseNotificationEventId', 'getNewBalloonResponseNotificationRecoveryDecision', 'buildNewBalloonProposalResponseAdminNotification', 'newBalloonResponseNotificationsSuperseded', 'New-balloon response notification retry readback failed'],
   },
   {
     name: 'Private proposal response page is non-indexable and makes the legal boundary explicit',
