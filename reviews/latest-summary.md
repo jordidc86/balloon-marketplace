@@ -5,14 +5,15 @@ Status: `Production is technically mature and measurable; the principal constrai
 
 ## Authoritative production state
 
-- Production: `https://aerotrade.app`, served from commit `0ebeec9f118615236b25c859861018be0af29a92` by ready Netlify deploy `6a959712873e8d00086c7369`.
-- Validation: 197 automated tests, 212 operational contracts, ESLint, TypeScript and the optimized Next.js production build pass.
-- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v8.json`.
-- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v8.md` — mean technical readiness 97%, production/commercial proof 45%, evidence-weighted maturity 81%.
+- Production: `https://aerotrade.app`, served from commit `e9630bda8507e7c609adad3148ab4c05df8bffd2` by ready Netlify deploy `6a959c51792ca400081cb2d5`.
+- Validation: 198 automated tests, 215 operational contracts, ESLint, TypeScript and the optimized Next.js production build pass.
+- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v9.json`.
+- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v9.md` — mean technical readiness 97%, production/commercial proof 45%, evidence-weighted maturity 81%.
 - Supply: 12 active listings from 6 sellers; all 84 active image files are reachable; one additional listing remains pending payment.
 - Trust: 1/12 active listings has current owner availability evidence; 11 remain unconfirmed and no listing has document-verification evidence.
 - Demand and closing: no comparable stored marketplace enquiry, negotiation, new-balloon request or closed marketplace transaction exists yet.
 - Monetisation: Buyer Early Access and Seller Launch Promotion remain separate products. One historical real buyer payment is provider-evidenced; no seller-promotion or marketplace-closing revenue is proven.
+- Inventory closure: one listing is immutably sold and excluded from available inventory. Its channel remains honestly undisclosed; Control Tower can now add one administrator-only, append-only clarification later without altering the closure, reopening inventory or creating revenue.
 
 ## Newly live acquisition capability
 
@@ -25,6 +26,7 @@ Status: `Production is technically mature and measurable; the principal constrai
 - Production proof: `reviews/public-newsletter-production-verification-2026-08-31.json`.
 - Public requests now reuse AeroTrade&apos;s existing bounded first-source and daily HMAC journey attribution. Control Tower can separate homepage, catalogue and campaign acquisition without displaying the address or retaining a raw visitor identifier. Production proof: `reviews/public-newsletter-attribution-production-verification-2026-08-31.json`.
 - A requested listing evidence review now gives the seller a reply-enabled checklist and persistent dashboard handoff, records provider acceptance separately and retries only while the exact review request remains open. No document copy, number or evidence link is stored in the marketplace database. Production proof: `reviews/listing-verification-evidence-handoff-production-verification-2026-08-31.json`.
+- A sold listing whose channel was initially unknown can now be clarified once in Control Tower. AeroTrade attribution requires a matching non-spam enquiry; the clarification never creates a commercial outcome or revenue. Production proof: `reviews/listing-sale-clarification-production-verification-2026-08-31.json`.
 
 ## Material commercial constraints
 

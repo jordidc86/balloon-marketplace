@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_listing_sale_clarification_production_verification",
+  "capturedAt": "2026-08-31T15:25:12.058Z",
+  "containsPii": false,
+  "release": {
+    "commit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+    "netlifyDeployId": "6a959c51792ca400081cb2d5",
+    "state": "ready",
+    "publishedAt": "2026-08-31T15:23:46.516Z",
+    "migration": "20260831700000_listing_sale_clarification.sql"
+  },
+  "localGates": {
+    "testsPassed": 198,
+    "operationalContractsPassed": 215,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "migrationDryRunPassed": true,
+    "singleDeployGatePassed": true
+  },
+  "migrationApplication": {
+    "initialAttemptRolledBackSafely": true,
+    "initialFailure": "uuid_function_schema_mismatch",
+    "partialStateDetected": false,
+    "correctedMigrationApplied": true
+  },
+  "productionReadback": {
+    "catalogStatus": 200,
+    "soldListingStatus": 200,
+    "soldListingStillMarkedSold": true,
+    "adminCommercialUnauthenticatedStatus": 307,
+    "adminCommercialRequiresLogin": true,
+    "clarificationDatasetAvailable": true,
+    "lifecycleEvents": 1,
+    "originalNotDisclosedClosures": 1,
+    "clarifications": 0,
+    "effectiveNotDisclosedClosures": 1,
+    "pendingOutcomeReviews": 0
+  },
+  "authorizationProbe": {
+    "anonymousAttemptRejected": true,
+    "providerErrorCode": "42501",
+    "clarificationsBefore": 0,
+    "clarificationsAfter": 0,
+    "stateUnchanged": true
+  },
+  "implementedBoundary": {
+    "originalClosureRemainsImmutable": true,
+    "clarificationIsAppendOnly": true,
+    "clarificationIsAdministratorOnly": true,
+    "aerotradeAttributionRequiresMatchingNonSpamInquiry": true,
+    "otherChannelCannotReferenceInquiry": true,
+    "oneClarificationPerClosure": true,
+    "clarificationCreatesCommercialOutcome": false,
+    "clarificationCreatesRevenue": false,
+    "clarificationReopensInventory": false
+  },
+  "releaseActivity": {
+    "syntheticClarificationsCreated": 0,
+    "commercialOutcomesCreated": 0,
+    "revenueCreated": 0,
+    "outboundMessagesSent": 0,
+    "productionApplicationDeploys": 1
+  },
+  "commercialProof": {
+    "newProofCreated": false,
+    "caveat": "The sold listing remains correctly closed with its channel undisclosed. No channel, enquiry or amount was inferred. A real administrator clarification is required before attribution changes."
+  }
+}
