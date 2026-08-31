@@ -1,7 +1,7 @@
 # AeroTrade Source Index
 
 Status: Production routing index.
-Last updated: 2026-08-29.
+Last updated: 2026-08-31.
 
 ## Primary Orientation Files
 
@@ -11,7 +11,9 @@ Last updated: 2026-08-29.
 | `README.md` | Operational project notes and safe local checks | Yes |
 | `package.json` | Scripts and dependencies | Yes |
 | `reviews/latest-summary.md` | Current improvement-loop summary | Yes |
-| `reviews/marketplace-audit-current-2026-08-29-1935.json` | Latest PII-free read-only production counts for supply, demand, opportunities, communications and revenue | Yes, before commercial activation decisions |
+| `reviews/marketplace-audit-2026-08-31-v6.json` | Latest PII-free read-only production counts for supply, demand, opportunities, communications and revenue | Yes, before commercial activation decisions |
+| `reviews/aerotrade-category-scorecard-2026-08-31-v6.md` | Evidence-weighted readiness and commercial proof across the twelve objective categories | Yes, when choosing the next material bottleneck |
+| `reviews/public-newsletter-production-verification-2026-08-31.json` | Production proof for public double opt-in, privacy, deduplication and zero-send dry runs | Yes, before changing newsletter acquisition or consent |
 | `reviews/monetization-boundary-audit-2026-08-29.md` | Evidence and exact business choice separating current paid products, fixed services and commission models | Yes, before adding any transaction-fee payment path |
 | `reviews/seller-response-recovery-2026-08-29.md` | Bounded internal escalation after a provider-accepted seller reminder remains unresolved | Yes, when reviewing marketplace conversion recovery |
 | `reviews/grouped-migration-rehearsal-2026-08-29.md` | Isolated application, lint, permission and behavioral evidence for migrations `20260829490000` through `20260829590000` | Yes, before approving this release |

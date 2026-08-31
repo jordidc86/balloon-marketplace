@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_public_newsletter_production_verification",
+  "capturedAt": "2026-08-31T14:16:42.610Z",
+  "containsPii": false,
+  "release": {
+    "commit": "39a16cfaa693618b3d617c6de7d1f46c774b564d",
+    "netlifyDeployId": "6a958ba16d711200077401fa",
+    "state": "ready",
+    "publishedAt": "2026-08-31T14:12:33.357Z"
+  },
+  "localGates": {
+    "testsPassed": 194,
+    "operationalContractsPassed": 207,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "migrationDryRunPassed": true,
+    "singleDeployGatePassed": true
+  },
+  "databaseReadback": {
+    "migration": "20260831670000_public_newsletter_double_opt_in.sql",
+    "serviceRoleReadSucceeded": true,
+    "publicSubscriptionRows": 0,
+    "publicActiveConsents": 0,
+    "invalidRequestRejected": true,
+    "invalidRequestCreatedNoRow": true,
+    "anonymousReadBlocked": true
+  },
+  "publicRuntime": {
+    "homepageStatus": 200,
+    "homepageSignupVisible": true,
+    "catalogStatus": 200,
+    "catalogSignupVisible": true,
+    "confirmationPageStatus": 200,
+    "confirmationPageNoIndex": true,
+    "confirmationPageNoReferrer": true
+  },
+  "newsletterDryRun": {
+    "runId": "d4b67021-0542-437a-8c52-6af7a6c934f6",
+    "status": "skipped",
+    "reason": "dry_run",
+    "combinedActiveAudience": 1,
+    "publicActiveAudience": 0,
+    "listingsSelected": 10,
+    "providerMessagesSent": 0
+  },
+  "confirmationRecoveryDryRun": {
+    "status": 200,
+    "duePublicNewsletterConfirmationRetries": 0,
+    "accepted": 0,
+    "failed": 0,
+    "providerMessagesSent": 0
+  },
+  "guardrails": {
+    "legacyContactsImported": 0,
+    "implicitConsentsCreated": 0,
+    "campaignsSentDuringRelease": 0,
+    "confirmationRequiresProviderAcceptedReceipt": true,
+    "confirmationRequiresSignedExplicitPost": true,
+    "unsubscribeRequiresSignedExplicitPost": true,
+    "accountAndPublicRecipientsDeduplicated": true,
+    "failedConfirmationRecoveryBounded": true
+  },
+  "commercialProof": {
+    "publicRequests": 0,
+    "publicConfirmedSubscribers": 0,
+    "attributablePublicNewsletterConversions": 0,
+    "caveat": "The acquisition path is live and verified, but no public visitor has yet completed it. Technical readiness is not counted as commercial proof."
+  }
+}
