@@ -22,7 +22,7 @@ This update is based on the read-only production snapshots `marketplace-audit-20
 | 9 | Automation, communications and follow-up | 96 | 70 | 88 | Paid alerts are provider-idempotent and receipt-readback bound. Newsletter selection now prioritises every never-included paid promotion before rotating by exposure. The next real newsletter run must provide production proof of the new rotation. |
 | 10 | Analytics, Control Tower and commercial evidence | 99 | 60 | 87 | Control Tower now distinguishes gross receipt evidence, exact paid entitlement links and Seller Launch intent state. Historic pre-ledger payment evidence is intentionally not backfilled. |
 | 11 | Security, privacy and transactional integrity | 99 | 90 | 96 | A delayed or superseded checkout cannot publish the wrong listing; seller, plan and lifecycle are re-read before fulfillment. Private ledgers remain inaccessible to clients and unsigned webhooks fail closed. |
-| 12 | Deployment, production reliability and operability | 98 | 85 | 94 | 170 tests and 187 contracts pass. Migration readback, one-marker Netlify release, protected endpoint smoke tests and production deploy all passed. The remaining build warning is the non-outage Edge Runtime deprecation. |
+| 12 | Deployment, production reliability and operability | 98 | 85 | 94 | 171 tests and 188 contracts pass. Both paid-fulfilment migrations match production, the idempotent-checkout release is live, protected endpoint smoke tests passed and the deployment receipt was read back. The remaining build warning is the non-outage Edge Runtime deprecation. |
 
 ## Aggregate
 
