@@ -18,6 +18,7 @@ import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeListingCommercialIntentStage } from '@/utils/listing-commercial-intent.mjs'
 import { inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
 import { buildInquiryBuyerAcknowledgement } from '@/utils/inquiry-buyer-acknowledgement.mjs'
+import { sellerFunnelEventKey } from '@/utils/seller-funnel.mjs'
 
 type ListingDetailsForm = Record<string, string | number | boolean | null | undefined>
 
@@ -573,26 +574,45 @@ export async function publishListingFree(listingId: string) {
   }
   await assertListingHasReachableImage(admin, listing.id)
   await retireListingCheckoutBeforeFreePublication(listing.id, user.id)
-
-  const details = {
-    ...((listing.details || {}) as Record<string, unknown>),
-    listing_plan: 'free',
-  }
-
-  const { error: updateError } = await supabase
-    .from('listings')
-    .update({
-      status: 'ACTIVE_PUBLIC',
-      public_at: new Date().toISOString(),
-      details,
-    })
-    .eq('id', listingId)
-
-  if (updateError) {
+  const publicationEventKey = sellerFunnelEventKey({ sellerId: user.id, listingId: listing.id, stage: 'LISTING_PUBLISHED' })
+  if (!publicationEventKey) throw new Error('Free publication evidence could not be generated')
+  const { data: publicationRows, error: updateError } = await admin.rpc('publish_pending_listing_free', {
+    p_listing_id: listing.id,
+    p_seller_id: user.id,
+    p_event_key: publicationEventKey,
+  })
+  const publication = Array.isArray(publicationRows) ? publicationRows[0] : publicationRows
+  if (
+    updateError
+    || publication?.listing_id !== listing.id
+    || publication?.status !== 'ACTIVE_PUBLIC'
+    || publication?.listing_plan !== 'free'
+    || !publication?.public_at
+  ) {
     console.error('Error publishing listing as free:', updateError)
-    throw new Error('Could not publish listing')
+    throw new Error('Could not publish and audit the listing')
   }
   await markListingQualityResolved(admin, listing.id)
+
+  const [{ data: listingReadback, error: listingReadbackError }, { data: funnelReadback, error: funnelReadbackError }] = await Promise.all([
+    admin.from('listings').select('id,seller_id,status,public_at,details').eq('id', listing.id).single(),
+    admin.from('seller_funnel_events').select('event_key,seller_id,listing_id,stage,listing_plan,source').eq('event_key', publicationEventKey).single(),
+  ])
+  if (
+    listingReadbackError
+    || funnelReadbackError
+    || listingReadback?.seller_id !== user.id
+    || listingReadback.status !== 'ACTIVE_PUBLIC'
+    || getStoredListingPlan(listingReadback.details) !== 'free'
+    || !listingReadback.public_at
+    || funnelReadback?.seller_id !== user.id
+    || funnelReadback.listing_id !== listing.id
+    || funnelReadback.stage !== 'LISTING_PUBLISHED'
+    || funnelReadback.listing_plan !== 'free'
+    || funnelReadback.source !== 'recovery'
+  ) {
+    throw new Error('Free listing publication was not verified by readback')
+  }
 
   const { revalidatePath } = await import('next/cache')
   revalidatePath(`/catalog/${listingId}`)

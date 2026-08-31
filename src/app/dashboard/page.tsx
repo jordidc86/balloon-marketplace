@@ -10,6 +10,7 @@ import ListingShare from '@/components/ListingShare'
 import { siteUrl } from '@/utils/site'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import SellerListingClosureForm from './SellerListingClosureForm'
+import { publishListingFree } from '@/app/catalog/[id]/actions'
 
 type DashboardListingImage = {
   url: string
@@ -352,9 +353,14 @@ export default async function DashboardPage({
                         </div>
                         <div className="flex w-full shrink-0 flex-col items-stretch gap-2 sm:w-auto sm:items-end">
                           {item.status === 'PENDING_PAYMENT' ? (
-                            <form action={resumePremiumListingCheckout.bind(null, item.id)}>
-                              <button className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90">Resume €5 payment</button>
-                            </form>
+                            <div className="flex flex-col gap-2">
+                              <form action={resumePremiumListingCheckout.bind(null, item.id)}>
+                                <button className="w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90">Resume €5 payment</button>
+                              </form>
+                              <form action={publishListingFree.bind(null, item.id)}>
+                                <button className="w-full rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-muted">Publish free instead</button>
+                              </form>
+                            </div>
                           ) : null}
                           <Link href={`/catalog/${item.id}`} className="text-sm font-medium text-primary hover:underline">View</Link>
                           {isQualityRecovery ? <Link href={`/catalog/${item.id}/edit`} className="text-xs font-semibold text-amber-700 hover:underline">Repair photos</Link> : null}

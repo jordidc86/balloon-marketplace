@@ -28,12 +28,19 @@ async function markIntentTerminal(
 }
 
 async function expireOpenStripeListingSessions(listingId: string, userId: string) {
-  const sessions = await stripe.checkout.sessions.list({ status: 'open', limit: 100 })
+  // Pre-ledger sessions may exist without a local intent. Read every recent state so a
+  // completed payment can never be bypassed by switching the advert to free.
+  const sessions = await stripe.checkout.sessions.list({ limit: 100 })
   const matching = sessions.data.filter((session) => sessionMatchesListing(session, listingId, userId))
   for (const session of matching) {
-    const expired = await stripe.checkout.sessions.expire(session.id)
-    if (expired.status !== 'expired') {
-      throw new Error(`Stripe listing checkout ${session.id} did not expire safely`)
+    if (session.status === 'complete') {
+      throw new Error('Seller Launch Promotion payment is already processing; wait for confirmation before publishing free')
+    }
+    if (session.status === 'open') {
+      const expired = await stripe.checkout.sessions.expire(session.id)
+      if (expired.status !== 'expired') {
+        throw new Error(`Stripe listing checkout ${session.id} did not expire safely`)
+      }
     }
   }
   return matching.map((session) => session.id)

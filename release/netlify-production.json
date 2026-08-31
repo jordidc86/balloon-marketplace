@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-seller-availability-reissue-recovery",
-  "productionBaseCommit": "4ab3a283ab58e8c591563ba7df58b27991e6e9b7",
+  "releaseId": "2026-08-31-pending-listing-free-recovery",
+  "productionBaseCommit": "dc4a60e6ab9a87ae4da0e5014612bc292a7435fc",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

@@ -632,6 +632,22 @@ const checks = [
     required: ["listing.status !== 'PENDING_PAYMENT'", "getStoredListingPlan(listing.details) !== 'premium'", "stage: 'CHECKOUT_RESUMED'", 'createPremiumListingCheckout', "eq('seller_id', user.id)"],
   },
   {
+    name: 'An unpaid seller can choose free publication from the dashboard without bypassing payment state',
+    file: 'src/app/dashboard/page.tsx',
+    required: ['publishListingFree.bind(null, item.id)', 'Resume €5 payment', 'Publish free instead'],
+  },
+  {
+    name: 'Free publication retires checkout risk and verifies both listing and funnel evidence',
+    file: 'src/app/catalog/[id]/actions.ts',
+    required: ['retireListingCheckoutBeforeFreePublication', 'sellerFunnelEventKey', "rpc('publish_pending_listing_free'", "from('seller_funnel_events')", 'Free listing publication was not verified by readback'],
+  },
+  {
+    name: 'Pending-to-free recovery is atomic, seller-bound and never performs an economic action',
+    file: 'supabase/migrations/20260831660000_pending_listing_free_recovery.sql',
+    required: ['publish_pending_listing_free', "auth.jwt() ->> 'role'", 'for update', "v_listing.seller_id <> p_seller_id", "v_listing.status not in ('DRAFT', 'PENDING_PAYMENT')", "status = 'ACTIVE_PUBLIC'", "'LISTING_PUBLISHED'", "'free'", "'recovery'", 'on conflict (event_key) do nothing', 'grant execute on function public.publish_pending_listing_free(uuid, uuid, text) to service_role', 'never creates, completes, cancels, refunds or charges a payment'],
+    forbidden: ['to authenticated', 'stripe.checkout', 'payment_intent'],
+  },
+  {
     name: 'Premium listing payment closes the seller activation loop',
     file: 'src/app/api/webhooks/stripe/route.ts',
     required: ["stage: 'PAYMENT_CONFIRMED'", "stage: 'LISTING_PUBLISHED'", "source: 'stripe'", 'persistSellerFunnelEvent'],

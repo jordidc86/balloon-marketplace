@@ -27,6 +27,8 @@ test('seller promotion checkout is durably linked and fulfillment fails closed',
   assert.match(checkoutSource, /currentSession\.status === 'open' && currentSession\.url/)
   assert.match(checkoutSource, /expireOpenStripeListingSessions/)
   assert.match(checkoutSource, /retireListingCheckoutBeforeFreePublication/)
+  assert.match(checkoutSource, /checkout\.sessions\.list\(\{ limit: 100 \}\)/)
+  assert.match(checkoutSource, /session\.status === 'complete'/)
   assert.match(checkoutSource, /checkout\.sessions\.expire\(session\.id\)/)
   assert.match(migration, /listing_checkout_intents_one_live_per_listing/)
   assert.match(migration, /v_listing\.seller_id <> p_user_id/)
@@ -34,6 +36,23 @@ test('seller promotion checkout is durably linked and fulfillment fails closed',
   assert.match(webhookSource, /Seller Launch Promotion confirmation was not accepted/)
   assert.match(webhookSource, /Paid Premium alert is not fully fulfilled/)
   assert.doesNotMatch(webhookSource, /Failed to send premium listing alert after listing payment/)
+})
+
+test('an unpaid Seller Launch listing has one audited free-publication escape', () => {
+  const action = fs.readFileSync(new URL('../src/app/catalog/[id]/actions.ts', import.meta.url), 'utf8')
+  const dashboard = fs.readFileSync(new URL('../src/app/dashboard/page.tsx', import.meta.url), 'utf8')
+  const migration = fs.readFileSync(new URL('../supabase/migrations/20260831660000_pending_listing_free_recovery.sql', import.meta.url), 'utf8')
+
+  assert.match(dashboard, /Publish free instead/)
+  assert.match(action, /retireListingCheckoutBeforeFreePublication/)
+  assert.match(action, /publish_pending_listing_free/)
+  assert.match(action, /Free listing publication was not verified by readback/)
+  assert.match(migration, /for update/)
+  assert.match(migration, /status = 'ACTIVE_PUBLIC'/)
+  assert.match(migration, /'LISTING_PUBLISHED'/)
+  assert.match(migration, /'recovery'/)
+  assert.match(migration, /grant execute on function public\.publish_pending_listing_free\(uuid, uuid, text\) to service_role/)
+  assert.doesNotMatch(migration, /grant execute[^;]+authenticated/)
 })
 
 test('idempotent listing checkout registration returns the same live Stripe session binding', () => {
