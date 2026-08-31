@@ -10,6 +10,7 @@ import {
   listingImageObservations,
   probeListingImages,
 } from '@/utils/listing-image-quality.mjs'
+import { ensureReachableListingPrimaryImage } from '@/utils/listing-image-quality-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,10 +25,11 @@ type QualityState = {
 
 type Listing = {
   id: string
+  seller_id: string
   title: string
-  contact_email: string
+  seller_account_email: string
   status: 'ACTIVE_PUBLIC' | 'ACTIVE_PREMIUM' | 'DRAFT'
-  images?: Array<{ url: string }> | null
+  images?: Array<{ id: string; url: string; is_primary?: boolean | null }> | null
 }
 
 const isAuthorized = (request: Request) => {
@@ -81,7 +83,7 @@ async function notifyQuarantinedSeller(supabase: SupabaseClient, listing: Listin
   await supabase.from('listing_quality_state').update({ notification_status: 'pending' }).eq('listing_id', listing.id)
   const editUrl = `${siteUrl}/catalog/${listing.id}/edit`
   const delivery = await sendEmail(
-    listing.contact_email,
+    listing.seller_account_email,
     'Action needed: repair your AeroTrade listing photos',
     `<h2>Your listing is safely paused</h2>
     <p>AeroTrade checked the photos for <strong>${escapeHtml(listing.title)}</strong> twice and could not retrieve any of the stored files.</p>
@@ -130,10 +132,25 @@ export async function GET(request: Request) {
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
   const { data: activeListings, error: listingsError } = await supabase
     .from('listings')
-    .select('id,title,contact_email,status,images(url)')
+    .select('id,seller_id,title,status,images(id,url,is_primary)')
     .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
     .order('created_at', { ascending: true })
   if (listingsError) return NextResponse.json({ error: 'Active listings could not be loaded' }, { status: 500 })
+
+  const sellerIds = [...new Set((activeListings || []).map((listing) => listing.seller_id))]
+  const { data: sellers, error: sellersError } = sellerIds.length > 0
+    ? await supabase.from('users').select('id,email').in('id', sellerIds)
+    : { data: [], error: null }
+  if (sellersError) return NextResponse.json({ error: 'Seller accounts could not be loaded' }, { status: 500 })
+  const sellerEmailById = new Map((sellers || []).map((seller) => [seller.id, seller.email]))
+  const getSellerAccountEmail = async (sellerId: string) => {
+    const existing = sellerEmailById.get(sellerId)
+    if (existing) return existing
+    const { data: seller, error } = await supabase.from('users').select('email').eq('id', sellerId).maybeSingle()
+    if (error || !seller?.email) throw new Error('Seller account email is missing')
+    sellerEmailById.set(sellerId, seller.email)
+    return seller.email
+  }
 
   const listingIds = (activeListings || []).map((listing) => listing.id)
   const { data: states, error: statesError } = listingIds.length > 0
@@ -152,12 +169,14 @@ export async function GET(request: Request) {
     inconclusive: 0,
     notificationsAccepted: 0,
     notificationsFailed: 0,
+    primaryImagesRepaired: 0,
     dryRun: !commit,
   }
 
   try {
     for (const rawListing of activeListings || []) {
-      const listing = rawListing as Listing
+      const sellerAccountEmail = await getSellerAccountEmail(rawListing.seller_id)
+      const listing = { ...rawListing, seller_account_email: sellerAccountEmail } as Listing
       const assessment = await probeListingImages((listing.images || []).map((image) => image.url), { allowedHostnames })
       const current = stateByListing.get(listing.id) || null
       const transition = getListingQualityTransition(current, assessment.observation, now)
@@ -171,6 +190,16 @@ export async function GET(request: Request) {
         if (transition === 'QUARANTINE') result.quarantined += 1
         if (transition === 'RESOLVE') result.resolved += 1
         continue
+      }
+
+      if (assessment.observation === listingImageObservations.AVAILABLE && assessment.reachableUrl) {
+        const repaired = await ensureReachableListingPrimaryImage(
+          supabase,
+          listing.id,
+          listing.images || [],
+          assessment.reachableUrl,
+        )
+        if (repaired) result.primaryImagesRepaired += 1
       }
 
       if (transition === 'SUSPECT') {
@@ -242,11 +271,12 @@ export async function GET(request: Request) {
       if (retryIds.length > 0) {
         const { data: retryListings } = await supabase
           .from('listings')
-          .select('id,title,contact_email,status,images(url)')
+          .select('id,seller_id,title,status,images(id,url,is_primary)')
           .in('id', retryIds)
         for (const retryListing of retryListings || []) {
           if (stateByListing.get(retryListing.id)?.status === 'QUARANTINED') continue
-          const notification = await notifyQuarantinedSeller(supabase, retryListing as Listing)
+          const sellerAccountEmail = await getSellerAccountEmail(retryListing.seller_id)
+          const notification = await notifyQuarantinedSeller(supabase, { ...retryListing, seller_account_email: sellerAccountEmail } as Listing)
           if (notification === 'accepted' || notification === 'already_accepted') result.notificationsAccepted += 1
           else result.notificationsFailed += 1
         }

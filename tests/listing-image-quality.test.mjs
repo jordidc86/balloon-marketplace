@@ -39,6 +39,7 @@ test('one reachable image keeps a listing healthy while unknown checks cannot qu
     `https://${host}/available.jpg`,
   ], { allowedHostnames: [host], fetchImpl })
   assert.equal(available.observation, listingImageObservations.AVAILABLE)
+  assert.equal(available.reachableUrl, `https://${host}/available.jpg`)
 
   const unknown = await probeListingImages([`https://${host}/unknown.jpg`], { allowedHostnames: [host], fetchImpl })
   assert.equal(unknown.observation, listingImageObservations.UNKNOWN)

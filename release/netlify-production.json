@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-29-grouped-commercial-release",
-  "productionBaseCommit": "9880e56df0b1f47089c0ea176d57a613c25847a5",
+  "releaseId": "2026-08-31-seller-account-and-image-recovery",
+  "productionBaseCommit": "b6b49b9d0e7b769c1780f5715139212f4502223e",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

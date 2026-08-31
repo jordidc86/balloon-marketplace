@@ -719,6 +719,17 @@ const checks = [
     required: ['listing_quality_state', "status in ('HEALTHY', 'SUSPECT', 'QUARANTINED', 'RESOLVED')", 'consecutive_failures integer not null', 'enable row level security', 'revoke all on public.listing_quality_state from anon, authenticated', 'listing_quality_quarantine'],
   },
   {
+    name: 'Listing recovery promotes the verified reachable image before declaring the advert healthy',
+    file: 'src/app/api/cron/catalog-quality/route.ts',
+    required: ['assessment.reachableUrl', 'ensureReachableListingPrimaryImage', 'primaryImagesRepaired', "select('id,seller_id,title,status,images(id,url,is_primary)')"],
+  },
+  {
+    name: 'Operational listing repair notices go to the authenticated seller account',
+    file: 'src/app/api/cron/catalog-quality/route.ts',
+    required: ["from('users').select('id,email')", 'sellerEmailById', 'seller_account_email'],
+    forbidden: ['listing.contact_email,'],
+  },
+  {
     name: 'Catalog quality checks fail safely and notify only after persisted quarantine',
     file: 'src/app/api/cron/catalog-quality/route.ts',
     required: ['getListingQualityTransition', "transition === 'QUARANTINE'", ".update({ status: 'DRAFT' })", 'Broken listing was not safely paused', 'notifyQuarantinedSeller', 'commercial_notification_receipts'],
@@ -921,6 +932,17 @@ const checks = [
     file: 'src/utils/site.ts',
     required: ['NEXT_PUBLIC_SUPPORT_EMAIL', 'support@aerotrade.app'],
     forbidden: ['aerotrade.example.com'],
+  },
+  {
+    name: 'Account recovery is self-service, enumeration-safe and session-bound',
+    file: 'src/app/forgot-password/actions.ts',
+    required: ['resetPasswordForEmail', 'neutralSuccessMessage', '/auth/callback?next=', "encodeURIComponent('/reset-password')"],
+    forbidden: ['createAdminClient', 'generateLink'],
+  },
+  {
+    name: 'Recovered passwords require an authenticated recovery session and end it after use',
+    file: 'src/app/reset-password/actions.ts',
+    required: ['validateAccountPasswordChange', 'supabase.auth.getUser()', 'supabase.auth.updateUser', 'supabase.auth.signOut()'],
   },
 ]
 

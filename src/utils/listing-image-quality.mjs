@@ -80,7 +80,7 @@ export async function probeListingImageUrl(
 export async function probeListingImages(urls, options = {}) {
   const uniqueUrls = [...new Set((urls || []).filter((url) => typeof url === 'string' && url.trim()))]
   if (uniqueUrls.length === 0) {
-    return { observation: listingImageObservations.DEFINITELY_MISSING, reachableCount: 0, missingCount: 0, unknownCount: 0 }
+    return { observation: listingImageObservations.DEFINITELY_MISSING, reachableCount: 0, reachableUrl: null, missingCount: 0, unknownCount: 0 }
   }
 
   let missingCount = 0
@@ -88,7 +88,7 @@ export async function probeListingImages(urls, options = {}) {
   for (const url of uniqueUrls) {
     const result = await probeListingImageUrl(url, options)
     if (result.observation === listingImageObservations.AVAILABLE) {
-      return { observation: listingImageObservations.AVAILABLE, reachableCount: 1, missingCount, unknownCount }
+      return { observation: listingImageObservations.AVAILABLE, reachableCount: 1, reachableUrl: url, missingCount, unknownCount }
     }
     if (result.observation === listingImageObservations.DEFINITELY_MISSING) missingCount += 1
     else unknownCount += 1
@@ -97,6 +97,7 @@ export async function probeListingImages(urls, options = {}) {
   return {
     observation: unknownCount > 0 ? listingImageObservations.UNKNOWN : listingImageObservations.DEFINITELY_MISSING,
     reachableCount: 0,
+    reachableUrl: null,
     missingCount,
     unknownCount,
   }
