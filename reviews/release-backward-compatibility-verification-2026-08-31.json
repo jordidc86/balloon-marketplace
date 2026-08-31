@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_release_backward_compatibility_verification",
+  "verifiedAt": "2026-08-31T19:52:27Z",
+  "containsPii": false,
+  "productionBaseCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+  "verifiedCandidateCommit": "3e0d979aac06dd723dd6456897977ac4ece70414",
+  "migrationCount": 5,
+  "productionMutated": false,
+  "netlifyDeploysRequested": 0,
+  "staticCompatibility": {
+    "hardDestructiveDdlOperations": 0,
+    "notificationVocabularyBaseCount": 29,
+    "notificationVocabularyCandidateCount": 30,
+    "notificationVocabularyRemovedCount": 0,
+    "sellerStageVocabularyBaseCount": 8,
+    "sellerStageVocabularyCandidateCount": 9,
+    "sellerStageVocabularyRemovedCount": 0,
+    "buyerNegotiationFunctionContractStable": true,
+    "legacySellerEventsUseNullChannel": true
+  },
+  "liveCompatibility": {
+    "checked": true,
+    "rowsChecked": 25,
+    "notificationReceiptRowsChecked": 23,
+    "notificationReceiptDistinctValues": 4,
+    "sellerFunnelRowsChecked": 2,
+    "sellerFunnelDistinctValues": 2,
+    "unexpectedValues": 0
+  },
+  "disposableDatabaseCompatibility": {
+    "migrationsVerified": 77,
+    "forwardMigrationsApplied": 28,
+    "legacySellerStageInsertions": 8,
+    "legacySellerStageInsertionsWithNullChannel": 8,
+    "buyerNegotiationRpcExecuted": true,
+    "marketplaceTransactionRehearsed": true,
+    "newBalloonTransactionRehearsed": true,
+    "externalMessagesSent": 0
+  },
+  "verification": {
+    "automatedTestsPassed": 236,
+    "operationalContractsPassed": 243,
+    "eslintPassed": true,
+    "typescriptPassed": true,
+    "optimizedBuildPassed": true
+  },
+  "result": "backward_compatible_and_ready_for_exact_release_approval"
+}
