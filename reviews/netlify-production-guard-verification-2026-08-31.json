@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_netlify_production_guard_verification",
+  "completedAt": "2026-08-31T15:58:14Z",
+  "containsPii": false,
+  "siteIdRetainedOutsideEvidence": true,
+  "historicalExhaustion": {
+    "measuredProductionDeploysSinceUsagePeriodStart": 83,
+    "aerotradeProductionDeploys": 67,
+    "voyagerProductionDeploys": 16,
+    "minimumDeploymentCreditsConsumed": 1245,
+    "trafficIdentifiedAsPrimaryCause": false,
+    "deploymentVolumeIdentifiedAsPrimaryCause": true
+  },
+  "productionConfiguration": {
+    "configuredProductionBranch": "production",
+    "allowedBranches": [
+      "production"
+    ],
+    "manualNonGitProductionDeploysPrevented": true,
+    "remoteProductionCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+    "publishedCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+    "publishedBranch": "production",
+    "configurationTransitionDeploys": 1,
+    "configurationTransitionRebuiltSameCommit": true
+  },
+  "developmentIsolation": {
+    "remoteMainCommit": "159952367cb3023f9907f7bdd9c14eaab270c676",
+    "mainPushCreatedProductionDeploy": false,
+    "latestProductionDeployRemainedOnProductionBranch": true
+  },
+  "releaseControl": {
+    "dryRunIsDefault": true,
+    "applyRequiresExactReleaseId": true,
+    "fastForwardOnly": true,
+    "staleMarkerRejected": true,
+    "staleMarkerDryRunRequestedDeploys": 0,
+    "expectedDeploysPerApprovedRelease": 1,
+    "automatedContractTestsPassed": 6
+  },
+  "productionReadback": {
+    "homeStatus": 200,
+    "catalogStatus": 200,
+    "privacyStatus": 200,
+    "soldListingStatus": 200,
+    "soldListingDisplaysSoldState": true,
+    "soldListingExcludedFromCatalog": true
+  },
+  "accountReadback": {
+    "usageExceededSignals": 0,
+    "sitesWithUsageExceeded": 0,
+    "automaticTopUpEnabled": false,
+    "economicActionsPerformed": 0
+  }
+}

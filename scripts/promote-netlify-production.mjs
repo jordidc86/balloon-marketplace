@@ -4,6 +4,18 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { validateProductionPromotion } from './lib/production-release.mjs'
 
+process.on('uncaughtException', (error) => {
+  console.error(JSON.stringify({
+    kind: 'aerotrade_netlify_production_promotion',
+    containsPii: false,
+    result: 'blocked',
+    reason: error instanceof Error ? error.message : 'Unknown production promotion failure',
+    productionBranchUpdated: false,
+    netlifyDeploysRequested: 0,
+  }, null, 2))
+  process.exit(1)
+})
+
 const apply = process.argv.includes('--apply')
 const unknownArguments = process.argv.slice(2).filter((argument) => argument !== '--apply')
 assert.deepEqual(unknownArguments, [], `Unknown argument(s): ${unknownArguments.join(', ')}`)
