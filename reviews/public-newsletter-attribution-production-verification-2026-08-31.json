@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_public_newsletter_attribution_production_verification",
+  "capturedAt": "2026-08-31T14:35:49.892Z",
+  "containsPii": false,
+  "release": {
+    "commit": "b62c5a0b12a26c250b48607d762bb6b5d5c5b795",
+    "netlifyDeployId": "6a9590c631e6c4000868601e",
+    "state": "ready",
+    "publishedAt": "2026-08-31T14:34:37.250Z"
+  },
+  "localGates": {
+    "testsPassed": 194,
+    "operationalContractsPassed": 209,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "migrationDryRunPassed": true,
+    "singleDeployGatePassed": true
+  },
+  "databaseReadback": {
+    "migration": "20260831680000_public_newsletter_attribution.sql",
+    "attributionColumnsReadable": true,
+    "publicSubscriptionRows": 0,
+    "legacyRpcStillCallable": true,
+    "attributedRpcCallable": true,
+    "invalidRequestsCreatedNoRows": true
+  },
+  "publicRuntime": {
+    "homepageStatus": 200,
+    "homepageSourceContext": "home",
+    "catalogStatus": 200,
+    "catalogSourceContext": "catalog",
+    "existingCommercialAttributionFieldsPresent": true,
+    "privacyExplainsBoundedAttribution": true,
+    "privacyExcludesFullReferrerUrlAndRawVisitorId": true
+  },
+  "aggregateReadback": {
+    "publicRequests": 0,
+    "publicActiveConsents": 0,
+    "publicAttributedRequests": 0,
+    "combinedActiveNewsletterAudience": 1,
+    "requestsByClosedSource": {},
+    "requestsByUtmSource": {},
+    "confirmedByClosedSource": {}
+  },
+  "guardrails": {
+    "rawVisitorIdentifiersStored": 0,
+    "rawIpAddressesStored": 0,
+    "fullReferrerUrlsStored": 0,
+    "campaignsSentDuringRelease": 0,
+    "existingConsentsChanged": 0,
+    "oldRuntimeRollbackPreserved": true,
+    "sourceVocabularyClosed": true,
+    "campaignFieldsBounded": true
+  },
+  "commercialProof": {
+    "newProofCreated": false,
+    "caveat": "Attribution is live and measurable, but there is no public request or confirmation to attribute yet. Scores remain proof-limited."
+  }
+}
