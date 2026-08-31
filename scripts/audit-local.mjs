@@ -473,6 +473,11 @@ const checks = [
     required: ["typedListing.status === 'SOLD'", 'This equipment has been sold', "source: isSoldListing ? 'sold-listing' : 'listing'", "utm_source: 'sold_listing'", 'Find another used option', 'Price a new balloon', '!isSoldListing && !isOwner && !isAdmin', 'sold={isSoldListing}'],
   },
   {
+    name: 'Control Tower separates sold-inventory recovery from active listing conversion',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ["event.event_type === 'SOLD_VIEW'", "quote.source_context === 'sold-listing'", "request.utm_source === 'sold_listing'", 'Demand recovered from sold inventory (30d)', 'A sold-page view is not an active listing view'],
+  },
+  {
     name: 'The sitemap excludes private Premium inventory and includes listing images',
     file: 'src/app/sitemap.ts',
     required: ["export const dynamic = 'force-dynamic'", 'isListingPubliclyIndexable', '.filter((listing) => isListingPubliclyIndexable(listing))', 'images: (listing.images || [])'],

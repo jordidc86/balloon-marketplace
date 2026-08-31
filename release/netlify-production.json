@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-sold-listing-demand-recovery",
-  "productionBaseCommit": "ad00282c499209bb314faf476b0f04281af0d71e",
+  "releaseId": "2026-08-31-sold-listing-recovery-measurement",
+  "productionBaseCommit": "d0e1f85c9b1d54e2a5eb31043aab37c855234c01",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

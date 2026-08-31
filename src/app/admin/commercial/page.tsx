@@ -65,6 +65,7 @@ type WantedRequest = {
   details: string
   notify_on_match: boolean
   status: string
+  utm_source: string | null
   created_at: string
   journey_key: string | null
 }
@@ -281,7 +282,7 @@ export default async function CommercialPage() {
     supabase.from('quote_requests').select('id,name,email,equipment_type,manufacturer_preference,source_context,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('new_balloon_quote_proposals').select('id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,created_at').order('created_at', { ascending: false }).limit(300),
     supabase.from('new_balloon_proposal_response_events').select('id,proposal_id,quote_request_id,response_type,note,admin_notification_status,created_at').order('created_at', { ascending: false }).limit(300),
-    supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
+    supabase.from('wanted_requests').select('id,buyer_name,buyer_email,buyer_phone,category,location_preference,currency,budget_min_minor,budget_max_minor,details,notify_on_match,status,utm_source,created_at,journey_key').order('created_at', { ascending: false }).limit(100),
     supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
     supabase.from('catalog_search_events').select('id,entry_context,query_text,category,country,result_count,zero_results,utm_source,journey_key,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
@@ -406,6 +407,7 @@ export default async function CommercialPage() {
     outcomes: typedOutcomes,
   })
   const views = typedListingEvents.filter((event) => event.event_type === 'VIEW').length
+  const soldListingViews = typedListingEvents.filter((event) => event.event_type === 'SOLD_VIEW')
   const reveals = typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL').length
   const sharedLinkViews = typedListingEvents.filter((event) => event.event_type === 'VIEW' && ['seller_share', 'listing_share'].includes(event.utm_source || '')).length
   const recentInquiries = typedInquiries.filter((inquiry) => inquiry.created_at >= thirtyDaysAgo)
@@ -415,6 +417,13 @@ export default async function CommercialPage() {
   const enquiryFormStarts = comparableBuyerFunnel.formStarts
   const recentQuotes = typedQuotes.filter((quote) => quote.created_at >= thirtyDaysAgo)
   const recentWanted = typedWantedRequests.filter((request) => request.created_at >= thirtyDaysAgo)
+  const soldListingNewBalloonRequests = recentQuotes.filter((quote) => quote.source_context === 'sold-listing')
+  const soldListingWantedRequests = recentWanted.filter((request) => request.utm_source === 'sold_listing')
+  const soldListingViewJourneyKeys = new Set(soldListingViews.map((event) => event.journey_key).filter((key): key is string => Boolean(key)))
+  const soldListingRecoveredJourneyKeys = new Set([
+    ...soldListingNewBalloonRequests.map((quote) => quote.journey_key),
+    ...soldListingWantedRequests.map((request) => request.journey_key),
+  ].filter((key): key is string => typeof key === 'string' && soldListingViewJourneyKeys.has(key)))
   const viewJourneyKeys = new Set(typedListingEvents.filter((event) => event.event_type === 'VIEW' && event.journey_key).map((event) => event.journey_key as string))
   const searchJourneyKeys = new Set(typedSearchEvents.filter((event) => event.journey_key).map((event) => event.journey_key as string))
   const revealJourneyKeys = new Set(typedListingEvents.filter((event) => event.event_type === 'CONTACT_REVEAL' && event.journey_key).map((event) => event.journey_key as string))
@@ -574,6 +583,18 @@ export default async function CommercialPage() {
           <ConversionRate label="Form start → stored" value={comparableBuyerFunnel.rates.formStartToStoredInquiry} />
         </div>
         <p className="mt-4 text-xs text-muted-foreground">Comparable since {formatDate(comparableBuyerFunnel.comparableFrom)} · {comparableBuyerFunnel.observedDays} observed day(s) · {comparableBuyerFunnel.excludedEarlierEvents} earlier event(s) excluded from rate denominators.</p>
+      </section>
+
+      <section className="rounded-2xl border bg-card p-6">
+        <h2 className="text-xl font-semibold">Demand recovered from sold inventory (30d)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Previously public sold adverts remain truthful reference pages. Their traffic is separated from active-listing conversion and can continue into used-equipment sourcing or a factory-new estimate.</p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Metric title="Sold-page views" value={soldListingViews.length} icon={<Plane className="h-5 w-5" />} detail={`${soldListingViewJourneyKeys.size} attributable journey(s)`} />
+          <Metric title="Used-equipment requests" value={soldListingWantedRequests.length} icon={<MessageSquare className="h-5 w-5" />} detail="Source: sold listing" />
+          <Metric title="New-balloon requests" value={soldListingNewBalloonRequests.length} icon={<Store className="h-5 w-5" />} detail="Source: sold listing" />
+          <Metric title="Joined recoveries" value={soldListingRecoveredJourneyKeys.size} icon={<CheckCircle2 className="h-5 w-5" />} detail="Same private daily journey" />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">A sold-page view is not an active listing view and cannot dilute the active marketplace conversion rate. A request counts only after its normal durable intake succeeds.</p>
       </section>
 
       <section className="rounded-2xl border bg-card p-6">

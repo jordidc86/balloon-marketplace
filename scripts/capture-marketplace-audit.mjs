@@ -43,7 +43,7 @@ const querySpecs = {
   listings: ['listings', 'id,seller_id,category,status,price,currency,condition,location_country,contact_phone,details,created_at,updated_at,public_at,instagram_posted,facebook_posted'],
   images: ['images', 'listing_id,url,is_primary'],
   events: ['listing_events', 'listing_id,user_id,event_type,utm_source,utm_medium,utm_campaign,created_at'],
-  quotes: ['quote_requests', 'id,status,name,email,phone,country,manufacturer_preference,equipment_type,volume_or_capacity,intended_use,budget_range,timeline,colors_or_branding,notes,created_at,updated_at'],
+  quotes: ['quote_requests', 'id,status,name,email,phone,country,manufacturer_preference,equipment_type,volume_or_capacity,intended_use,budget_range,timeline,colors_or_branding,notes,source_context,journey_key,created_at,updated_at'],
   newsletterRuns: ['newsletter_runs', 'id,status,dry_run,recipients_count,sent_count,failed_count,created_at,completed_at'],
   premiumAlertRuns: ['premium_alert_runs', 'id,listing_id,status,recipients_count,sent_count,failed_count,created_at,completed_at'],
   stripeEvents: ['stripe_webhook_events', 'event_id,event_type,status,attempts,stripe_created_at,processed_at'],
@@ -55,7 +55,7 @@ const querySpecs = {
   commercialNotifications: ['commercial_notification_receipts', 'id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,created_at,attempted_at,accepted_at'],
   commercialOutcomes: ['commercial_outcomes', 'id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,closed_at,settled_at'],
   newBalloonProposals: ['new_balloon_quote_proposals', 'id,quote_request_id,manufacturer,currency,amount_min_minor,amount_max_minor,delivery_status,valid_until,accepted_at,created_at'],
-  wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,created_at,last_activity_at,closed_at'],
+  wantedRequests: ['wanted_requests', 'id,category,currency,budget_min_minor,budget_max_minor,notify_on_match,status,referrer_host,utm_source,utm_medium,utm_campaign,journey_key,created_at,last_activity_at,closed_at'],
   catalogSearchEvents: ['catalog_search_events', 'id,category,country,result_count,zero_results,utm_source,created_at'],
   sellerFunnelEvents: ['seller_funnel_events', 'id,seller_id,listing_id,stage,listing_plan,source,created_at'],
   listingWatchers: ['listing_watchers', 'id,listing_id,status,journey_key,created_at,confirmed_at,last_notified_at,closed_at'],
@@ -199,6 +199,7 @@ const availabilityDuePortfolioDistribution = Object.values(availabilityDueBySell
 }, {})
 const recentEvents = events.filter((event) => event.created_at >= since30d)
 const recentViews = recentEvents.filter((event) => event.event_type === 'VIEW')
+const recentSoldListingViews = recentEvents.filter((event) => event.event_type === 'SOLD_VIEW')
 const recentContacts = recentEvents.filter((event) => event.event_type === 'CONTACT_REVEAL')
 const recentEnquiryCtaClicks = recentEvents.filter((event) => event.event_type === 'ENQUIRY_CTA_CLICKED')
 const recentEnquiryFormViews = recentEvents.filter((event) => event.event_type === 'ENQUIRY_FORM_VIEWED')
@@ -208,6 +209,14 @@ const uniqueContactedListings = new Set(recentContacts.map((event) => event.list
 const registeredContacts = recentContacts.filter((event) => event.user_id).length
 const anonymousContacts = recentContacts.length - registeredContacts
 const recentQuotes = quotes.filter((quote) => quote.created_at >= since30d)
+const recentWantedRequests = wantedRequests.filter((request) => request.created_at >= since30d)
+const soldListingViewJourneyKeys = new Set(recentSoldListingViews.map((event) => event.journey_key).filter(Boolean))
+const soldListingNewBalloonRequests = recentQuotes.filter((quote) => quote.source_context === 'sold-listing')
+const soldListingWantedRequests = recentWantedRequests.filter((request) => request.utm_source === 'sold_listing')
+const soldListingRecoveredJourneyKeys = new Set([
+  ...soldListingNewBalloonRequests.map((quote) => quote.journey_key),
+  ...soldListingWantedRequests.map((request) => request.journey_key),
+].filter((journeyKey) => journeyKey && soldListingViewJourneyKeys.has(journeyKey)))
 const newBalloonBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'new_balloon_buyer_ack')
 const exhaustedNewBalloonBuyerAcknowledgements = newBalloonBuyerAcknowledgements.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const inquiryBuyerAcknowledgements = commercialNotifications.filter((notification) => notification.notification_type === 'inquiry_buyer_ack')
@@ -316,6 +325,11 @@ const result = {
     viewsByUtmSource30d: countBy(recentViews, 'utm_source'),
     sharedLinkViews30d: recentViews.filter((event) => ['seller_share', 'listing_share'].includes(event.utm_source)).length,
     viewedListings30d: uniqueViewedListings,
+    soldListingViews30d: recentSoldListingViews.length,
+    soldListingViewJourneys30d: soldListingViewJourneyKeys.size,
+    soldListingWantedRequests30d: soldListingWantedRequests.length,
+    soldListingNewBalloonRequests30d: soldListingNewBalloonRequests.length,
+    soldListingRecoveredJourneys30d: soldListingRecoveredJourneyKeys.size,
     contactReveals30d: recentContacts.length,
     contactedListings30d: uniqueContactedListings,
     registeredContactReveals30d: registeredContacts,
