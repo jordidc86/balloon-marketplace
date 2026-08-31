@@ -21,6 +21,13 @@ export function buildPremiumCheckoutParams({
   const safeSuccessPath = trustedPath(successPath, '/dashboard?premium_payment=processing')
   const safeCancelPath = trustedPath(cancelPath, '/dashboard?premium_payment=canceled')
 
+  const metadata = {
+    type: 'premium_subscription',
+    user_id: userId,
+    intent_version: '1',
+    checkout_source: source,
+  }
+
   return {
     payment_method_types: ['card'],
     line_items: [{
@@ -37,12 +44,8 @@ export function buildPremiumCheckoutParams({
     }],
     customer: stripeCustomerId || undefined,
     customer_email: stripeCustomerId ? undefined : userEmail,
-    metadata: {
-      type: 'premium_subscription',
-      user_id: userId,
-      intent_version: '1',
-      checkout_source: source,
-    },
+    metadata,
+    subscription_data: { metadata },
     mode: 'subscription',
     success_url: `${safeOrigin}${safeSuccessPath}`,
     cancel_url: `${safeOrigin}${safeCancelPath}`,

@@ -84,6 +84,32 @@ const checks = [
     required: ['charge_id text primary key', 'stripe_event_id text not null unique', 'provider_message_id text not null unique', 'enable row level security', 'revoke all'],
   },
   {
+    name: 'Seller promotion checkout is single-live, seller-bound and private',
+    file: 'supabase/migrations/20260831620000_paid_listing_checkout_traceability.sql',
+    required: ['listing_checkout_intents', 'listing_checkout_intents_one_live_per_listing', "where status = 'STARTED'", 'v_listing.seller_id <> p_user_id', "v_listing.status not in ('DRAFT', 'PENDING_PAYMENT')", "v_listing.details->>'listing_plan'", 'revoke all', 'grant execute'],
+  },
+  {
+    name: 'Seller promotion checkout preserves entity metadata and expires if audit registration fails',
+    file: 'src/utils/listing-checkout.ts',
+    required: ['payment_intent_data: { metadata }', 'client_reference_id: listingId', 'register_listing_checkout_intent', 'checkout.sessions.expire(session.id)', 'Seller Launch Promotion checkout could not be audited'],
+  },
+  {
+    name: 'Paid seller fulfillment verifies lifecycle, delivery and durable completion',
+    file: 'src/app/api/webhooks/stripe/route.ts',
+    required: ['getStoredListingPlan(currentListing.details)', "['STARTED', 'COMPLETED']", 'Seller Launch Promotion confirmation was not accepted', 'Paid Premium alert is not fully fulfilled', "from('listing_checkout_intents')", 'Listing checkout completion readback failed'],
+    forbidden: ['Failed to send premium listing alert after listing payment'],
+  },
+  {
+    name: 'Premium alert dispatch is provider-idempotent and receipt-readback bound',
+    file: 'src/utils/premium-alerts.ts',
+    required: ['premium-alert/${listingId}', 'Premium alert recipient readback failed', 'Premium alert run result did not persist'],
+  },
+  {
+    name: 'Newsletter gives unfulfilled paid promotions priority and rotates exposure',
+    file: 'src/utils/newsletter-listing-rotation.mjs',
+    required: ['inclusionCounts', '=== 0', 'countDifference', 'neverIncludedCount'],
+  },
+  {
     name: 'Stripe commercial audit is read-only and PII-free',
     file: 'scripts/capture-stripe-commercial-audit.mjs',
     required: ['CONFIRM_READ_ONLY_STRIPE', 'containsPii: false', 'webhookEndpoints.list', 'requiredEventCoverage', 'grossMinorByCurrency', 'Historical charges without current metadata are not assigned to a product by inference.'],

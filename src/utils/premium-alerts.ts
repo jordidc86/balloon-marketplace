@@ -160,7 +160,7 @@ async function finishPremiumAlertRun(
     metadata?: Record<string, unknown>
   }
 ) {
-  const { error } = await supabase
+  const { data: stored, error } = await supabase
     .from('premium_alert_runs')
     .update({
       status: fields.status,
@@ -173,10 +173,20 @@ async function finishPremiumAlertRun(
       error_message: fields.errorMessage,
       metadata: fields.metadata,
     })
-    .eq('id', runId);
+    .eq('id', runId)
+    .select('id,status,recipients_count,sent_count,failed_count,completed_at')
+    .single();
 
-  if (error) {
-    console.error('Failed to update premium alert run:', error);
+  if (
+    error
+    || !stored
+    || stored.status !== fields.status
+    || !stored.completed_at
+    || (fields.recipientsCount !== undefined && stored.recipients_count !== fields.recipientsCount)
+    || (fields.sentCount !== undefined && stored.sent_count !== fields.sentCount)
+    || (fields.failedCount !== undefined && stored.failed_count !== fields.failedCount)
+  ) {
+    throw new Error(`Premium alert run result did not persist: ${error?.message || 'readback mismatch'}`);
   }
 }
 
@@ -189,18 +199,35 @@ async function recordPremiumAlertRecipients(
     return;
   }
 
+  const rows = deliveryResults.map(result => ({
+    run_id: runId,
+    email: result.to,
+    status: result.status,
+    resend_id: result.resendId,
+    error_message: result.error,
+  }));
   const { error } = await supabase
     .from('premium_alert_recipients')
-    .upsert(deliveryResults.map(result => ({
-      run_id: runId,
-      email: result.to,
-      status: result.status,
-      resend_id: result.resendId,
-      error_message: result.error,
-    })), { onConflict: 'run_id,email' });
+    .upsert(rows, { onConflict: 'run_id,email' });
 
   if (error) {
-    console.error('Failed to record premium alert recipients:', error);
+    throw new Error(`Premium alert recipient evidence did not persist: ${error.message}`);
+  }
+  const { data: stored, error: readError } = await supabase
+    .from('premium_alert_recipients')
+    .select('email,status,resend_id')
+    .eq('run_id', runId);
+  const expectedByEmail = new Map(rows.map((row) => [row.email, row]));
+  const matches = !readError
+    && stored?.length === rows.length
+    && stored.every((row) => {
+      const expected = expectedByEmail.get(row.email);
+      if (!expected) return false;
+      return expected.status === row.status
+        && String(expected.resend_id || '') === String(row.resend_id || '');
+    });
+  if (!matches) {
+    throw new Error(`Premium alert recipient readback failed: ${readError?.message || 'readback mismatch'}`);
   }
 }
 
@@ -267,7 +294,7 @@ export async function sendPremiumListingAlert(supabase: SupabaseClient, listingI
       to,
       subject: `AeroTrade Premium Alert: ${typedListing.title} is now available`,
       html,
-    })));
+    })), { idempotencyKeyPrefix: `premium-alert/${listingId}` });
 
     const sentCount = result.sentCount ?? 0;
     const failedCount = result.failedCount ?? Math.max(0, recipients.length - sentCount);

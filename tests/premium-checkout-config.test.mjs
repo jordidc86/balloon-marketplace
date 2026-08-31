@@ -16,6 +16,7 @@ test('Premium checkout configuration is bound to AeroTrade product, price and tr
   assert.equal(params.line_items[0].price_data.recurring.interval, 'year')
   assert.equal(params.metadata.type, 'premium_subscription')
   assert.equal(params.metadata.intent_version, '1')
+  assert.deepEqual(params.subscription_data.metadata, params.metadata)
   assert.equal(params.success_url, 'https://aerotrade.app/dashboard?upgraded=true')
 })
 
@@ -37,4 +38,5 @@ test('admin-created buyer early-access checkout uses the same durable metadata c
   const params = buildPremiumCheckoutParams({ userId: 'test-user', userEmail: 'test@example.invalid', origin: 'https://aerotrade.app', source: 'admin' })
   assert.equal(params.metadata.checkout_source, 'admin')
   assert.equal(params.metadata.intent_version, '1')
+  assert.equal(params.subscription_data.metadata.user_id, 'test-user')
 })

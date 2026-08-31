@@ -93,6 +93,9 @@ test('accepted payment notifications produce a private durable receipt', () => {
     paymentIntentId: 'pi_payment_123',
     invoiceId: 'in_payment_123',
     subscriptionId: 'sub_payment_123',
+    checkoutSessionId: 'cs_live_payment_123',
+    userId: '00000000-0000-4000-8000-000000000001',
+    listingId: '00000000-0000-4000-8000-000000000002',
     amount: 999,
     currency: 'EUR',
     paymentType: 'premium_subscription',
@@ -108,6 +111,9 @@ test('accepted payment notifications produce a private durable receipt', () => {
     payment_intent_id: 'pi_payment_123',
     invoice_id: 'in_payment_123',
     subscription_id: 'sub_payment_123',
+    stripe_checkout_session_id: 'cs_live_payment_123',
+    user_id: '00000000-0000-4000-8000-000000000001',
+    listing_id: '00000000-0000-4000-8000-000000000002',
     amount_minor: 999,
     currency: 'eur',
     payment_type: 'premium_subscription',
@@ -124,6 +130,10 @@ test('accepted payment notifications produce a private durable receipt', () => {
   ), true)
   assert.equal(matchesPaymentNotificationReceipt(
     { ...receipt, amount_minor: 1000 },
+    receipt,
+  ), false)
+  assert.equal(matchesPaymentNotificationReceipt(
+    { ...receipt, listing_id: '00000000-0000-4000-8000-000000000003' },
     receipt,
   ), false)
   assert.throws(

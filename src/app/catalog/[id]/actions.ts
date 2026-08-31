@@ -531,6 +531,7 @@ export async function payListingFee(listingId: string) {
     listingTitle: listing.title,
     userId: user.id,
     origin,
+    source: 'catalog',
   })
   const { redirect: nextRedirect } = await import('next/navigation')
   nextRedirect(checkoutUrl)

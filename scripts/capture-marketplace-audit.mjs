@@ -47,7 +47,7 @@ const querySpecs = {
   newsletterRuns: ['newsletter_runs', 'id,status,dry_run,recipients_count,sent_count,failed_count,created_at,completed_at'],
   premiumAlertRuns: ['premium_alert_runs', 'id,listing_id,status,recipients_count,sent_count,failed_count,created_at,completed_at'],
   stripeEvents: ['stripe_webhook_events', 'event_id,event_type,status,attempts,stripe_created_at,processed_at'],
-  paymentReceipts: ['payment_notification_receipts', 'charge_id,payment_type,livemode,amount_minor,currency,accepted_at'],
+  paymentReceipts: ['payment_notification_receipts', 'charge_id,payment_type,livemode,amount_minor,currency,stripe_checkout_session_id,user_id,listing_id,accepted_at'],
   premiumCheckoutIntents: ['premium_checkout_intents', 'id,user_id,source,status,created_at,completed_at,updated_at'],
   inquiries: ['marketplace_inquiries', 'id,listing_id,currency,initial_offer_amount_minor,status,seller_notification_status,created_at,last_activity_at,closed_at'],
   negotiationEvents: ['marketplace_inquiry_offer_events', 'id,inquiry_id,event_type,actor_role,amount_minor,currency,buyer_notification_status,seller_notification_status,responding_to_event_id,created_at'],
@@ -72,6 +72,7 @@ const optionalQuerySpecs = {
   socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at'],
   newsletterConsentProfiles: ['users', 'id,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at'],
   catalogDemandEntryContexts: ['catalog_search_events', 'id,entry_context'],
+  listingCheckoutIntents: ['listing_checkout_intents', 'id,listing_id,user_id,stripe_session_id,source,status,created_at,completed_at,updated_at'],
 }
 const optionalAuditResults = Object.fromEntries(await Promise.all(Object.entries(optionalQuerySpecs).map(async ([name, [table, columns]]) => [name, await optionalRows(table, columns)])))
 const {
@@ -114,6 +115,7 @@ const commercialOutcomes = baseCommercialOutcomes.map((outcome) => ({
 const commercialUnitEconomicsEvents = optionalAuditResults.commercialUnitEconomicsEvents.rows
 const newBalloonProposalResponses = optionalAuditResults.newBalloonProposalResponses.rows
 const socialPublicationReceipts = optionalAuditResults.socialPublicationReceipts.rows
+const listingCheckoutIntents = optionalAuditResults.listingCheckoutIntents.rows
 const catalogDemandEntryContextById = new Map(optionalAuditResults.catalogDemandEntryContexts.rows.map((row) => [row.id, row.entry_context]))
 const catalogSearchEvents = baseCatalogSearchEvents.map((event) => ({
   ...event,
@@ -461,10 +463,15 @@ const result = {
     buyerEarlyAccessCheckoutIntents: premiumCheckoutIntents.length,
     buyerEarlyAccessCheckoutIntentStatuses: countBy(premiumCheckoutIntents, 'status'),
     buyerEarlyAccessCheckoutIntentSources: countBy(premiumCheckoutIntents, 'source'),
+    sellerLaunchCheckoutIntents: listingCheckoutIntents.length,
+    sellerLaunchCheckoutIntentStatuses: countBy(listingCheckoutIntents, 'status'),
+    sellerLaunchCheckoutIntentSources: countBy(listingCheckoutIntents, 'source'),
     stripeEventsByType: countBy(stripeEvents, 'event_type'),
     stripeEventsByStatus: countBy(stripeEvents, 'status'),
     paymentReceipts: paymentReceipts.length,
     livePaymentReceipts: liveReceipts.length,
+    livePaymentReceiptsLinkedToEntitlement: liveReceipts.filter((receipt) => receipt.user_id || receipt.listing_id).length,
+    livePaymentReceiptsWithoutEntitlementLink: liveReceipts.filter((receipt) => !receipt.user_id && !receipt.listing_id).length,
     liveGrossMinorByCurrency: liveGrossByCurrency,
     receiptTypes: countBy(paymentReceipts, 'payment_type'),
     caveat: 'Gross accepted amounts are not net revenue and exclude fees, tax, refunds and disputes.',

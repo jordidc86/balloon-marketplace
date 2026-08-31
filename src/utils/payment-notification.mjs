@@ -17,7 +17,10 @@ const stripeIdPatterns = {
   paymentIntentId: /^pi_[A-Za-z0-9_]+$/,
   invoiceId: /^in_[A-Za-z0-9_]+$/,
   subscriptionId: /^sub_[A-Za-z0-9_]+$/,
+  checkoutSessionId: /^cs_(?:test|live)_[A-Za-z0-9_]+$/,
 }
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const optionalStripeId = (value, pattern, label) => {
   const normalized = String(value || '').trim()
@@ -30,6 +33,13 @@ const requiredStripeId = (value, pattern, label) => {
   const normalized = optionalStripeId(value, pattern, label)
   if (!normalized) throw new Error(`A valid Stripe ${label} is required.`)
   return normalized
+}
+
+const optionalUuid = (value, label) => {
+  const normalized = String(value || '').trim()
+  if (!normalized) return null
+  if (!uuidPattern.test(normalized)) throw new Error(`A valid ${label} is required when supplied.`)
+  return normalized.toLowerCase()
 }
 
 export function normalizePaymentType(value) {
@@ -108,6 +118,9 @@ export function buildPaymentNotificationReceipt({
   paymentIntentId,
   invoiceId,
   subscriptionId,
+  checkoutSessionId,
+  userId,
+  listingId,
   amount,
   currency,
   paymentType,
@@ -143,6 +156,9 @@ export function buildPaymentNotificationReceipt({
     payment_intent_id: optionalStripeId(paymentIntentId, stripeIdPatterns.paymentIntentId, 'payment intent id'),
     invoice_id: optionalStripeId(invoiceId, stripeIdPatterns.invoiceId, 'invoice id'),
     subscription_id: optionalStripeId(subscriptionId, stripeIdPatterns.subscriptionId, 'subscription id'),
+    stripe_checkout_session_id: optionalStripeId(checkoutSessionId, stripeIdPatterns.checkoutSessionId, 'checkout session id'),
+    user_id: optionalUuid(userId, 'AeroTrade user id'),
+    listing_id: optionalUuid(listingId, 'AeroTrade listing id'),
     amount_minor: amountMinor,
     currency: currencyCode,
     payment_type: normalizePaymentType(paymentType),
@@ -162,5 +178,8 @@ export function matchesPaymentNotificationReceipt(stored, expected) {
     && String(stored.currency || '').toLowerCase() === String(expected.currency || '').toLowerCase()
     && normalizePaymentType(stored.payment_type) === normalizePaymentType(expected.payment_type)
     && String(stored.provider_message_id || '') === String(expected.provider_message_id || '')
+    && String(stored.stripe_checkout_session_id || '') === String(expected.stripe_checkout_session_id || '')
+    && String(stored.user_id || '') === String(expected.user_id || '')
+    && String(stored.listing_id || '') === String(expected.listing_id || '')
 }
 import { buyerEarlyAccessProduct, sellerLaunchPromotionProduct } from './paid-product-labels.mjs'

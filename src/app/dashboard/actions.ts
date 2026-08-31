@@ -109,6 +109,7 @@ export async function resumePremiumListingCheckout(listingId: string) {
     listingTitle: listing.title,
     userId: user.id,
     origin,
+    source: 'dashboard',
   })
   await persistSellerFunnelEvent(await createAdminClient(), {
     sellerId: user.id,

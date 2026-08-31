@@ -12,6 +12,7 @@ import {
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server';
+import { getStoredListingPlan } from '@/utils/listing-plans';
 
 const activeSubscriptionStatuses = new Set<Stripe.Subscription.Status>([
   'active',
@@ -79,16 +80,24 @@ async function chargeNotificationContext(charge: Stripe.Charge) {
   let customerEmail = normalizedEmail(charge.billing_details?.email || charge.receipt_email) || null
   let invoiceId: string | null = null
   let subscriptionId: string | null = null
+  let checkoutSessionId: string | null = null
+  let userId = String(charge.metadata?.user_id || '').trim() || null
+  let listingId = String(charge.metadata?.listing_id || '').trim() || null
 
   if (paymentIntentId) {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
     paymentType = String(paymentIntent.metadata?.type || paymentType || '').trim() || null
+    userId = String(paymentIntent.metadata?.user_id || userId || '').trim() || null
+    listingId = String(paymentIntent.metadata?.listing_id || listingId || '').trim() || null
     customerEmail = customerEmail || normalizedEmail(paymentIntent.receipt_email) || null
 
     const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntentId, limit: 1 })
     const session = sessions.data[0]
     paymentType = String(session?.metadata?.type || paymentType || '').trim() || null
     if (session) {
+      checkoutSessionId = session.id
+      userId = String(session.metadata?.user_id || userId || '').trim() || null
+      listingId = String(session.metadata?.listing_id || listingId || '').trim() || null
       const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 })
       product = uniqueLabels(lineItems.data.map((item) => item.description))
       customerEmail = customerEmail || normalizedEmail(
@@ -123,6 +132,7 @@ async function chargeNotificationContext(charge: Stripe.Charge) {
       paymentType = String(
         subscription.metadata?.type || paymentType || 'premium_subscription',
       ).trim()
+      userId = String(subscription.metadata?.user_id || userId || '').trim() || null
     }
   }
 
@@ -133,6 +143,9 @@ async function chargeNotificationContext(charge: Stripe.Charge) {
     paymentIntentId: paymentIntentId || null,
     invoiceId,
     subscriptionId,
+    checkoutSessionId,
+    userId,
+    listingId,
   }
 }
 
@@ -150,7 +163,7 @@ async function persistPaymentNotificationReceipt(
 
   const { data: stored, error: readError } = await supabase
     .from('payment_notification_receipts')
-    .select('stripe_event_id,charge_id,amount_minor,currency,payment_type,provider_message_id')
+    .select('stripe_event_id,charge_id,amount_minor,currency,payment_type,provider_message_id,stripe_checkout_session_id,user_id,listing_id')
     .eq('charge_id', receipt.charge_id)
     .single()
 
@@ -300,27 +313,78 @@ export async function POST(req: Request) {
           break;
         }
 
-        const listingId = session.metadata.listing_id;
-        if (!listingId) {
-          throw new Error(`Listing checkout ${session.id} is missing listing_id metadata`)
+        const listingId = String(session.metadata.listing_id || '').trim();
+        const requestedUserId = String(session.metadata.user_id || '').trim();
+        if (!listingId || !requestedUserId) {
+          throw new Error(`Listing checkout ${session.id} is missing listing or seller metadata`)
         }
 
-        // Update listing to ACTIVE_PREMIUM and set 48h window
-        const publicAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        const { data: checkoutIntent, error: checkoutIntentError } = await supabaseAdmin
+          .from('listing_checkout_intents')
+          .select('id,listing_id,user_id,stripe_session_id,status')
+          .eq('stripe_session_id', session.id)
+          .maybeSingle()
+        if (checkoutIntentError) {
+          throw new Error(`Listing checkout intent could not be read: ${checkoutIntentError.message}`)
+        }
+        if (session.metadata.intent_version === '1' && !checkoutIntent) {
+          throw new Error(`Audited listing checkout intent is missing for ${session.id}`)
+        }
+        if (checkoutIntent && (
+          checkoutIntent.listing_id !== listingId
+          || checkoutIntent.user_id !== requestedUserId
+          || !['STARTED', 'COMPLETED'].includes(checkoutIntent.status)
+        )) {
+          throw new Error(`Listing checkout intent is not eligible for fulfillment: ${session.id}`)
+        }
 
-        const { data: listingData, error } = await supabaseAdmin
+        const { data: currentListing, error: currentListingError } = await supabaseAdmin
           .from('listings')
-          .update({
-            status: 'ACTIVE_PREMIUM',
-            public_at: publicAt
-          })
+          .select('id,seller_id,title,status,public_at,contact_email,details')
           .eq('id', listingId)
-          .select()
-          .single();
+          .maybeSingle()
+        if (currentListingError || !currentListing) {
+          throw new Error(`Paid listing could not be read safely: ${currentListingError?.message || listingId}`)
+        }
+        if (
+          currentListing.seller_id !== requestedUserId
+          || getStoredListingPlan(currentListing.details) !== 'premium'
+          || !['DRAFT', 'PENDING_PAYMENT', 'ACTIVE_PREMIUM'].includes(currentListing.status)
+        ) {
+          throw new Error(`Paid listing ownership, plan or lifecycle state is unsafe for fulfillment: ${listingId}`)
+        }
+        if (checkoutIntent?.status === 'COMPLETED') {
+          if (currentListing.status !== 'ACTIVE_PREMIUM' || !currentListing.public_at) {
+            throw new Error(`Completed listing checkout lost its paid entitlement: ${session.id}`)
+          }
+          console.log(`[Stripe Webhook] Listing checkout ${session.id} was already fulfilled and verified`)
+          break
+        }
 
-        if (error) {
-          throw new Error(`Failed to update listing post-checkout: ${error.message}`)
-        } else if (listingData) {
+        const alreadyActivated = currentListing.status === 'ACTIVE_PREMIUM'
+        const publicAt = alreadyActivated
+          ? String(currentListing.public_at || '')
+          : new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        if (!publicAt || Number.isNaN(new Date(publicAt).getTime())) {
+          throw new Error(`Paid listing has no valid early-access publication time: ${listingId}`)
+        }
+
+        const activation = alreadyActivated
+          ? { data: currentListing, error: null }
+          : await supabaseAdmin
+            .from('listings')
+            .update({ status: 'ACTIVE_PREMIUM', public_at: publicAt })
+            .eq('id', listingId)
+            .eq('seller_id', requestedUserId)
+            .in('status', ['DRAFT', 'PENDING_PAYMENT'])
+            .select('id,seller_id,title,status,public_at,contact_email,details')
+            .single();
+        const { data: listingData, error } = activation
+
+        if (error || !listingData || listingData.status !== 'ACTIVE_PREMIUM' || listingData.public_at !== publicAt) {
+          throw new Error(`Failed to activate paid listing safely: ${error?.message || 'readback mismatch'}`)
+        } else {
+          if (!alreadyActivated) {
           await persistSellerFunnelEvent(supabaseAdmin, {
             sellerId: listingData.seller_id,
             listingId: listingData.id,
@@ -335,6 +399,7 @@ export async function POST(req: Request) {
             stage: 'LISTING_PUBLISHED',
             source: 'stripe',
           })
+          }
           // 1. Send Confirmation Email to Seller
           const sellerHtml = `
             <h2>Your Seller Launch Promotion is live!</h2>
@@ -344,13 +409,44 @@ export async function POST(req: Request) {
             <p>The promotion includes an immediate alert to eligible Buyer Early Access members, the bi-weekly newsletter, rotating social promotion while the listing is active, and matching to eligible opted-in wanted requests.</p>
             <p>Good luck!</p>
           `;
-          await sendEmail(listingData.contact_email, 'AeroTrade: Your Seller Launch Promotion is live', sellerHtml);
+          const sellerDelivery = await sendEmail(
+            listingData.contact_email,
+            'AeroTrade: Your Seller Launch Promotion is live',
+            sellerHtml,
+            { idempotencyKey: `seller-launch-live-${session.id}` },
+          );
+          if (!sellerDelivery.success || !sellerDelivery.resendId) {
+            throw new Error(`Seller Launch Promotion confirmation was not accepted for ${session.id}`)
+          }
 
-          try {
-            const alertResult = await sendPremiumListingAlert(supabaseAdmin, listingData.id);
-            console.log('Premium listing alert sent after listing payment:', alertResult);
-          } catch (alertError) {
-            console.error('Failed to send premium listing alert after listing payment:', alertError);
+          const alertResult = await sendPremiumListingAlert(supabaseAdmin, listingData.id);
+          if (
+            !alertResult.success
+            || (alertResult.duplicate && !['sent', 'skipped'].includes(String(alertResult.status || '')))
+          ) {
+            throw new Error(`Paid Premium alert is not fully fulfilled for ${session.id}`)
+          }
+          console.log('Premium listing alert verified after listing payment:', alertResult);
+
+          if (checkoutIntent) {
+            const completedAt = new Date().toISOString()
+            const { data: completedIntent, error: completedIntentError } = await supabaseAdmin
+              .from('listing_checkout_intents')
+              .update({ status: 'COMPLETED', completed_at: completedAt, updated_at: completedAt })
+              .eq('id', checkoutIntent.id)
+              .eq('status', 'STARTED')
+              .select('id,status,listing_id,user_id,stripe_session_id,completed_at')
+              .single()
+            if (
+              completedIntentError
+              || completedIntent?.status !== 'COMPLETED'
+              || completedIntent.listing_id !== listingId
+              || completedIntent.user_id !== requestedUserId
+              || completedIntent.stripe_session_id !== session.id
+              || !completedIntent.completed_at
+            ) {
+              throw new Error(`Listing checkout completion readback failed for ${session.id}`)
+            }
           }
         }
       }
@@ -441,6 +537,18 @@ export async function POST(req: Request) {
           throw new Error(`Premium checkout expiry readback failed for ${session.id}`)
         }
       }
+      if (session.metadata?.type === 'listing_fee' && session.metadata?.intent_version === '1') {
+        const { data: expiredIntent, error: expiredError } = await supabaseAdmin
+          .from('listing_checkout_intents')
+          .update({ status: 'EXPIRED', updated_at: new Date().toISOString() })
+          .eq('stripe_session_id', session.id)
+          .eq('status', 'STARTED')
+          .select('id,status')
+          .maybeSingle()
+        if (expiredError || (expiredIntent && expiredIntent.status !== 'EXPIRED')) {
+          throw new Error(`Listing checkout expiry readback failed for ${session.id}`)
+        }
+      }
       break
     }
 
@@ -485,6 +593,9 @@ export async function POST(req: Request) {
         paymentIntentId: context.paymentIntentId,
         invoiceId: context.invoiceId,
         subscriptionId: context.subscriptionId,
+        checkoutSessionId: context.checkoutSessionId,
+        userId: context.userId,
+        listingId: context.listingId,
         amount: charge.amount,
         currency: charge.currency,
         paymentType: notification.paymentType,

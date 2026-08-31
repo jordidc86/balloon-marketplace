@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-sold-listing-recovery-measurement",
-  "productionBaseCommit": "d0e1f85c9b1d54e2a5eb31043aab37c855234c01",
+  "releaseId": "2026-08-31-paid-product-fulfillment-traceability",
+  "productionBaseCommit": "7466e1317b1ce8721dd6a874b8a754b1b5843cb8",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

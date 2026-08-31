@@ -290,7 +290,7 @@ export default async function CommercialPage() {
     supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('users').select('id,email').limit(500),
     supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,existing_listing_url,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
-    supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,accepted_at').order('accepted_at', { ascending: false }).limit(100),
+    supabase.from('payment_notification_receipts').select('payment_type,livemode,amount_minor,currency,stripe_checkout_session_id,user_id,listing_id,accepted_at').order('accepted_at', { ascending: false }).limit(100),
     supabase.from('listing_events').select('event_type,journey_key,utm_source,created_at').gte('created_at', thirtyDaysAgo),
     supabase.from('commercial_notification_receipts').select('id,notification_type,entity_type,entity_id,status,delivery_attempts,next_attempt_at,accepted_at,created_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('commercial_outcomes').select('id,entity_type,entity_id,outcome_type,currency,gross_amount_minor,aerotrade_revenue_minor,evidence_level,evidence_source,evidence_reference,notes,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_evidence_reference,economics_notes,economics_recorded_at,closed_at,settled_at').order('closed_at', { ascending: false }).limit(200),
@@ -323,6 +323,11 @@ export default async function CommercialPage() {
     .select('listing_id,confirmed_at')
     .order('confirmed_at', { ascending: false })
     .limit(2000)
+  const { data: listingCheckoutIntents, error: listingCheckoutIntentsError } = await supabase
+    .from('listing_checkout_intents')
+    .select('id,listing_id,user_id,source,status,created_at,completed_at')
+    .order('created_at', { ascending: false })
+    .limit(500)
   const { data: lifecycleEvents, error: lifecycleEventsError } = await supabase
     .from('listing_lifecycle_events')
     .select('id,listing_id,actor_role,event_type,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,created_at,listings(title)')
@@ -515,6 +520,9 @@ export default async function CommercialPage() {
   const failedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed').length
   const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && notification.delivery_attempts >= 2).length
   const liveReceipts = (receipts || []).filter((receipt) => receipt.livemode)
+  const liveLinkedReceipts = liveReceipts.filter((receipt) => receipt.user_id || receipt.listing_id)
+  const completedSellerLaunchCheckouts = (listingCheckoutIntents || []).filter((intent) => intent.status === 'COMPLETED').length
+  const openSellerLaunchCheckouts = (listingCheckoutIntents || []).filter((intent) => intent.status === 'STARTED').length
   const liveGross = liveReceipts.reduce((sum, receipt) => receipt.currency === 'eur' ? sum + Number(receipt.amount_minor || 0) : sum, 0)
   const settledRevenueByCurrency = typedOutcomes
     .filter((outcome) => outcome.evidence_level === 'settled')
@@ -662,6 +670,8 @@ export default async function CommercialPage() {
       <div className="rounded-2xl border bg-card p-6">
         <h2 className="text-xl font-semibold">Revenue evidence</h2>
         <p className="mt-1 text-sm text-muted-foreground">{liveReceipts.length} live payment notification receipt(s) · {(liveGross / 100).toLocaleString('en-IE', { style: 'currency', currency: 'EUR' })} gross EUR represented. This is not net revenue.</p>
+        <p className={`mt-2 text-sm ${liveLinkedReceipts.length < liveReceipts.length ? 'font-semibold text-amber-700' : 'text-muted-foreground'}`}>Entitlement traceability: {liveLinkedReceipts.length}/{liveReceipts.length} live receipt(s) linked to an AeroTrade user or listing · Seller Launch checkout intents: {completedSellerLaunchCheckouts} completed, {openSellerLaunchCheckouts} open.</p>
+        {listingCheckoutIntentsError ? <p className="mt-2 text-xs font-semibold text-destructive">Seller Launch checkout evidence unavailable: {listingCheckoutIntentsError.message}</p> : null}
         <p className="mt-2 text-sm text-muted-foreground">{typedOutcomes.length} recorded commercial outcome(s) · gross outcomes {formatCurrencyTotals(reportedGrossByCurrency)} · settled AeroTrade revenue {formatCurrencyTotals(settledRevenueByCurrency)}.</p>
         <p className={`mt-2 text-sm ${failedBuyerEarlyAccessCheckoutRecoveries > 0 ? 'font-semibold text-destructive' : 'text-muted-foreground'}`}>Buyer Early Access checkout recovery: {acceptedBuyerEarlyAccessCheckoutRecoveries} accepted · {failedBuyerEarlyAccessCheckoutRecoveries} failed · {exhaustedBuyerEarlyAccessCheckoutRecoveries} exhausted.</p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -173,6 +173,7 @@ export async function submitListing(formData: FormData) {
     listingTitle: publishedListing.title,
     userId: user.id,
     origin,
+    source: 'initial',
   })
   await persistSellerFunnelEvent(adminSupabase, {
     sellerId: user.id,

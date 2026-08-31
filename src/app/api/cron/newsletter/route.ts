@@ -10,6 +10,7 @@ import {
 } from '@/utils/newsletter-recovery.mjs';
 import { siteUrl } from '@/utils/site';
 import { isPromotedListing } from '@/utils/listing-plans';
+import { selectNewsletterListings } from '@/utils/newsletter-listing-rotation.mjs';
 import {
   isActiveNewsletterConsent,
   newsletterUnsubscribePlaceholder,
@@ -29,6 +30,7 @@ type NewsletterListing = {
   currency: string
   location_country: string
   condition: string
+  created_at: string
   details?: {
     listing_plan?: string | null
   } | null
@@ -515,46 +517,41 @@ export async function GET(request: Request) {
       .select('*, images(url, is_primary)')
       .eq('status', 'ACTIVE_PUBLIC')
       .lte('public_at', now)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
 
-    let listingsQuery = baseListingsQuery().limit(25);
+    const [{ data: availableListings, error: listingsError }, { data: priorRuns, error: priorRunsError }] = await Promise.all([
+      baseListingsQuery(),
+      supabase
+        .from('newsletter_runs')
+        .select('listing_ids')
+        .eq('dry_run', false)
+        .is('test_email', null)
+        .in('status', ['sent', 'partial'])
+        .neq('id', activeRun.id)
+        .order('created_at', { ascending: false })
+        .limit(100),
+    ]);
 
-    if (days && Number.isFinite(days) && days > 0) {
-      const since = new Date();
-      since.setDate(since.getDate() - days);
-      listingsQuery = listingsQuery.gte('created_at', since.toISOString());
-    }
-
-    const { data: primaryListings, error: listingsError } = await listingsQuery;
-
-    if (listingsError) {
+    if (listingsError || priorRunsError) {
       await finishNewsletterRun(supabase, activeRun.id, {
         status: 'failed',
-        errorMessage: `Error fetching listings: ${listingsError.message}`,
+        errorMessage: `Error fetching newsletter inventory evidence: ${listingsError?.message || priorRunsError?.message}`,
       });
       return new NextResponse('Error fetching listings', { status: 500 });
     }
 
-    let recentListings = getPromotedNewsletterListings((primaryListings || []) as NewsletterListing[]).slice(0, 10);
-    const primaryListingCount = recentListings.length;
-
-    if (mixWithLatest && recentListings.length < 10) {
-      const existingIds = new Set(recentListings.map((listing) => listing.id));
-      const { data: fallbackListings, error: fallbackError } = await baseListingsQuery().limit(25);
-
-      if (fallbackError) {
-        await finishNewsletterRun(supabase, activeRun.id, {
-          status: 'failed',
-          errorMessage: `Error fetching fallback listings: ${fallbackError.message}`,
-        });
-        return new NextResponse('Error fetching fallback listings', { status: 500 });
-      }
-
-      const fallbackMix = getPromotedNewsletterListings((fallbackListings || []) as NewsletterListing[])
-        .filter((listing) => !existingIds.has(listing.id));
-
-      recentListings = [...recentListings, ...fallbackMix].slice(0, 10);
-    }
+    const promotedListings = getPromotedNewsletterListings((availableListings || []) as NewsletterListing[]);
+    const rotation = selectNewsletterListings({
+      listings: promotedListings,
+      priorRuns,
+      days,
+      mixWithLatest,
+      now: new Date(now),
+      limit: 10,
+    });
+    const recentListings = rotation.selected as NewsletterListing[];
+    const primaryListingCount = rotation.recentCount;
 
     if (recentListings.length === 0) {
       await finishNewsletterRun(supabase, activeRun.id, {
