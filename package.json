@@ -17,6 +17,7 @@
     "audit:marketplace": "node scripts/capture-marketplace-audit.mjs",
     "audit:stripe-commercial": "node scripts/capture-stripe-commercial-audit.mjs",
     "audit:social-publications": "node scripts/capture-social-publication-audit.mjs",
+    "audit:production-automations": "node scripts/capture-production-automation-dry-run.mjs",
     "diagnose:seller": "node scripts/diagnose-seller-account.mjs",
     "repair:listing-images": "node scripts/repair-listing-images.mjs",
     "test:stripe-premium-checkout": "node scripts/test-premium-checkout-stripe.mjs",

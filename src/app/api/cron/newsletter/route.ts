@@ -74,6 +74,7 @@ type StartedNewsletterRun = {
   id: string
   periodKey: string
   auditUnavailable?: boolean
+  persisted?: boolean
 }
 
 const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?q=80&w=600&auto=format&fit=crop';
@@ -288,7 +289,19 @@ async function startNewsletterRun(
     ? `${params.periodKey}:${params.dryRun ? 'dry-run' : 'test'}:${Date.now()}`
     : params.periodKey;
 
-  if (!params.dryRun && !params.testEmail) {
+  // A simulation must be observational. In particular it must not create a
+  // newsletter_runs row that later appears as operational delivery evidence.
+  if (params.dryRun) {
+    return {
+      run: {
+        id: `dry-run:${runPeriodKey}`,
+        periodKey: runPeriodKey,
+        persisted: false,
+      },
+    };
+  }
+
+  if (!params.testEmail) {
     const staleCutoff = new Date(Date.now() - staleRunMs).toISOString();
     const { error: uncertainStaleError } = await supabase
       .from('newsletter_runs')
@@ -366,6 +379,7 @@ async function startNewsletterRun(
           id: '',
           periodKey: runPeriodKey,
           auditUnavailable: true,
+          persisted: false,
         },
       };
     }
@@ -381,6 +395,7 @@ async function startNewsletterRun(
     run: {
       id: run.id,
       periodKey: run.period_key,
+      persisted: true,
     },
   };
 }
@@ -514,6 +529,11 @@ export async function GET(request: Request) {
     if (!activeRun) {
       return new NextResponse('Could not start newsletter run', { status: 500 });
     }
+    const finishActiveRun = (fields: Parameters<typeof finishNewsletterRun>[2]) => (
+      activeRun?.persisted === false
+        ? Promise.resolve()
+        : finishNewsletterRun(supabase!, activeRun!.id, fields)
+    );
 
     const now = new Date().toISOString();
     const expiredPremiumQuery = () => supabase!
@@ -532,7 +552,7 @@ export async function GET(request: Request) {
         .select('id, title');
 
     if (upgradeError) {
-      await finishNewsletterRun(supabase, activeRun.id, {
+      await finishActiveRun({
         status: 'failed',
         errorMessage: `Error upgrading listings: ${upgradeError.message}`,
       });
@@ -561,7 +581,7 @@ export async function GET(request: Request) {
     ]);
 
     if (listingsError || priorRunsError) {
-      await finishNewsletterRun(supabase, activeRun.id, {
+      await finishActiveRun({
         status: 'failed',
         errorMessage: `Error fetching newsletter inventory evidence: ${listingsError?.message || priorRunsError?.message}`,
       });
@@ -581,7 +601,7 @@ export async function GET(request: Request) {
     const primaryListingCount = rotation.recentCount;
 
     if (recentListings.length === 0) {
-      await finishNewsletterRun(supabase, activeRun.id, {
+      await finishActiveRun({
         status: 'skipped',
         listingsCount: 0,
         primaryListingCount,
@@ -612,7 +632,7 @@ export async function GET(request: Request) {
     ]);
 
     if (usersError || publicSubscriptionsError) {
-      await finishNewsletterRun(supabase, activeRun.id, {
+      await finishActiveRun({
         status: 'failed',
         errorMessage: `Error fetching newsletter consent: ${usersError?.message || publicSubscriptionsError?.message}`,
       });
@@ -628,7 +648,7 @@ export async function GET(request: Request) {
     const { skippedInvalidRecipients, duplicateRecipients } = recipientPlan;
 
     if (recipients.length === 0) {
-      await finishNewsletterRun(supabase, activeRun.id, {
+      await finishActiveRun({
         status: 'skipped',
         skippedInvalidRecipients,
         listingsCount: recentListings.length,
@@ -651,7 +671,7 @@ export async function GET(request: Request) {
 
     if (dryRun) {
       const newsletterPeriodKey = periodKey;
-      await finishNewsletterRun(supabase, activeRun.id, {
+      await finishActiveRun({
         status: 'skipped',
         recipientsCount: recipients.length,
         skippedInvalidRecipients,
@@ -731,7 +751,7 @@ export async function GET(request: Request) {
       : sentCount > 0
         ? 'partial'
         : 'failed';
-    await finishNewsletterRun(supabase, activeRun.id, {
+    await finishActiveRun({
       status,
       recipientsCount: recipients.length,
       sentCount,
@@ -793,7 +813,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Newsletter cron error:', error);
-    if (supabase && activeRun) {
+    if (supabase && activeRun && activeRun.persisted !== false) {
       try {
         await finishNewsletterRun(supabase, activeRun.id, {
           status: providerDispatchStarted ? 'audit_uncertain' : 'failed',

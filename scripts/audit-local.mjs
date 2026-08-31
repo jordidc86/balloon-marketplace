@@ -1074,6 +1074,18 @@ const checks = [
     forbidden: ['--retry-all-errors', '--retry 3'],
   },
   {
+    name: 'Newsletter dry-run is a true read-only simulation',
+    file: 'src/app/api/cron/newsletter/route.ts',
+    required: ['A simulation must be observational.', 'if (params.dryRun)', 'persisted: false', 'finishActiveRun', 'activeRun.persisted !== false'],
+    forbidden: ["dry_run: true, status: 'running'"],
+  },
+  {
+    name: 'Production automation audit fingerprints state before and after every safe dry-run',
+    file: 'scripts/capture-production-automation-dry-run.mjs',
+    required: ['CONFIRM_READ_ONLY_PRODUCTION', 'captureState()', 'AbortSignal.timeout', 'stateChanges', 'changedDatasets', 'productionMutated', 'externalMessagesSent: 0', 'deployed newsletter dry-run persists audit rows'],
+    forbidden: ['commit=1', 'dryRun=false', 'SEND_ONE_TIME_CONSENT_INVITATIONS'],
+  },
+  {
     name: 'Newsletter listing links preserve non-personal campaign attribution into the commercial journey',
     file: 'src/utils/newsletter-links.mjs',
     required: ["source: 'newsletter'", "medium: 'email'", "campaignPrefix: 'biweekly_marketplace'", "url.searchParams.set('utm_source'", "url.searchParams.set('utm_medium'", "url.searchParams.set('utm_campaign'", 'periodKeyPattern', 'listingIdPattern'],

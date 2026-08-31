@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_production_automation_dry_run_audit",
+  "capturedAt": "2026-08-31T18:40:22.870Z",
+  "containsPii": false,
+  "readOnlyRequested": true,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "endpoints": {
+    "catalogQuality": {
+      "ok": true,
+      "status": 200,
+      "classification": "ok",
+      "responseFingerprint": "09b7e1f58aa463e226663b4f45c0a0bd06dd03209893b9c39cc2897f8b908688",
+      "responseBytes": 177,
+      "counters": {
+        "checked": 12,
+        "healthy": 12,
+        "suspected": 0,
+        "quarantined": 0,
+        "resolved": 0,
+        "inconclusive": 0,
+        "notificationsAccepted": 0,
+        "notificationsFailed": 0,
+        "primaryImagesRepaired": 0,
+        "dryRun": true
+      }
+    },
+    "indexing": {
+      "ok": true,
+      "status": 200,
+      "classification": "ok",
+      "responseFingerprint": "3058b3954abdc464348f2a886b9b3dfb189d7a58944c7f2ca1b642beecf5baa7",
+      "responseBytes": 113,
+      "counters": {
+        "urlCount": 37,
+        "committed": false,
+        "accepted": false
+      }
+    },
+    "listingWatch": {
+      "ok": true,
+      "status": 200,
+      "classification": "ok",
+      "responseFingerprint": "bc661bfd4dff852284faf8f5c3b6305250d55eb51c92199e83b790c346c3d1af",
+      "responseBytes": 132,
+      "counters": {
+        "activeWatchers": 0,
+        "changed": 0,
+        "due": 0,
+        "accepted": 0,
+        "alreadyAccepted": 0,
+        "failed": 0,
+        "cancelled": 0,
+        "pendingRecovery": 0,
+        "dryRun": true
+      }
+    },
+    "newsletterConsentInvitation": {
+      "ok": true,
+      "status": 200,
+      "classification": "ok",
+      "responseFingerprint": "156acdf0576fdb4f0931a6725755390f0c5c5a8f9b44d268bc91fec5a604e48a",
+      "responseBytes": 79,
+      "counters": {
+        "dryRun": true,
+        "eligibleCount": 13,
+        "sentCount": 0,
+        "failedCount": 0
+      }
+    },
+    "opportunityFollowup": {
+      "ok": true,
+      "status": 200,
+      "classification": "ok",
+      "responseFingerprint": "7089edca6cdacd09ae69ee5a813f2119876512fc00ab1e21afec030c4def0611",
+      "responseBytes": 1939,
+      "counters": {
+        "accepted": 0,
+        "alreadyAccepted": 0,
+        "failed": 0,
+        "configurationBlocked": 0,
+        "dryRun": true
+      }
+    },
+    "social": {
+      "ok": true,
+      "status": 200,
+      "classification": "ok",
+      "responseFingerprint": "4b545712db5027e4e3fb7718ad0190d9c7c7097e9c7c976a0c913b53e9c5a555",
+      "responseBytes": 820,
+      "counters": {
+        "dryRun": true
+      }
+    },
+    "wantedMatch": {
+      "ok": true,
+      "status": 200,
+      "classification": "ok",
+      "responseFingerprint": "b0de074a406420bb08cbad6234370ec2a74b83d5cf50e06cb71668f396a2e606",
+      "responseBytes": 149,
+      "counters": {
+        "accepted": 0,
+        "alreadyAccepted": 0,
+        "failed": 0,
+        "cancelled": 0,
+        "pendingRecovery": 0,
+        "dryRun": true
+      }
+    }
+  },
+  "newsletter": {
+    "executed": false,
+    "reason": "The deployed newsletter dry-run persists audit rows. The release candidate removes that mutation; live simulation waits for the explicit consolidated release."
+  },
+  "stateChanges": {
+    "listings": {
+      "rowsBefore": 14,
+      "rowsAfter": 14,
+      "changed": false
+    },
+    "listingQuality": {
+      "rowsBefore": 1,
+      "rowsAfter": 1,
+      "changed": false
+    },
+    "commercialNotifications": {
+      "rowsBefore": 23,
+      "rowsAfter": 23,
+      "changed": false
+    },
+    "indexingReceipts": {
+      "rowsBefore": 5,
+      "rowsAfter": 5,
+      "changed": false
+    },
+    "listingWatchDispatches": {
+      "rowsBefore": 0,
+      "rowsAfter": 0,
+      "changed": false
+    },
+    "wantedMatchDispatches": {
+      "rowsBefore": 0,
+      "rowsAfter": 0,
+      "changed": false
+    },
+    "newsletterRuns": {
+      "rowsBefore": 18,
+      "rowsAfter": 18,
+      "changed": false
+    },
+    "newsletterRecipients": {
+      "rowsBefore": 76,
+      "rowsAfter": 76,
+      "changed": false
+    },
+    "socialPublicationReceipts": {
+      "rowsBefore": 4,
+      "rowsAfter": 4,
+      "changed": false
+    }
+  },
+  "changedDatasets": []
+}
