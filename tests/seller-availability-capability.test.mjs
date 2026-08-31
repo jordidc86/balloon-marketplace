@@ -25,6 +25,15 @@ test('seller availability capability is seller, email, digest and expiry bound',
   assert.equal(verifySellerAvailabilityCapability({ ...input, sellerId: 'a595685b-ddca-4ec4-990b-6f681bf0c434', expiresAt, token }, now), false)
 })
 
+test('seller availability capability supports an explicit dated reissue without weakening its binding', () => {
+  const expiresAt = new Date(now.getTime() + sellerAvailabilityCapabilityLifetimeMs)
+  const reissuedInput = { ...input, digestKey: `${input.digestKey}-20260829` }
+  const token = signSellerAvailabilityCapability({ ...reissuedInput, expiresAt })
+  assert.ok(token)
+  assert.equal(verifySellerAvailabilityCapability({ ...reissuedInput, expiresAt, token }, now), true)
+  assert.equal(verifySellerAvailabilityCapability({ ...input, expiresAt, token }, now), false)
+})
+
 test('seller availability capability expires and rejects malformed authority', () => {
   const expiresAt = new Date(now.getTime() + sellerAvailabilityCapabilityLifetimeMs)
   const token = signSellerAvailabilityCapability({ ...input, expiresAt })

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { CheckCircle2, Clock3, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
-import { sellerAvailabilityDigestIdempotencyKey } from '@/utils/seller-availability-digest.mjs'
+import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestInventoryKey } from '@/utils/seller-availability-digest.mjs'
 import { verifySellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
 import { siteUrl } from '@/utils/site'
 import SellerAvailabilityConfirmationForm from './SellerAvailabilityConfirmationForm'
@@ -85,7 +85,7 @@ export default async function SellerAvailabilityPage({ searchParams }: { searchP
     listingId: listing.id,
     confirmationId: latestByListing.get(listing.id)?.id || null,
   })))
-  if (currentDigestKey !== digestKey) {
+  if (sellerAvailabilityDigestInventoryKey(digestKey) !== currentDigestKey) {
     return <main className="mx-auto max-w-xl px-4 py-16"><div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950"><div className="flex items-start gap-3"><TriangleAlert className="mt-0.5 h-6 w-6 shrink-0" /><div><h1 className="text-2xl font-bold">Your inventory has changed</h1><p className="mt-3 text-sm">This email no longer represents the current set of listings requiring confirmation. Nothing has been changed. Sign in to review the latest inventory safely.</p><Link href="/dashboard" className="mt-5 inline-flex rounded-lg border border-amber-300 px-4 py-2 text-sm font-semibold">Open dashboard</Link></div></div></div></main>
   }
 

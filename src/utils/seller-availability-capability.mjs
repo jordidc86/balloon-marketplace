@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const digestKeyPattern = /^seller-availability-digest-[0-9a-f-]{36}-[0-9a-f]{32}$/i
+const digestKeyPattern = /^seller-availability-digest-[0-9a-f-]{36}-[0-9a-f]{32}(?:-[0-9]{8})?$/i
 export const sellerAvailabilityCapabilityLifetimeMs = 14 * 24 * 60 * 60 * 1000
 const maximumFutureLifetimeMs = 15 * 24 * 60 * 60 * 1000
 

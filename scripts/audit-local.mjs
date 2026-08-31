@@ -681,12 +681,28 @@ const checks = [
   {
     name: 'One grouped seller request is cycle-bound, anti-churn and provider-audited',
     file: 'src/app/admin/actions.ts',
-    required: ['requestSellerAvailabilityDigest', 'sellerAvailabilityDigestIdempotencyKey', 'changedSellerAvailabilityDigestIsCoolingDown', "notificationType: 'seller_availability_digest'", "entityType: 'user'", 'Confirm all active listings available', 'Seller availability digest acceptance was not verified by readback'],
+    required: ['requestSellerAvailabilityDigest', 'sellerAvailabilityDigestIdempotencyKey', 'changedSellerAvailabilityDigestIsCoolingDown', 'sellerAvailabilityDigestRequestKey', 'buildSellerAvailabilityDigestNotification', "notificationType: 'seller_availability_digest'", "entityType: 'user'", 'Seller availability digest acceptance was not verified by readback'],
+  },
+  {
+    name: 'Expired grouped seller authority can be explicitly reissued without changing its inventory scope',
+    file: 'src/utils/seller-availability-digest.mjs',
+    required: ['sellerAvailabilityDigestRequestLifetimeMs', 'sellerAvailabilityDigestInventoryKey', 'sellerAvailabilityDigestRequestKey', 'current.toISOString()', 'latestReceipt.status'],
+  },
+  {
+    name: 'Dated availability reissues remain seller-bound, scanner safe and database constrained',
+    file: 'supabase/migrations/20260831650000_seller_availability_digest_reissue.sql',
+    required: ['confirm_listing_availability_from_seller_digest', "(-[0-9]{8})?", "receipt.status = 'accepted'", "interval '15 days'", 'on conflict on constraint listing_availability_confirmations_listing_id_confirmed_on_key do nothing', 'grant execute on function public.confirm_listing_availability_from_seller_digest(uuid, text, uuid[]) to service_role'],
+    forbidden: ['update public.listings', 'delete from public.listings'],
+  },
+  {
+    name: 'Failed seller availability delivery retries only the exact initiated current inventory request',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: [".eq('notification_type', 'seller_availability_digest')", 'dueSellerAvailabilityDigestRetries', 'sellerAvailabilityDigestInventoryKey', 'sellerAvailabilityDigestIdempotencyKey', 'Seller availability recovery was superseded by current seller inventory.', 'buildSellerAvailabilityDigestNotification', 'signSellerAvailabilityCapability', 'sellerAvailabilityDigestsAccepted', 'sellerAvailabilityDigestsSuperseded', 'if (!commit) return NextResponse.json(result)'],
   },
   {
     name: 'Seller availability email authority is private, short-lived and scanner safe',
     file: 'src/app/seller/availability/page.tsx',
-    required: ['verifySellerAvailabilityCapability', "receipt?.status === 'accepted'", 'currentDigestKey !== digestKey', "robots: { index: false", 'Opening this page has not confirmed anything', 'SellerAvailabilityConfirmationForm'],
+    required: ['verifySellerAvailabilityCapability', "receipt?.status === 'accepted'", 'sellerAvailabilityDigestInventoryKey(digestKey) !== currentDigestKey', "robots: { index: false", 'Opening this page has not confirmed anything', 'SellerAvailabilityConfirmationForm'],
   },
   {
     name: 'Seller availability capability headers cannot leak or cache the signed URL',
@@ -696,7 +712,7 @@ const checks = [
   {
     name: 'Seller email confirmation is scope-bound, explicit and fully read back',
     file: 'src/app/seller/availability/actions.ts',
-    required: ["availability_confirmation') !== 'yes'", 'confirm_listing_availability_from_seller_digest', 'currentDigestKey !== digestKey', 'readbackById.size !== confirmations.length', 'Nothing was confirmed'],
+    required: ["availability_confirmation') !== 'yes'", 'confirm_listing_availability_from_seller_digest', 'sellerAvailabilityDigestInventoryKey(digestKey) !== currentDigestKey', 'readbackById.size !== confirmations.length', 'Nothing was confirmed'],
   },
   {
     name: 'Seller email confirmation uses the existing immutable availability evidence',

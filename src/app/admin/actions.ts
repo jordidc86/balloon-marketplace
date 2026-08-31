@@ -21,8 +21,9 @@ import { newBalloonProposalResponseExpiry, signNewBalloonProposalCapability } fr
 import { buildNewBalloonProposalBuyerNotification } from '@/utils/new-balloon-proposal-notifications.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { listingAvailabilityRequestIdempotencyKey } from '@/utils/listing-availability-request.mjs'
-import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityDigestIdempotencyKey } from '@/utils/seller-availability-digest.mjs'
+import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestRequestKey } from '@/utils/seller-availability-digest.mjs'
 import { sellerAvailabilityCapabilityLifetimeMs, signSellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
+import { buildSellerAvailabilityDigestNotification } from '@/utils/seller-availability-notification.mjs'
 
 async function checkAdmin() {
   const sessionSupabase = await createClient()
@@ -528,13 +529,13 @@ export async function requestSellerAvailabilityDigest(sellerId: string) {
   ))
   if (dueListings.length === 0) throw new Error('Every active listing for this seller has current availability evidence')
 
-  const idempotencyKey = sellerAvailabilityDigestIdempotencyKey(seller.id, dueListings.map((listing) => ({
+  const inventoryKey = sellerAvailabilityDigestIdempotencyKey(seller.id, dueListings.map((listing) => ({
     listingId: listing.id,
     confirmationId: latestConfirmationByListing.get(listing.id)?.id || null,
   })))
   const { data: latestDigest, error: digestError } = await supabase
     .from('commercial_notification_receipts')
-    .select('idempotency_key,created_at')
+    .select('idempotency_key,status,created_at,accepted_at')
     .eq('notification_type', 'seller_availability_digest')
     .eq('entity_type', 'user')
     .eq('entity_id', seller.id)
@@ -542,13 +543,11 @@ export async function requestSellerAvailabilityDigest(sellerId: string) {
     .limit(1)
     .maybeSingle()
   if (digestError) throw new Error('Earlier seller availability requests could not be read')
-  if (changedSellerAvailabilityDigestIsCoolingDown(latestDigest, idempotencyKey)) {
+  if (changedSellerAvailabilityDigestIsCoolingDown(latestDigest, inventoryKey)) {
     throw new Error('The seller received a different availability digest within the last 30 days; a changed digest is blocked to prevent repeated emails')
   }
+  const idempotencyKey = sellerAvailabilityDigestRequestKey(inventoryKey, latestDigest)
 
-  const listingItems = dueListings
-    .map((listing) => `<li>${escapeHtml(listing.title)}</li>`)
-    .join('')
   const expiresAt = new Date(Date.now() + sellerAvailabilityCapabilityLifetimeMs)
   const capabilityToken = signSellerAvailabilityCapability({
     sellerId: seller.id,
@@ -560,18 +559,23 @@ export async function requestSellerAvailabilityDigest(sellerId: string) {
   if (!capabilityToken) throw new Error('Seller availability capability could not be generated')
   const capabilityParams = new URLSearchParams({ seller: seller.id, digest: idempotencyKey, token: capabilityToken })
   const capabilityUrl = `${siteUrl}/seller/availability?${capabilityParams.toString()}`
+  const notification = buildSellerAvailabilityDigestNotification({
+    dueListings,
+    capabilityUrl,
+    dashboardUrl: `${siteUrl}/dashboard`,
+  })
   const delivery = await sendCommercialReceiptEmail(supabase, {
     notificationType: 'seller_availability_digest',
     entityType: 'user',
     entityId: seller.id,
     recipientRole: 'seller',
     to: seller.email,
-    subject: `Please confirm your ${dueListings.length} active AeroTrade listing${dueListings.length === 1 ? '' : 's'}`,
-    html: `<p>You have ${dueListings.length} active AeroTrade advert${dueListings.length === 1 ? '' : 's'} without a recent owner availability confirmation:</p><ul>${listingItems}</ul><p><a href="${escapeHtml(capabilityUrl)}"><strong>Review and confirm these listings</strong></a></p><p>The private link is valid for 14 days and opens a review page. Nothing is confirmed merely by opening it: you must press the explicit confirmation button.</p><p>You can also sign in and use <strong>Confirm all active listings available</strong> in <a href="${escapeHtml(`${siteUrl}/dashboard`)}">your AeroTrade dashboard</a>.</p><p>This request does not change publication, price, ownership or payment. AeroTrade records one dated confirmation for each advert only after your explicit action.</p>`,
+    subject: notification.subject,
+    html: notification.html,
     idempotencyKey,
   })
   if (!delivery.success || !delivery.providerMessageId) {
-    throw new Error(delivery.reason === 'deferred'
+    throw new Error(delivery.skipped
       ? 'The seller digest is awaiting its safe retry window'
       : delivery.reason === 'exhausted'
         ? 'Seller digest delivery is exhausted and needs manual review'

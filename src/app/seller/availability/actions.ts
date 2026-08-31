@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
-import { sellerAvailabilityDigestIdempotencyKey } from '@/utils/seller-availability-digest.mjs'
+import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestInventoryKey } from '@/utils/seller-availability-digest.mjs'
 import { verifySellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
 
 export type SellerAvailabilityConfirmationState = { success: boolean; message: string }
@@ -68,7 +68,7 @@ export async function submitSellerAvailabilityConfirmation(_state: SellerAvailab
     listingId: listing.id,
     confirmationId: latestByListing.get(listing.id)?.id || null,
   })))
-  if (currentDigestKey !== digestKey) {
+  if (sellerAvailabilityDigestInventoryKey(digestKey) !== currentDigestKey) {
     return { success: false, message: 'Your inventory changed after this email was sent. Nothing was confirmed; use the dashboard or the latest request.' }
   }
 

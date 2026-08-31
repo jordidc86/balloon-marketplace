@@ -20,6 +20,10 @@ import {
   parseNewBalloonProposalResponseNotificationEventId,
 } from '@/utils/new-balloon-proposal-notifications.mjs'
 import { newBalloonProposalResponseLabel } from '@/utils/new-balloon-proposal-response.mjs'
+import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestInventoryKey } from '@/utils/seller-availability-digest.mjs'
+import { sellerAvailabilityCapabilityLifetimeMs, signSellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
+import { buildSellerAvailabilityDigestNotification } from '@/utils/seller-availability-notification.mjs'
+import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -147,6 +151,31 @@ type NewBalloonQuoteRecovery = {
   status: string
 }
 
+type SellerAvailabilityDigestRetry = {
+  id: string
+  entity_id: string
+  idempotency_key: string
+  status: 'pending' | 'failed'
+}
+
+type SellerAvailabilityRetrySeller = {
+  id: string
+  email: string
+}
+
+type SellerAvailabilityRetryListing = {
+  id: string
+  seller_id: string
+  title: string
+  status: 'ACTIVE_PUBLIC' | 'ACTIVE_PREMIUM'
+}
+
+type SellerAvailabilityRetryConfirmation = {
+  id: string
+  listing_id: string
+  confirmed_at: string
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -168,7 +197,7 @@ export async function GET(request: Request) {
   const sellerEscalationCutoff = getSellerEnquiryEscalationCutoff()
   const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult, newBalloonNotificationRetryResult, acceptedNewBalloonNotificationResult] = await Promise.all([
+  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult, newBalloonNotificationRetryResult, acceptedNewBalloonNotificationResult, sellerAvailabilityDigestRetryResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -248,8 +277,18 @@ export async function GET(request: Request) {
       .eq('status', 'accepted')
       .order('accepted_at', { ascending: false })
       .limit(500),
+    supabase
+      .from('commercial_notification_receipts')
+      .select('id,entity_id,idempotency_key,status')
+      .eq('notification_type', 'seller_availability_digest')
+      .eq('entity_type', 'user')
+      .in('status', ['pending', 'failed'])
+      .lt('delivery_attempts', 2)
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+      .order('created_at', { ascending: true })
+      .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error || newBalloonNotificationRetryResult.error || acceptedNewBalloonNotificationResult.error) {
+  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error || newBalloonNotificationRetryResult.error || acceptedNewBalloonNotificationResult.error || sellerAvailabilityDigestRetryResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
@@ -266,6 +305,7 @@ export async function GET(request: Request) {
     ([...(newBalloonNotificationRetryResult.data || []), ...(acceptedNewBalloonNotificationResult.data || [])] as NewBalloonNotificationRetryReceipt[])
       .map((receipt) => [receipt.id, receipt]),
   ).values()]
+  const sellerAvailabilityDigestRetries = (sellerAvailabilityDigestRetryResult.data || []) as SellerAvailabilityDigestRetry[]
   const newBalloonProposalDeliveryCandidates = newBalloonNotificationCandidates.filter((retry) => retry.notification_type === 'new_balloon_proposal_buyer')
   const newBalloonResponseAdminCandidates = newBalloonNotificationCandidates.filter((retry) => retry.notification_type === 'new_balloon_proposal_response_admin')
   const sellerEscalationInquiryIds = new Set(acceptedSellerFollowups.map((receipt) => receipt.entity_id))
@@ -282,7 +322,8 @@ export async function GET(request: Request) {
   const newBalloonResponseEventIds = newBalloonResponseAdminCandidates
     .map((retry) => parseNewBalloonProposalResponseNotificationEventId(retry.idempotency_key))
     .filter((eventId): eventId is string => Boolean(eventId))
-  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult] = await Promise.all([
+  const sellerAvailabilitySellerIds = [...new Set(sellerAvailabilityDigestRetries.map((retry) => retry.entity_id))]
+  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult, sellerAvailabilitySellersResult, sellerAvailabilityListingsResult] = await Promise.all([
     buyerAcknowledgementQuoteIds.length > 0
       ? supabase
         .from('quote_requests')
@@ -327,8 +368,19 @@ export async function GET(request: Request) {
         .select('id,proposal_id,quote_request_id,response_type,note,admin_notification_status')
         .in('id', newBalloonResponseEventIds)
       : Promise.resolve({ data: [], error: null }),
+    sellerAvailabilitySellerIds.length > 0
+      ? supabase.from('users').select('id,email').in('id', sellerAvailabilitySellerIds)
+      : Promise.resolve({ data: [], error: null }),
+    sellerAvailabilitySellerIds.length > 0
+      ? supabase
+        .from('listings')
+        .select('id,seller_id,title,status')
+        .in('seller_id', sellerAvailabilitySellerIds)
+        .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+        .order('id')
+      : Promise.resolve({ data: [], error: null }),
   ])
-  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error) {
+  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error || sellerAvailabilitySellersResult.error || sellerAvailabilityListingsResult.error) {
     return NextResponse.json({ error: 'Commercial notification recovery data could not be loaded' }, { status: 500 })
   }
   const buyerAcknowledgementQuoteById = new Map(
@@ -353,6 +405,27 @@ export async function GET(request: Request) {
   const newBalloonResponseEventById = new Map(
     ((newBalloonResponseEventsResult.data || []) as NewBalloonProposalResponseRecovery[]).map((event) => [event.id, event]),
   )
+  const sellerAvailabilitySellerById = new Map(
+    ((sellerAvailabilitySellersResult.data || []) as SellerAvailabilityRetrySeller[]).map((seller) => [seller.id, seller]),
+  )
+  const sellerAvailabilityListings = (sellerAvailabilityListingsResult.data || []) as SellerAvailabilityRetryListing[]
+  const sellerAvailabilityListingIds = sellerAvailabilityListings.map((listing) => listing.id)
+  const sellerAvailabilityConfirmationsResult = sellerAvailabilityListingIds.length > 0
+    ? await supabase
+      .from('listing_availability_confirmations')
+      .select('id,listing_id,confirmed_at')
+      .in('listing_id', sellerAvailabilityListingIds)
+      .order('confirmed_at', { ascending: false })
+    : { data: [], error: null }
+  if (sellerAvailabilityConfirmationsResult.error) {
+    return NextResponse.json({ error: 'Seller availability recovery evidence could not be loaded' }, { status: 500 })
+  }
+  const latestSellerAvailabilityConfirmationByListing = new Map<string, SellerAvailabilityRetryConfirmation>()
+  for (const confirmation of (sellerAvailabilityConfirmationsResult.data || []) as SellerAvailabilityRetryConfirmation[]) {
+    if (!latestSellerAvailabilityConfirmationByListing.has(confirmation.listing_id)) {
+      latestSellerAvailabilityConfirmationByListing.set(confirmation.listing_id, confirmation)
+    }
+  }
   const newBalloonQuoteIds = [...new Set([...newBalloonProposalById.values()].map((proposal) => proposal.quote_request_id))]
   const [newBalloonQuotesResult, allRelevantNewBalloonProposalsResult] = await Promise.all([
     newBalloonQuoteIds.length > 0
@@ -397,6 +470,7 @@ export async function GET(request: Request) {
     dueNewBalloonProposalDeliveryRetries: newBalloonProposalDeliveryRetries.length,
     dueNewBalloonResponseAdminNotificationRetries: newBalloonResponseAdminRetries.length,
     dueBuyerEarlyAccessCheckoutRecoveries: buyerEarlyAccessRecoveries.length,
+    dueSellerAvailabilityDigestRetries: sellerAvailabilityDigestRetries.length,
     accepted: 0,
     alreadyAccepted: 0,
     retryDeferred: 0,
@@ -417,6 +491,11 @@ export async function GET(request: Request) {
     newBalloonResponseNotificationsDeferred: 0,
     newBalloonResponseNotificationsFailed: 0,
     newBalloonResponseNotificationsSuperseded: 0,
+    sellerAvailabilityDigestsAccepted: 0,
+    sellerAvailabilityDigestsAlreadyAccepted: 0,
+    sellerAvailabilityDigestsDeferred: 0,
+    sellerAvailabilityDigestsFailed: 0,
+    sellerAvailabilityDigestsSuperseded: 0,
     dryRun: !commit,
   }
   if (!commit) return NextResponse.json(result)
@@ -431,6 +510,81 @@ export async function GET(request: Request) {
       .select('id,delivery_attempts,next_attempt_at')
       .single()
     return !error && data?.delivery_attempts === 2 && data.next_attempt_at === null
+  }
+  const exhaustSellerAvailabilityReceipt = async (receiptId: string, message: string) => {
+    const { data, error } = await supabase
+      .from('commercial_notification_receipts')
+      .update({ status: 'failed', delivery_attempts: 2, next_attempt_at: null, error_message: message })
+      .eq('id', receiptId)
+      .in('status', ['pending', 'failed'])
+      .select('id,delivery_attempts,next_attempt_at')
+      .single()
+    return !error && data?.delivery_attempts === 2 && data.next_attempt_at === null
+  }
+
+  for (const retry of sellerAvailabilityDigestRetries) {
+    const seller = sellerAvailabilitySellerById.get(retry.entity_id)
+    const activeListings = sellerAvailabilityListings.filter((listing) => listing.seller_id === retry.entity_id)
+    const dueListings = activeListings.filter((listing) => (
+      !getListingAvailabilityState(latestSellerAvailabilityConfirmationByListing.get(listing.id)?.confirmed_at).publiclyFresh
+    ))
+    let currentInventoryKey: string | null = null
+    try {
+      if (dueListings.length > 0) {
+        currentInventoryKey = sellerAvailabilityDigestIdempotencyKey(retry.entity_id, dueListings.map((listing) => ({
+          listingId: listing.id,
+          confirmationId: latestSellerAvailabilityConfirmationByListing.get(listing.id)?.id || null,
+        })))
+      }
+    } catch {
+      currentInventoryKey = null
+    }
+
+    const receiptInventoryKey = sellerAvailabilityDigestInventoryKey(retry.idempotency_key)
+    if (!seller?.email || !currentInventoryKey || receiptInventoryKey !== currentInventoryKey) {
+      const exhausted = await exhaustSellerAvailabilityReceipt(retry.id, 'Seller availability recovery was superseded by current seller inventory.')
+      if (exhausted) result.sellerAvailabilityDigestsSuperseded += 1
+      else result.sellerAvailabilityDigestsFailed += 1
+      continue
+    }
+
+    const expiresAt = new Date(Date.now() + sellerAvailabilityCapabilityLifetimeMs)
+    const capabilityToken = signSellerAvailabilityCapability({
+      sellerId: seller.id,
+      sellerEmail: seller.email,
+      digestKey: retry.idempotency_key,
+      expiresAt,
+      secret: serviceRoleKey,
+    })
+    if (!capabilityToken) {
+      result.configurationBlocked += 1
+      continue
+    }
+    const capabilityParams = new URLSearchParams({ seller: seller.id, digest: retry.idempotency_key, token: capabilityToken })
+    const notification = buildSellerAvailabilityDigestNotification({
+      dueListings,
+      capabilityUrl: `${siteUrl}/seller/availability?${capabilityParams.toString()}`,
+      dashboardUrl: `${siteUrl}/dashboard`,
+    })
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'seller_availability_digest',
+        entityType: 'user',
+        entityId: seller.id,
+        recipientRole: 'seller',
+        to: seller.email,
+        subject: notification.subject,
+        html: notification.html,
+        idempotencyKey: retry.idempotency_key,
+      })
+      if (delivery.duplicate) result.sellerAvailabilityDigestsAlreadyAccepted += 1
+      else if (delivery.success) result.sellerAvailabilityDigestsAccepted += 1
+      else if (delivery.skipped) result.sellerAvailabilityDigestsDeferred += 1
+      else result.sellerAvailabilityDigestsFailed += 1
+    } catch (error) {
+      console.error('Seller availability digest recovery failed:', error)
+      result.sellerAvailabilityDigestsFailed += 1
+    }
   }
 
   for (const retry of newBalloonProposalDeliveryRetries) {
@@ -1103,6 +1257,6 @@ export async function GET(request: Request) {
     }
   }
 
-  const hasFailure = result.failed > 0 || result.configurationBlocked > 0
+  const hasFailure = result.failed > 0 || result.configurationBlocked > 0 || result.sellerAvailabilityDigestsFailed > 0
   return NextResponse.json(result, { status: hasFailure ? 502 : 200 })
 }

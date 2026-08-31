@@ -5,6 +5,8 @@ import {
   changedSellerAvailabilityDigestIsCoolingDown,
   sellerAvailabilityDigestChangeCooldownMs,
   sellerAvailabilityDigestIdempotencyKey,
+  sellerAvailabilityDigestInventoryKey,
+  sellerAvailabilityDigestRequestKey,
 } from '../src/utils/seller-availability-digest.mjs'
 
 const sellerId = '69f6d7c2-f063-4b1f-aa74-4149f61c5039'
@@ -29,6 +31,18 @@ test('seller availability digest is stable across listing order and changes afte
   assert.notEqual(first, nextCycle)
 })
 
+test('an ignored accepted digest can be explicitly reissued after its 14-day capability expires', () => {
+  const baseKey = sellerAvailabilityDigestIdempotencyKey(sellerId, [{ listingId: listingOne, confirmationId: null }])
+  const now = new Date('2026-08-31T12:00:00Z')
+  const recent = { idempotency_key: baseKey, status: 'accepted', accepted_at: '2026-08-20T12:00:00Z' }
+  const expired = { idempotency_key: baseKey, status: 'accepted', accepted_at: '2026-08-16T11:59:59Z' }
+  const failedReissue = { idempotency_key: `${baseKey}-20260831`, status: 'failed', accepted_at: null }
+  assert.equal(sellerAvailabilityDigestRequestKey(baseKey, recent, now), baseKey)
+  assert.equal(sellerAvailabilityDigestRequestKey(baseKey, expired, now), `${baseKey}-20260831`)
+  assert.equal(sellerAvailabilityDigestRequestKey(baseKey, failedReissue, now), `${baseKey}-20260831`)
+  assert.equal(sellerAvailabilityDigestInventoryKey(`${baseKey}-20260831`), baseKey)
+})
+
 test('seller availability digest rejects duplicate or untrusted identifiers', () => {
   assert.throws(() => sellerAvailabilityDigestIdempotencyKey('seller', [{ listingId: listingOne, confirmationId: null }]), /seller identifier/i)
   assert.throws(() => sellerAvailabilityDigestIdempotencyKey(sellerId, []), /between 1 and 100/i)
@@ -45,4 +59,6 @@ test('a changed digest is held during the bounded anti-churn window but the same
   assert.equal(changedSellerAvailabilityDigestIsCoolingDown({ idempotency_key: 'older-cycle', created_at: new Date(now.getTime() - 1_000).toISOString() }, currentKey, now), true)
   assert.equal(changedSellerAvailabilityDigestIsCoolingDown({ idempotency_key: 'older-cycle', created_at: new Date(now.getTime() - sellerAvailabilityDigestChangeCooldownMs).toISOString() }, currentKey, now), false)
   assert.equal(changedSellerAvailabilityDigestIsCoolingDown({ idempotency_key: 'older-cycle', created_at: 'invalid' }, currentKey, now), true)
+  const realBaseKey = sellerAvailabilityDigestIdempotencyKey(sellerId, [{ listingId: listingOne, confirmationId: null }])
+  assert.equal(changedSellerAvailabilityDigestIsCoolingDown({ idempotency_key: `${realBaseKey}-20260815`, created_at: now.toISOString() }, realBaseKey, now), false)
 })
