@@ -49,9 +49,14 @@ const checks = [
     required: ['createHash', 'migrationManifestSha256', 'applyBeforeApplication', 'requiresExactConfirmation', 'validateAppendOnlyMigrationChanges', 'parseSupabaseMigrationList', 'remoteOnlyVersions', 'unexpectedPendingVersions', 'outOfOrderPendingVersions', 'schemaReady'],
   },
   {
+    name: 'Production schema-first release proves backward compatibility against live closed vocabularies',
+    file: 'scripts/verify-release-backward-compatibility.mjs',
+    required: ['productionBaseCommit', 'commercial_notification_receipts_notification_type_check', 'seller_funnel_events_stage_check', 'record_buyer_inquiry_response', 'assertNoHardDestructiveDdl', 'assertVocabularyExpansion', "'--require-live'", 'productionMutated: false'],
+  },
+  {
     name: 'Production branch movement requires an exact release approval and full local verification',
     file: 'scripts/promote-netlify-production.mjs',
-    required: ['origin/production', 'origin/main', 'Worktree must be clean', 'CONFIRM_AEROTRADE_PRODUCTION_RELEASE', 'CONFIRM_AEROTRADE_DATABASE_MIGRATIONS', "'migration', 'list'", "'db', 'push'", 'allowRequiredPending: false', "git(['rev-parse', 'HEAD'])", 'verify:production-release', 'refs/heads/production', 'ls-remote', 'netlifyDeploysRequested: 1'],
+    required: ['origin/production', 'origin/main', 'Worktree must be clean', 'CONFIRM_AEROTRADE_PRODUCTION_RELEASE', 'CONFIRM_AEROTRADE_DATABASE_MIGRATIONS', 'verifyBackwardCompatibility', "'migration', 'list'", "'db', 'push'", 'allowRequiredPending: false', "git(['rev-parse', 'HEAD'])", 'verify:production-release', 'refs/heads/production', 'ls-remote', 'netlifyDeploysRequested: 1'],
     forbidden: ['netlify deploy', 'netlify api', 'NETLIFY_AUTH_TOKEN'],
   },
   {
@@ -88,6 +93,8 @@ const checks = [
       "idempotencyGate: 'passed'",
       "evidenceDowngradeGate: 'passed'",
       "economicsBasisGate: 'passed'",
+      'legacySellerFunnelEvents',
+      'legacySellerFunnelChannelsNull',
       'externalMessagesSent: 0',
       'rollback;',
     ],

@@ -29,7 +29,7 @@ Run:
 npm run promote:production
 ```
 
-The dry run fetches both remote branches and refuses the release unless the worktree is clean, the candidate is a fast-forward descendant, the marker targets the exact current production commit, every migration change is a new append-only file, the migration list and SHA-256 match the exact candidate contents, the linked Supabase ledger has no remote-only drift, undeclared pending history or out-of-order pending version, and the Netlify ignore gate requests one build. It never applies a migration, never pushes and requests zero Netlify deploys. Its receipt lists only non-PII migration versions and the exact confirmation fingerprint.
+The dry run fetches both remote branches and requires the clean checked-out `HEAD` to equal `origin/main`. It refuses the release unless the candidate is a fast-forward descendant, the marker targets the exact current production commit, every migration change is a new append-only file, the migration list and SHA-256 match the exact candidate contents, the deployed application contract remains compatible, all current values in affected closed vocabularies satisfy the candidate constraints, the linked Supabase ledger has no remote-only drift, undeclared pending history or out-of-order pending version, and the Netlify ignore gate requests one build. It never applies a migration, never pushes and requests zero Netlify deploys. Its receipt lists only non-PII migration versions, aggregate row counts and the exact confirmation fingerprint.
 
 ## Publish once
 
@@ -41,7 +41,7 @@ CONFIRM_AEROTRADE_DATABASE_MIGRATIONS=<exact-migration-manifest-sha256> \
 npm run promote:production -- --apply
 ```
 
-The apply mode repeats all structural checks, requires the checked-out `HEAD` to equal `origin/main`, and runs the complete local production verification. It then applies only the declared pending migrations through the linked Supabase project, rereads the remote migration ledger, and refuses to move the application branch unless every repository migration is present and there is no remote-only drift. Only after that proof does it move the remote `production` branch and verify the persisted remote SHA. Netlify then receives one Git production event.
+The apply mode repeats all structural and live compatibility checks and runs the complete local production verification. It then applies only the declared pending migrations through the linked Supabase project, rereads the remote migration ledger, and refuses to move the application branch unless every repository migration is present and there is no remote-only drift. Only after that proof does it move the remote `production` branch and verify the persisted remote SHA. Netlify then receives one Git production event.
 
 This ordering is intentional: all release migrations must remain backward-compatible with the currently deployed application. If the later Git promotion fails, the additive schema may exist briefly before the application uses it; the reverse state—new application code against an old schema—is forbidden.
 

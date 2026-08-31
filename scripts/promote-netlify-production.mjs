@@ -61,6 +61,33 @@ function listProductionMigrations() {
   return parseSupabaseMigrationList(result.stdout)
 }
 
+function productionEnvironmentValue(name) {
+  const existing = String(process.env[name] || '').trim()
+  if (existing) return existing
+  const output = run('netlify', ['env:get', name, '--context', 'production']).stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const value = output.at(-1) || ''
+  assert.ok(value, `Production environment value ${name} is unavailable`)
+  return value
+}
+
+function verifyBackwardCompatibility() {
+  const result = run(process.execPath, ['scripts/verify-release-backward-compatibility.mjs', '--require-live'], {
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: productionEnvironmentValue('NEXT_PUBLIC_SUPABASE_URL'),
+      SUPABASE_SERVICE_ROLE_KEY: productionEnvironmentValue('SUPABASE_SERVICE_ROLE_KEY'),
+    },
+  })
+  const receipt = JSON.parse(result.stdout)
+  assert.equal(receipt.productionMutated, false, 'Backward compatibility verification must be read-only')
+  assert.equal(receipt.liveData?.checked, true, 'Backward compatibility verification did not inspect live production vocabularies')
+  assert.equal(receipt.destructiveDdl?.hardDestructiveOperations, 0, 'Release contains hard destructive DDL')
+  assert.equal(receipt.buyerFunction?.stable, true, 'Deployed buyer negotiation function contract is not stable')
+  return receipt
+}
+
 function output(receipt) {
   console.log(JSON.stringify({
     kind: 'aerotrade_netlify_production_promotion',
@@ -74,6 +101,7 @@ assert.equal(git(['status', '--porcelain']), '', 'Worktree must be clean before 
 
 const productionCommit = git(['rev-parse', 'origin/production'])
 const candidateCommit = git(['rev-parse', 'origin/main'])
+assert.equal(git(['rev-parse', 'HEAD']), candidateCommit, 'Release verification requires the checked-out HEAD to equal origin/main exactly')
 const mergeBaseCommit = git(['merge-base', productionCommit, candidateCommit])
 const changedFiles = git(['diff', '--name-only', productionCommit, candidateCommit]).split(/\r?\n/).filter(Boolean)
 const migrationChanges = git(['diff', '--name-status', '--no-renames', productionCommit, candidateCommit])
@@ -110,6 +138,9 @@ const validation = validateProductionPromotion({
   gateOutput: gate.stdout,
   migrationManifest,
 })
+const backwardCompatibility = verifyBackwardCompatibility()
+assert.equal(backwardCompatibility.baseCommit, productionCommit, 'Backward compatibility proof targets another production commit')
+assert.equal(backwardCompatibility.candidateCommit, candidateCommit, 'Backward compatibility proof targets another candidate commit')
 const migrationStateBefore = assessProductionMigrationState({
   ledgerRows: listProductionMigrations(),
   repositoryVersions: repositoryMigrationVersions,
@@ -128,6 +159,10 @@ if (!apply) {
     databaseMutated: false,
     pendingDatabaseMigrations: migrationStateBefore.requiredPendingVersions,
     remoteLatestMigration: migrationStateBefore.remoteLatestVersion,
+    backwardCompatibilityVerified: true,
+    liveCompatibilityRowsChecked:
+      backwardCompatibility.liveData.notificationTypes.rowCount
+      + backwardCompatibility.liveData.sellerStages.rowCount,
     ...validation,
   })
   process.exit(0)
@@ -143,8 +178,6 @@ assert.equal(
   migrationManifest.migrationManifestSha256,
   'Set CONFIRM_AEROTRADE_DATABASE_MIGRATIONS to the exact migration manifest SHA-256 before using --apply',
 )
-assert.equal(git(['rev-parse', 'HEAD']), candidateCommit, 'Apply mode requires the checked-out HEAD to equal origin/main exactly')
-
 run('npm', ['run', 'verify:production-release'])
 if (migrationStateBefore.requiredPendingVersions.length > 0) {
   databaseMutationAttempted = true
@@ -173,6 +206,10 @@ output({
   databaseMutated: migrationStateBefore.requiredPendingVersions.length > 0,
   databaseMigrationsApplied: migrationStateBefore.requiredPendingVersions,
   remoteLatestMigration: migrationStateAfter.remoteLatestVersion,
+  backwardCompatibilityVerified: true,
+  liveCompatibilityRowsChecked:
+    backwardCompatibility.liveData.notificationTypes.rowCount
+    + backwardCompatibility.liveData.sellerStages.rowCount,
   ...validation,
   remoteProductionCommit,
 })

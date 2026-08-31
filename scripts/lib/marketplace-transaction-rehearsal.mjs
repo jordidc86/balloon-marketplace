@@ -19,6 +19,8 @@ const expectedResult = {
   grossAmountMinor: 4800000,
   aerotradeRevenueMinor: 240000,
   contributionMarginMinor: 161000,
+  legacySellerFunnelEvents: 8,
+  legacySellerFunnelChannelsNull: 8,
   authorizationGate: 'passed',
   idempotencyGate: 'passed',
   evidenceDowngradeGate: 'passed',
@@ -46,6 +48,21 @@ insert into public.listings (
   'Disposable database-only listing used to verify the marketplace transaction boundary.',
   50000, 'EUR', 'used', 'DE', 'seller@example.invalid', 'ACTIVE_PUBLIC', timezone('utc', now())
 );
+
+-- Rehearse every seller-funnel stage used by the application currently in
+-- production against the candidate schema. The new distribution channel must
+-- remain null when the old application does not send it.
+insert into public.seller_funnel_events (
+  event_key, seller_id, listing_id, stage, listing_plan, source, entry_context
+) values
+  ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1', '${sellerId}', null, 'SELL_PAGE_VIEWED', null, 'web', 'direct'),
+  ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2', '${sellerId}', null, 'FORM_STARTED', null, 'web', 'direct'),
+  ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3', '${sellerId}', '${listingId}', 'LISTING_SUBMITTED', 'free', 'web', 'direct'),
+  ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa4', '${sellerId}', '${listingId}', 'CHECKOUT_CREATED', 'premium', 'stripe', 'direct'),
+  ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa5', '${sellerId}', '${listingId}', 'CHECKOUT_RECOVERY_SENT', 'premium', 'recovery', 'system'),
+  ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa6', '${sellerId}', '${listingId}', 'CHECKOUT_RESUMED', 'premium', 'web', 'dashboard'),
+  ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa7', '${sellerId}', '${listingId}', 'PAYMENT_CONFIRMED', 'premium', 'stripe', 'system'),
+  ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa8', '${sellerId}', '${listingId}', 'LISTING_PUBLISHED', 'free', 'web', 'dashboard');
 
 insert into public.marketplace_inquiries (
   id, listing_id, buyer_user_id, buyer_name, buyer_email, message, source,
@@ -199,6 +216,8 @@ select json_build_object(
   'grossAmountMinor', (select gross_amount_minor from public.commercial_outcomes where entity_id = '${inquiryId}'),
   'aerotradeRevenueMinor', (select aerotrade_revenue_minor from public.commercial_outcomes where entity_id = '${inquiryId}'),
   'contributionMarginMinor', (select contribution_margin_minor from public.commercial_outcomes where entity_id = '${inquiryId}'),
+  'legacySellerFunnelEvents', (select count(*) from public.seller_funnel_events where seller_id = '${sellerId}'),
+  'legacySellerFunnelChannelsNull', (select count(*) from public.seller_funnel_events where seller_id = '${sellerId}' and channel is null),
   'authorizationGate', 'passed',
   'idempotencyGate', 'passed',
   'evidenceDowngradeGate', 'passed',
