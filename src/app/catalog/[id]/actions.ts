@@ -345,6 +345,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
       listingUrl,
       buyerPortalUrl,
       indicativeOffer,
+      sellerDeliveryAccepted: delivery.success && Boolean(delivery.resendId),
     })
     await sendCommercialReceiptEmail(supabaseAdmin, {
       notificationType: 'inquiry_buyer_ack',

@@ -52,6 +52,7 @@ type InquiryBuyerAcknowledgement = {
   buyer_email: string
   currency: string
   initial_offer_amount_minor: number | null
+  seller_notification_status: string
   listings: { id: string; title: string } | Array<{ id: string; title: string }> | null
 }
 
@@ -172,7 +173,7 @@ export async function GET(request: Request) {
     buyerAcknowledgementInquiryIds.length > 0
       ? supabase
         .from('marketplace_inquiries')
-        .select('id,buyer_email,currency,initial_offer_amount_minor,listings(id,title)')
+        .select('id,buyer_email,currency,initial_offer_amount_minor,seller_notification_status,listings(id,title)')
         .in('id', buyerAcknowledgementInquiryIds)
       : Promise.resolve({ data: [], error: null }),
   ])
@@ -229,6 +230,7 @@ export async function GET(request: Request) {
         listingUrl: `${siteUrl}/catalog/${listing.id}`,
         buyerPortalUrl,
         indicativeOffer,
+        sellerDeliveryAccepted: inquiry.seller_notification_status === 'accepted',
       })
       const delivery = await sendCommercialReceiptEmail(supabase, {
         notificationType: 'inquiry_buyer_ack',

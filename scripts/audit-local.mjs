@@ -263,7 +263,7 @@ const checks = [
   {
     name: 'Marketplace acknowledgement copy preserves the private status boundary',
     file: 'src/utils/inquiry-buyer-acknowledgement.mjs',
-    required: ['private enquiry status and negotiation history', 'This private link expires after 90 days.', 'does not reserve the equipment or form a sale contract', 'escapeHtml'],
+    required: ['sellerDeliveryAccepted', 'seller email has not yet been confirmed as delivered', "will not claim that the seller received it", 'private enquiry status and negotiation history', 'This private link expires after 90 days.', 'does not reserve the equipment or form a sale contract', 'escapeHtml'],
   },
   {
     name: 'Seller responses issue a buyer capability without weakening delivery evidence',
