@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "projectId": "aerotrade",
+  "readOnly": true,
+  "containsPii": false,
+  "capturedAt": "2026-08-31T20:10:49.703Z",
+  "period": {
+    "rollingDays": 90,
+    "since": "2026-06-02T20:10:49.000Z"
+  },
+  "stripeMode": "live",
+  "webhooks": {
+    "relevantEndpoints": 1,
+    "enabledEndpoints": 1,
+    "requiredEventCoverage": {
+      "checkout.session.completed": true,
+      "checkout.session.expired": true,
+      "charge.succeeded": true,
+      "customer.subscription.updated": true,
+      "customer.subscription.deleted": true,
+      "invoice.payment_failed": true
+    }
+  },
+  "charges": {
+    "total": 1,
+    "successful": 1,
+    "grossMinorByCurrency": {
+      "eur": 999
+    },
+    "refundedMinorByCurrency": {
+      "eur": 0
+    },
+    "successfulCreatedAt": [
+      "2026-08-09T18:11:25.000Z"
+    ]
+  },
+  "checkouts": {
+    "total": 5,
+    "complete": 1,
+    "paid": 1,
+    "byType": {
+      "listing_fee": 1,
+      "premium_subscription": 4
+    },
+    "byStatus": {
+      "expired": 4,
+      "complete": 1
+    },
+    "completedPaidCreatedAt": [
+      "2026-08-09T18:10:29.000Z"
+    ],
+    "completedPaidWithUserMetadata": 1,
+    "completedPaidWithListingMetadata": 0,
+    "completedPaidPredatingReceiptLedgerMigrationDate": 1,
+    "completedPaidPredatingCheckoutIntentLedgerMigrationDate": 1
+  },
+  "internalEvidence": {
+    "livePaymentReceipts": 0,
+    "processedStripeEvents": 3,
+    "stripePremiumUsers": 2,
+    "stripePremiumUsersWithSubscription": 2,
+    "stripePremiumSubscriptionStatuses": {
+      "active": 2
+    },
+    "stripePremiumUsersWithoutSubscription": 0,
+    "completedPaidSessionsWithUserMetadata": 1,
+    "completedPaidSessionsLinkedToPremiumEntitlement": 0,
+    "completedPaidSessionsWithCustomerEmail": 1,
+    "completedPaidSessionsLinkedByEmailToAccount": 1,
+    "completedPaidSessionsLinkedByEmailToPremiumEntitlement": 1,
+    "completedPaidSessionsWithSubscription": 1,
+    "completedPaidSessionsLinkedBySubscriptionToPremiumEntitlement": 1,
+    "completedPaidSessionsInCheckoutIntentLedger": 0,
+    "completedPaidSessionsInCompletedCheckoutIntentLedger": 0
+  },
+  "caveat": "Stripe gross charges are not net revenue. Historical charges without current metadata are not assigned to a product by inference. Subscription status is provider state at capture time, not proof of future collection."
+}

@@ -1,6 +1,6 @@
 # AeroTrade category scorecard — 2026-08-31 v22
 
-This update uses the fresh read-only snapshot `marketplace-audit-2026-08-31-v16.json`, existing Stripe and provider evidence, both disposable-database transaction rehearsals, and the candidate verifications for inventory feed, seller availability, exact consent, seller distribution, schema-bound promotion, backward compatibility and exact-deploy public postflight. Candidate capability is not counted as commercial proof. The scorecard contains no personal data.
+This update uses the fresh read-only snapshot `marketplace-audit-2026-08-31-v17.json`, the live-provider snapshot `stripe-commercial-audit-2026-08-31-v3.json`, both disposable-database transaction rehearsals, and the candidate verifications for inventory feed, seller availability, exact consent, seller distribution, schema-bound promotion, backward compatibility and exact-deploy public postflight. Candidate capability is not counted as commercial proof. The scorecard contains no personal data.
 
 ## Method
 
@@ -28,7 +28,7 @@ This update uses the fresh read-only snapshot `marketplace-audit-2026-08-31-v16.
 - Mean technical readiness: **97%**.
 - Mean production/commercial proof: **44%**.
 - Mean evidence-weighted maturity: **82%**.
-- Deployment observability improved again, but commercial proof remains unchanged because no activity was manufactured.
+- Deployment observability improved again. The fresh database and Stripe readbacks found no new commercial event, so proof remains unchanged rather than being increased from candidate capability.
 
 ## Next highest-value constraints
 
