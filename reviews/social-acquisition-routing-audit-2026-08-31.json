@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_social_acquisition_routing_audit",
+  "completedAt": "2026-08-31T16:15:58Z",
+  "containsPii": false,
+  "productionBaseline": {
+    "listingViews30d": 60,
+    "viewsAfterComparableMeasurementStarted": 0,
+    "attributedSocialViews30d": 0,
+    "acceptedSocialPlacements30d": 4,
+    "metaCredentialValid": true,
+    "metaDataAccessDaysRemaining": 66
+  },
+  "verifiedConstraint": {
+    "legacyVisibleDestination": "a social account handle rather than the marketplace domain",
+    "instagramCaptionLinksAreDirectNavigation": false,
+    "storyCreativeExposedMarketplaceDestination": false,
+    "conclusion": "Provider acceptance did not prove that a buyer had a clear route from the creative to AeroTrade."
+  },
+  "releaseCandidate": {
+    "futureBrandCreativesExposeMarketplaceDomain": true,
+    "futureListingCreativesExposeMarketplaceDomain": true,
+    "brandPostOverlay": true,
+    "brandStoryOverlay": true,
+    "brandCarouselOverlay": true,
+    "legacyDestinationReelsExcludedFromAutomaticRotation": true,
+    "attributedDestinationUrlsRetained": true,
+    "outboundMessagesSent": 0,
+    "socialProviderWritesPerformed": 0
+  },
+  "localVerification": {
+    "postStatus": 200,
+    "postDimensions": "1080x1350",
+    "storyStatus": 200,
+    "storyDimensions": "1080x1920",
+    "carouselSlidesVerified": 3,
+    "carouselDimensions": "1080x1350",
+    "unknownConceptStatus": 404,
+    "visualDomainLegible": true,
+    "automatedContractsAdded": 3
+  }
+}

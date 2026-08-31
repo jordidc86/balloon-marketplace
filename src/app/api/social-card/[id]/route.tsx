@@ -227,7 +227,7 @@ export async function GET(
             textShadow: '0 6px 20px rgba(0,0,0,0.42)',
           }}
         >
-          @balloonconsulting
+          aerotrade.app
         </div>
       </div>
     ),

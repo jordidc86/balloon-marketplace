@@ -262,7 +262,7 @@ const createSocialCardJpegBuffer = async (listing: ListingForInstagram, format: 
   }
   drawText(background, fontWhite32, 166, factY, `Condition: ${condition}`)
 
-  drawText(background, fontWhite32, format === 'story' ? 610 : 710, format === 'story' ? 1810 : 1000, '@balloonconsulting')
+  drawText(background, fontWhite32, format === 'story' ? 610 : 710, format === 'story' ? 1810 : 1000, 'aerotrade.app')
 
   return background.getBuffer(JimpMime.jpeg, { quality: 90 })
 }

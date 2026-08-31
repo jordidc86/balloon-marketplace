@@ -198,7 +198,7 @@ export default function ExportInstagramButton({ listing }: { listing: ListingFor
 
              {/* Bottom Handle */}
              <div className="absolute bottom-8 right-16 text-white/95 text-4xl font-semibold tracking-wide drop-shadow-md">
-                @balloonconsulting
+                aerotrade.app
              </div>
           </div>
         </div>

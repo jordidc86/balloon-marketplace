@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-listing-sale-clarification",
-  "productionBaseCommit": "0ebeec9f118615236b25c859861018be0af29a92",
+  "releaseId": "2026-08-31-social-acquisition-routing",
+  "productionBaseCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

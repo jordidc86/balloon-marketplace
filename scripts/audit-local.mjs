@@ -1129,6 +1129,18 @@ const checks = [
     required: ['getAttributedSocialUrl', 'publishSocialPlacement', 'publishTracked', "contentKind: 'listing'", "contentKind: 'brand'", "network: 'instagram'", "network: 'facebook'"],
   },
   {
+    name: 'Future social creatives expose AeroTrade itself as the buyer destination',
+    file: 'src/app/api/social-brand-card/[slug]/route.tsx',
+    required: ['getBrandSocialSourceImagePath', 'Browse current balloon equipment', 'aerotrade.app', 'Cache-Control'],
+    forbidden: ['@balloonconsulting'],
+  },
+  {
+    name: 'Listing social cards direct buyers to the marketplace domain',
+    file: 'src/app/api/social-card/[id]/route.tsx',
+    required: ['aerotrade.app'],
+    forbidden: ['@balloonconsulting'],
+  },
+  {
     name: 'Meta credential fallback cannot repeat timed-out publications',
     file: 'src/utils/meta-social.ts',
     required: ['shouldTryNextMetaCredential', 'if (!shouldTryNextMetaCredential(error))'],

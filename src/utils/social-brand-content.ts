@@ -77,10 +77,17 @@ const socialPublishingCycle: SocialPublishingType[] = [
   'listing',
   'brand-story',
   'listing',
-  'brand-reel',
+  'brand-carousel',
 ]
 
 const normalizeSiteUrl = (siteUrl: string) => siteUrl.replace(/\/$/, '')
+const brandConceptSlugs = new Set(brandConcepts.map((concept) => concept.slug))
+
+const requireBrandConceptSlug = (slug: string) => {
+  const normalized = String(slug || '').trim().toLowerCase()
+  if (!brandConceptSlugs.has(normalized)) throw new Error('Unknown AeroTrade social concept')
+  return normalized
+}
 
 export const getSocialPublishingSlot = (
   dayIndex: number,
@@ -100,21 +107,38 @@ export const getSocialPublishingSlot = (
 }
 
 export const getBrandPostImageUrl = (siteUrl: string, slug: string) => (
-  `${normalizeSiteUrl(siteUrl)}${assetBasePath}/post/${slug}.jpg`
+  `${normalizeSiteUrl(siteUrl)}/api/social-brand-card/${requireBrandConceptSlug(slug)}?format=post`
 )
 
 export const getBrandStoryImageUrl = (siteUrl: string, slug: string) => (
-  `${normalizeSiteUrl(siteUrl)}${assetBasePath}/story/${slug}.jpg`
+  `${normalizeSiteUrl(siteUrl)}/api/social-brand-card/${requireBrandConceptSlug(slug)}?format=story`
 )
 
 export const getBrandCarouselImageUrls = (siteUrl: string, slug: string) => {
-  const baseUrl = `${normalizeSiteUrl(siteUrl)}${assetBasePath}/carousel/${slug}`
+  const baseUrl = `${normalizeSiteUrl(siteUrl)}/api/social-brand-card/${requireBrandConceptSlug(slug)}?format=carousel`
 
   return [
-    `${baseUrl}/01-hook.jpg`,
-    `${baseUrl}/02-context.jpg`,
-    `${baseUrl}/03-action.jpg`,
+    `${baseUrl}&slide=1`,
+    `${baseUrl}&slide=2`,
+    `${baseUrl}&slide=3`,
   ]
+}
+
+export const getBrandSocialSourceImagePath = ({
+  slug,
+  format,
+  slide = 1,
+}: {
+  slug: string
+  format: 'post' | 'story' | 'carousel'
+  slide?: number
+}) => {
+  const normalizedSlug = requireBrandConceptSlug(slug)
+  if (format === 'post') return `${assetBasePath}/post/${normalizedSlug}.jpg`
+  if (format === 'story') return `${assetBasePath}/story/${normalizedSlug}.jpg`
+  if (format !== 'carousel' || ![1, 2, 3].includes(slide)) throw new Error('Invalid AeroTrade social asset')
+  const name = slide === 1 ? '01-hook' : slide === 2 ? '02-context' : '03-action'
+  return `${assetBasePath}/carousel/${normalizedSlug}/${name}.jpg`
 }
 
 export const getBrandReelVideoUrl = (siteUrl: string, slug: string) => (
