@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_listing_verification_handoff_production_verification",
+  "capturedAt": "2026-08-31T15:04:07.223Z",
+  "containsPii": false,
+  "release": {
+    "commit": "0ebeec9f118615236b25c859861018be0af29a92",
+    "netlifyDeployId": "6a959712873e8d00086c7369",
+    "state": "ready",
+    "publishedAt": "2026-08-31T15:01:32.997Z",
+    "migration": "20260831690000_listing_verification_evidence_handoff.sql"
+  },
+  "localGates": {
+    "testsPassed": 197,
+    "operationalContractsPassed": 212,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true,
+    "migrationDryRunPassed": true,
+    "singleDeployGatePassed": true
+  },
+  "productionReadback": {
+    "privacyStatus": 200,
+    "privacyExplainsReplyEnabledHandoff": true,
+    "privacyConfirmsNoDocumentCopiesInMarketplaceDatabase": true,
+    "opportunityDryRunStatus": 200,
+    "opportunityDryRun": true,
+    "dueInstructionRetries": 0,
+    "verificationRequestsInReview": 0,
+    "instructionReceipts": 0
+  },
+  "implementedBoundary": {
+    "sellerReceivesTransactionalChecklist": true,
+    "replyDestinationIsAdministratorControlled": true,
+    "authenticatedDashboardRetainsHandoffAction": true,
+    "providerAcceptanceHasDurableReceipt": true,
+    "failedDeliveryRetriesOnlyExactOpenRequest": true,
+    "supersededReviewCannotBeRevived": true,
+    "documentCopiesStoredInMarketplaceDatabase": false,
+    "documentNumbersStoredInMarketplaceDatabase": false,
+    "evidenceLinksStoredInMarketplaceDatabase": false,
+    "badgeCertifiesAirworthinessOrLegalTitle": false
+  },
+  "releaseActivity": {
+    "syntheticVerificationRequestsCreated": 0,
+    "outboundMessagesSent": 0,
+    "databaseMutationsOutsideMigration": 0
+  },
+  "commercialProof": {
+    "newProofCreated": false,
+    "caveat": "The verification handoff is now operational and recoverable, but no seller has requested or completed a real review. Production proof therefore remains zero."
+  }
+}

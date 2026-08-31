@@ -252,6 +252,7 @@ const buyerEarlyAccessCheckoutRecoveries = commercialNotifications.filter((notif
 const exhaustedBuyerEarlyAccessCheckoutRecoveries = buyerEarlyAccessCheckoutRecoveries.filter((notification) => notification.status === 'failed' && Number(notification.delivery_attempts || 0) >= 2)
 const listingAvailabilityRequests = commercialNotifications.filter((notification) => notification.notification_type === 'listing_availability_request')
 const sellerAvailabilityDigests = commercialNotifications.filter((notification) => notification.notification_type === 'seller_availability_digest')
+const listingVerificationEvidenceInstructions = commercialNotifications.filter((notification) => notification.notification_type === 'listing_verification_evidence_instructions')
 const sellerFollowupByInquiry = new Map(commercialNotifications
   .filter((notification) => notification.notification_type === 'inquiry_seller_followup')
   .map((notification) => [notification.entity_id, notification]))
@@ -341,6 +342,9 @@ const result = {
     activeWithPhone: activeListings.filter((listing) => Boolean(listing.contact_phone)).length,
     verifiableTrustStateAvailable: true,
     verifiedListings: verifications.filter((verification) => verification.status === 'VERIFIED').length,
+    verificationRequestsInReview: verifications.filter((verification) => verification.status === 'IN_REVIEW').length,
+    verificationEvidenceInstructionReceipts: listingVerificationEvidenceInstructions.length,
+    verificationEvidenceInstructionStatuses: countBy(listingVerificationEvidenceInstructions, 'status'),
     caveat: 'Verification records document review only; they do not represent airworthiness or a physical inspection.',
   },
   demand: {

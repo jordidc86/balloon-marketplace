@@ -5,10 +5,10 @@ Status: `Production is technically mature and measurable; the principal constrai
 
 ## Authoritative production state
 
-- Production: `https://aerotrade.app`, served from commit `b62c5a0b12a26c250b48607d762bb6b5d5c5b795` by ready Netlify deploy `6a9590c631e6c4000868601e`.
-- Validation: 194 automated tests, 209 operational contracts, ESLint, TypeScript and the optimized Next.js production build pass.
-- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v7.json`.
-- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v7.md` — mean technical readiness 97%, production/commercial proof 45%, evidence-weighted maturity 81%.
+- Production: `https://aerotrade.app`, served from commit `0ebeec9f118615236b25c859861018be0af29a92` by ready Netlify deploy `6a959712873e8d00086c7369`.
+- Validation: 197 automated tests, 212 operational contracts, ESLint, TypeScript and the optimized Next.js production build pass.
+- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v8.json`.
+- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v8.md` — mean technical readiness 97%, production/commercial proof 45%, evidence-weighted maturity 81%.
 - Supply: 12 active listings from 6 sellers; all 84 active image files are reachable; one additional listing remains pending payment.
 - Trust: 1/12 active listings has current owner availability evidence; 11 remain unconfirmed and no listing has document-verification evidence.
 - Demand and closing: no comparable stored marketplace enquiry, negotiation, new-balloon request or closed marketplace transaction exists yet.
@@ -24,6 +24,7 @@ Status: `Production is technically mature and measurable; the principal constrai
 - Production started with 0 public requests and 0 public active consents. The combined current newsletter audience is 1 explicitly consented account. No legacy contact was imported and no campaign was sent during release.
 - Production proof: `reviews/public-newsletter-production-verification-2026-08-31.json`.
 - Public requests now reuse AeroTrade&apos;s existing bounded first-source and daily HMAC journey attribution. Control Tower can separate homepage, catalogue and campaign acquisition without displaying the address or retaining a raw visitor identifier. Production proof: `reviews/public-newsletter-attribution-production-verification-2026-08-31.json`.
+- A requested listing evidence review now gives the seller a reply-enabled checklist and persistent dashboard handoff, records provider acceptance separately and retries only while the exact review request remains open. No document copy, number or evidence link is stored in the marketplace database. Production proof: `reviews/listing-verification-evidence-handoff-production-verification-2026-08-31.json`.
 
 ## Material commercial constraints
 
