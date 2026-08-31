@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_paid_product_fulfillment_verification",
+  "completedAt": "2026-08-31T10:58:48Z",
+  "containsPii": false,
+  "economicActionsPerformed": 0,
+  "externalMessagesSent": 0,
+  "release": {
+    "commit": "3acd279711f538f86cb5424b176cf06738c97711",
+    "netlifyDeployId": "6a955d74636ebf0008c5408e",
+    "state": "ready",
+    "publishedAt": "2026-08-31T10:55:35.070Z",
+    "deployTimeSeconds": 48
+  },
+  "database": {
+    "migration": "20260831620000_paid_listing_checkout_traceability.sql",
+    "localRemoteMigrationMatch": true,
+    "listingCheckoutIntentSchemaReadable": true,
+    "linkedPaymentReceiptColumnsReadable": true,
+    "existingListingCheckoutIntentRows": 0,
+    "existingPaymentReceiptRows": 0
+  },
+  "runtime": {
+    "pricingStatus": 200,
+    "catalogStatus": 200,
+    "commercialControlTowerStatus": 307,
+    "commercialControlTowerRedirect": "/login",
+    "unsignedStripeWebhookStatus": 400,
+    "unauthorizedNewsletterStatus": 401,
+    "publicProducts": {
+      "buyerEarlyAccessAnnualMinor": 999,
+      "sellerLaunchPromotionOneTimeMinor": 500,
+      "currency": "eur"
+    }
+  },
+  "gates": {
+    "testsPassed": 170,
+    "operationalContractsPassed": 187,
+    "lintPassed": true,
+    "buildPassed": true,
+    "edgeRuntimeDeprecationWarningOnly": true
+  },
+  "productionEvidence": {
+    "liveSuccessfulStripeCharges90d": 1,
+    "liveGrossMinorByCurrency": { "eur": 999 },
+    "checkoutSessions90d": 5,
+    "paidCheckoutSessions90d": 1,
+    "expiredCheckoutSessions90d": 4,
+    "historicalSuccessfulChargePredatesReceiptLedger": true,
+    "retroactiveReceiptInvented": false
+  }
+}

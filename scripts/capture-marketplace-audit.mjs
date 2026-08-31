@@ -44,7 +44,7 @@ const querySpecs = {
   images: ['images', 'listing_id,url,is_primary'],
   events: ['listing_events', 'listing_id,user_id,event_type,utm_source,utm_medium,utm_campaign,created_at'],
   quotes: ['quote_requests', 'id,status,name,email,phone,country,manufacturer_preference,equipment_type,volume_or_capacity,intended_use,budget_range,timeline,colors_or_branding,notes,source_context,journey_key,created_at,updated_at'],
-  newsletterRuns: ['newsletter_runs', 'id,status,dry_run,recipients_count,sent_count,failed_count,created_at,completed_at'],
+  newsletterRuns: ['newsletter_runs', 'id,status,dry_run,recipients_count,sent_count,failed_count,listing_ids,created_at,completed_at'],
   premiumAlertRuns: ['premium_alert_runs', 'id,listing_id,status,recipients_count,sent_count,failed_count,created_at,completed_at'],
   stripeEvents: ['stripe_webhook_events', 'event_id,event_type,status,attempts,stripe_created_at,processed_at'],
   paymentReceipts: ['payment_notification_receipts', 'charge_id,payment_type,livemode,amount_minor,currency,stripe_checkout_session_id,user_id,listing_id,accepted_at'],
@@ -69,10 +69,11 @@ const optionalQuerySpecs = {
   commercialOutcomeEconomics: ['commercial_outcomes', 'id,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,economics_evidence_level,economics_evidence_source,economics_recorded_at'],
   commercialUnitEconomicsEvents: ['commercial_unit_economics_events', 'id,outcome_id,event_type,currency,aerotrade_revenue_minor,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,evidence_level,evidence_source,created_at'],
   newBalloonProposalResponses: ['new_balloon_proposal_response_events', 'id,proposal_id,quote_request_id,response_type,admin_notification_status,created_at'],
-  socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,attempt_count,retryable,created_at,accepted_at'],
+  socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,content_id,attempt_count,retryable,created_at,accepted_at'],
   newsletterConsentProfiles: ['users', 'id,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at'],
   catalogDemandEntryContexts: ['catalog_search_events', 'id,entry_context'],
   listingCheckoutIntents: ['listing_checkout_intents', 'id,listing_id,user_id,stripe_session_id,source,status,created_at,completed_at,updated_at'],
+  wantedMatchDispatches: ['wanted_match_dispatches', 'listing_ids,status,accepted_at,created_at'],
 }
 const optionalAuditResults = Object.fromEntries(await Promise.all(Object.entries(optionalQuerySpecs).map(async ([name, [table, columns]]) => [name, await optionalRows(table, columns)])))
 const {
@@ -116,6 +117,7 @@ const commercialUnitEconomicsEvents = optionalAuditResults.commercialUnitEconomi
 const newBalloonProposalResponses = optionalAuditResults.newBalloonProposalResponses.rows
 const socialPublicationReceipts = optionalAuditResults.socialPublicationReceipts.rows
 const listingCheckoutIntents = optionalAuditResults.listingCheckoutIntents.rows
+const wantedMatchDispatches = optionalAuditResults.wantedMatchDispatches.rows
 const catalogDemandEntryContextById = new Map(optionalAuditResults.catalogDemandEntryContexts.rows.map((row) => [row.id, row.entry_context]))
 const catalogSearchEvents = baseCatalogSearchEvents.map((event) => ({
   ...event,
@@ -135,6 +137,16 @@ const countBy = (items, key) => items.reduce((counts, item) => {
   counts[value] = (counts[value] || 0) + 1
   return counts
 }, {})
+const completedSellerLaunchListingIds = new Set(listingCheckoutIntents.filter((intent) => intent.status === 'COMPLETED').map((intent) => intent.listing_id))
+const newsletterPromotedListingIds = new Set(newsletterRuns
+  .filter((run) => !run.dry_run && ['sent', 'partial'].includes(run.status))
+  .flatMap((run) => Array.isArray(run.listing_ids) ? run.listing_ids : []))
+const sociallyPromotedListingIds = new Set(socialPublicationReceipts
+  .filter((receipt) => receipt.status === 'accepted' && receipt.content_kind === 'listing')
+  .map((receipt) => receipt.content_id))
+const wantedMatchedListingIds = new Set(wantedMatchDispatches
+  .filter((dispatch) => dispatch.status === 'ACCEPTED')
+  .flatMap((dispatch) => Array.isArray(dispatch.listing_ids) ? dispatch.listing_ids : []))
 
 const activeStatuses = new Set(['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
 const activeListings = listings.filter((listing) => activeStatuses.has(listing.status))
@@ -466,6 +478,9 @@ const result = {
     sellerLaunchCheckoutIntents: listingCheckoutIntents.length,
     sellerLaunchCheckoutIntentStatuses: countBy(listingCheckoutIntents, 'status'),
     sellerLaunchCheckoutIntentSources: countBy(listingCheckoutIntents, 'source'),
+    completedSellerLaunchListingsIncludedInNewsletter: [...completedSellerLaunchListingIds].filter((id) => newsletterPromotedListingIds.has(id)).length,
+    completedSellerLaunchListingsPublishedSocially: [...completedSellerLaunchListingIds].filter((id) => sociallyPromotedListingIds.has(id)).length,
+    completedSellerLaunchListingsMatchedToEligibleDemand: [...completedSellerLaunchListingIds].filter((id) => wantedMatchedListingIds.has(id)).length,
     stripeEventsByType: countBy(stripeEvents, 'event_type'),
     stripeEventsByStatus: countBy(stripeEvents, 'status'),
     paymentReceipts: paymentReceipts.length,
