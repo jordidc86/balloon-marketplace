@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_production_release_schema_gate_verification",
+  "verifiedAt": "2026-08-31T19:34:13Z",
+  "containsPii": false,
+  "productionCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+  "verifiedCandidateCommit": "571c4112b460a574651fb2095830a8beffd0d34b",
+  "releaseId": "2026-08-31-acquisition-and-supply-activation",
+  "result": "ready_for_explicit_database_and_production_promotion",
+  "productionMutated": false,
+  "productionBranchUpdated": false,
+  "netlifyDeploysRequested": 0,
+  "database": {
+    "provider": "supabase",
+    "remoteLatestMigration": "20260831700000",
+    "pendingMigrationCount": 5,
+    "pendingMigrationVersions": [
+      "20260831710000",
+      "20260831720000",
+      "20260831730000",
+      "20260831740000",
+      "20260831750000"
+    ],
+    "migrationManifestSha256": "5a9f5e82b57d34cf1906b5030bc8e238381fd6413bb049bbbcf01935e7345797",
+    "remoteOnlyMigrationCount": 0,
+    "undeclaredPendingMigrationCount": 0,
+    "outOfOrderPendingMigrationCount": 0,
+    "applyBeforeApplication": true,
+    "readbackRequiredBeforeApplication": true
+  },
+  "releaseSafeguards": {
+    "fastForwardOnly": true,
+    "migrationFilesAppendOnly": true,
+    "candidateContentsFingerprintBound": true,
+    "exactReleaseConfirmationRequired": true,
+    "exactMigrationConfirmationRequired": true,
+    "checkedOutHeadMustEqualRemoteMain": true,
+    "failureReceiptTracksPossibleDatabaseMutation": true,
+    "expectedProductionDeploys": 1
+  },
+  "verification": {
+    "automatedTestsPassed": 231,
+    "operationalContractsPassed": 242,
+    "eslintPassed": true,
+    "typescriptPassed": true,
+    "optimizedBuildPassed": true,
+    "disposableMigrationsVerified": 77,
+    "disposableForwardMigrationsApplied": 28,
+    "databaseLintErrors": 0,
+    "marketplaceTransactionRehearsalPassed": true,
+    "newBalloonTransactionRehearsalPassed": true,
+    "externalMessagesSent": 0
+  }
+}
