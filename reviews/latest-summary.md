@@ -5,15 +5,16 @@ Status: `Production is technically mature and measurable; the principal constrai
 
 ## Authoritative production state
 
-- Production: `https://aerotrade.app`, served from commit `e9630bda8507e7c609adad3148ab4c05df8bffd2` by ready Netlify deploy `6a959c51792ca400081cb2d5`.
-- Validation: 198 automated tests, 215 operational contracts, ESLint, TypeScript and the optimized Next.js production build pass.
+- Production: `https://aerotrade.app`, served from commit `e9630bda8507e7c609adad3148ab4c05df8bffd2` by ready Netlify deploy `6a95a2b7d784cef925c11da3` on the protected `production` branch.
+- Validation: 204 automated tests, 218 operational contracts, ESLint, TypeScript and the optimized Next.js production build pass.
 - Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v9.json`.
-- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v9.md` — mean technical readiness 97%, production/commercial proof 45%, evidence-weighted maturity 81%.
+- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v10.md` — mean technical readiness 97%, production/commercial proof 46%, evidence-weighted maturity 82%.
 - Supply: 12 active listings from 6 sellers; all 84 active image files are reachable; one additional listing remains pending payment.
 - Trust: 1/12 active listings has current owner availability evidence; 11 remain unconfirmed and no listing has document-verification evidence.
 - Demand and closing: no comparable stored marketplace enquiry, negotiation, new-balloon request or closed marketplace transaction exists yet.
 - Monetisation: Buyer Early Access and Seller Launch Promotion remain separate products. One historical real buyer payment is provider-evidenced; no seller-promotion or marketplace-closing revenue is proven.
 - Inventory closure: one listing is immutably sold and excluded from available inventory. Its channel remains honestly undisclosed; Control Tower can now add one administrator-only, append-only clarification later without altering the closure, reopening inventory or creating revenue.
+- Deployment isolation: a measured shared-credit outage was traced to 83 production deploys. Netlify now publishes AeroTrade only from `production`, manual non-Git production deploys are blocked, and two subsequent `main` pushes created no Netlify deploy. Production and the sold-listing readback return HTTP 200. Evidence: `reviews/netlify-production-guard-verification-2026-08-31.json`.
 
 ## Newly live acquisition capability
 
