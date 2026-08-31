@@ -930,6 +930,12 @@ const checks = [
     forbidden: ['--retry-all-errors', '--retry 3'],
   },
   {
+    name: 'Newsletter listing links preserve non-personal campaign attribution into the commercial journey',
+    file: 'src/utils/newsletter-links.mjs',
+    required: ["source: 'newsletter'", "medium: 'email'", "campaignPrefix: 'biweekly_marketplace'", "url.searchParams.set('utm_source'", "url.searchParams.set('utm_medium'", "url.searchParams.set('utm_campaign'", 'periodKeyPattern', 'listingIdPattern'],
+    forbidden: ['recipient', 'emailAddress', 'userId'],
+  },
+  {
     name: 'Duplicate newsletter runs preserve partial failure semantics',
     file: 'src/app/api/cron/newsletter/route.ts',
     required: ['duplicateNewsletterRunResult', 'duplicateResult.success ? 200 : 409'],

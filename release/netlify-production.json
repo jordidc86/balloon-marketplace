@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-pending-listing-free-recovery",
-  "productionBaseCommit": "dc4a60e6ab9a87ae4da0e5014612bc292a7435fc",
+  "releaseId": "2026-08-31-newsletter-commercial-attribution",
+  "productionBaseCommit": "b506b8cefdace0d113b4fbebe80bf854348af5de",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

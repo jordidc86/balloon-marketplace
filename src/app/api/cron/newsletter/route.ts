@@ -12,6 +12,11 @@ import { siteUrl } from '@/utils/site';
 import { isPromotedListing } from '@/utils/listing-plans';
 import { selectNewsletterListings } from '@/utils/newsletter-listing-rotation.mjs';
 import {
+  buildNewsletterCampaign,
+  buildNewsletterListingUrl,
+  newsletterAttribution,
+} from '@/utils/newsletter-links.mjs';
+import {
   isActiveNewsletterConsent,
   newsletterUnsubscribePlaceholder,
   personalizeNewsletterHtml,
@@ -144,10 +149,14 @@ const isUniqueViolation = (error: { code?: string } | null) => error?.code === '
 const isMissingAuditTable = (error: { code?: string; message?: string } | null) =>
   error?.code === 'PGRST205' || error?.code === '42P01' || Boolean(error?.message?.includes('newsletter_runs'));
 
-const generateNewsletterHtml = (listings: NewsletterListing[]) => {
+const generateNewsletterHtml = (listings: NewsletterListing[], periodKey: string) => {
   const listingsHtml = listings.map(listing => {
     const imageUrl = getPrimaryImageUrl(listing);
-    const listingUrl = `${siteUrl}/catalog/${listing.id}`;
+    const listingUrl = buildNewsletterListingUrl({
+      baseUrl: siteUrl,
+      listingId: listing.id,
+      periodKey,
+    });
 
     return `
       <div style="margin-bottom: 32px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; font-family: sans-serif;">
@@ -643,6 +652,7 @@ export async function GET(request: Request) {
     }
 
     if (dryRun) {
+      const newsletterPeriodKey = activeRun.periodKey;
       await finishNewsletterRun(supabase, activeRun.id, {
         status: 'skipped',
         recipientsCount: recipients.length,
@@ -659,7 +669,7 @@ export async function GET(request: Request) {
         success: true,
         dryRun: true,
         runId: activeRun.id,
-        periodKey: activeRun.periodKey,
+        periodKey: newsletterPeriodKey,
         auditUnavailable: activeRun.auditUnavailable || undefined,
         recipients: recipients.length,
         skippedInvalidRecipients,
@@ -672,11 +682,21 @@ export async function GET(request: Request) {
           id: listing.id,
           title: listing.title,
           imageUrl: getPrimaryImageUrl(listing),
+          listingUrl: buildNewsletterListingUrl({
+            baseUrl: siteUrl,
+            listingId: listing.id,
+            periodKey: newsletterPeriodKey,
+          }),
         })),
+        attribution: {
+          utmSource: newsletterAttribution.source,
+          utmMedium: newsletterAttribution.medium,
+          utmCampaign: buildNewsletterCampaign(newsletterPeriodKey),
+        },
       });
     }
 
-    const htmlBody = generateNewsletterHtml(recentListings);
+    const htmlBody = generateNewsletterHtml(recentListings, activeRun.periodKey);
     await persistNewsletterContentSnapshot(
       supabase,
       activeRun.id,
