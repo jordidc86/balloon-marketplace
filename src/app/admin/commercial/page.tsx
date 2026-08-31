@@ -119,6 +119,7 @@ type SellerFunnelEvent = {
   listing_plan: string | null
   source: string
   entry_context: string
+  channel: string | null
   created_at: string
 }
 
@@ -322,7 +323,7 @@ export default async function CommercialPage() {
     supabase.from('wanted_match_dispatches').select('id,wanted_request_id,listing_ids,status,accepted_at,updated_at').order('updated_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,title,category,status,currency,price').in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']),
     supabase.from('catalog_search_events').select('id,entry_context,query_text,category,country,result_count,zero_results,utm_source,journey_key,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
-    supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,entry_context,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
+    supabase.from('seller_funnel_events').select('id,seller_id,listing_id,stage,listing_plan,source,entry_context,channel,created_at').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }).limit(500),
     supabase.from('listings').select('id,seller_id,title,status,contact_email,created_at,updated_at').order('created_at', { ascending: false }).limit(500),
     supabase.from('users').select('id,email,is_premium,premium_source,stripe_subscription_id').limit(500),
     supabase.from('seller_assistance_requests').select('id,seller_user_id,linked_listing_id,name,email,phone,category,manufacturer,model,manufacture_year,location_country,expected_price_minor,currency,documentation_readiness,photo_readiness,timeline,help_needed,notes,existing_listing_url,status,source_context,created_at,last_activity_at').order('created_at', { ascending: false }).limit(200),
@@ -537,6 +538,13 @@ export default async function CommercialPage() {
   const topZeroDemand = [...zeroDemandCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10)
   const uniqueSellerStageCount = (stage: string) => new Set(typedSellerFunnelEvents.filter((event) => event.stage === stage).map((event) => event.seller_id)).size
   const uniqueListingStageCount = (stage: string) => new Set(typedSellerFunnelEvents.filter((event) => event.stage === stage).map((event) => event.listing_id).filter(Boolean)).size
+  const sellerListingShareEvents = typedSellerFunnelEvents.filter((event) => event.stage === 'LISTING_SHARED')
+  const sellerListingShareChannels = sellerListingShareEvents.reduce<Map<string, number>>((counts, event) => {
+    const channel = event.channel || 'unknown'
+    counts.set(channel, (counts.get(channel) || 0) + 1)
+    return counts
+  }, new Map())
+  const sellerShareAttributedViews = typedListingEvents.filter((event) => event.event_type === 'VIEW' && event.utm_source === 'seller_share').length
   const sellerEntryCounts = typedSellerFunnelEvents
     .filter((event) => event.stage === 'SELL_PAGE_VIEWED' && event.entry_context !== 'system')
     .reduce<Map<string, Set<string>>>((counts, event) => {
@@ -919,16 +927,24 @@ export default async function CommercialPage() {
         </div>
         {sellerFunnelError || sellerListingsError || sellerUsersError ? <p className="mt-4 text-sm text-destructive">Seller-activation evidence is incomplete.</p> : (
           <>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
               <FunnelStep label="Sell page" value={uniqueSellerStageCount('SELL_PAGE_VIEWED')} />
               <FunnelStep label="Form started" value={uniqueSellerStageCount('FORM_STARTED')} />
               <FunnelStep label="Submitted" value={uniqueListingStageCount('LISTING_SUBMITTED')} />
               <FunnelStep label="Checkout" value={uniqueListingStageCount('CHECKOUT_CREATED')} />
               <FunnelStep label="Paid" value={uniqueListingStageCount('PAYMENT_CONFIRMED')} />
               <FunnelStep label="Published" value={uniqueListingStageCount('LISTING_PUBLISHED')} />
+              <FunnelStep label="Shared" value={uniqueListingStageCount('LISTING_SHARED')} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               {[...sellerEntryCounts.entries()].length === 0 ? <span className="text-muted-foreground">No attributed seller entry has been recorded yet.</span> : [...sellerEntryCounts.entries()].sort((a, b) => b[1].size - a[1].size).map(([source, sellers]) => <span key={source} className="rounded-full border bg-background px-3 py-1 font-semibold">{source.replaceAll('_', ' ')} · {sellers.size} seller(s)</span>)}
+            </div>
+            <div className="mt-4 rounded-xl border bg-muted/20 p-4">
+              <p className="text-sm font-semibold">Seller distribution evidence</p>
+              <p className="mt-1 text-xs text-muted-foreground">{sellerListingShareEvents.length} authenticated daily channel action(s) · {sellerShareAttributedViews} buyer visit(s) returned through seller-share links. A share action is intent, not proof of receipt.</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {sellerListingShareChannels.size === 0 ? <span className="text-muted-foreground">No seller has used the measured share controls yet.</span> : [...sellerListingShareChannels.entries()].sort((a, b) => b[1] - a[1]).map(([channel, count]) => <span key={channel} className="rounded-full border bg-background px-3 py-1 font-semibold">{channel} · {count}</span>)}
+              </div>
             </div>
             <div className="mt-6 rounded-xl border bg-muted/20">
               <div className="border-b px-4 py-3"><h3 className="font-semibold">Recovery queue</h3><p className="text-xs text-muted-foreground">Only evidence-backed interruptions are shown. Contact remains a manual decision.</p></div>

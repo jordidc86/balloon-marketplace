@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_seller_distribution_measurement_verification",
+  "capturedAt": "2026-08-31T19:20:00.000Z",
+  "containsPii": false,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "productionBaseline": {
+    "rollingDays": 30,
+    "listingViews": 60,
+    "comparableMeasurementDays": 2.23,
+    "comparableListingViews": 0,
+    "enquiryCtaClicks": 0,
+    "enquiryFormViews": 0,
+    "storedInquiries": 0,
+    "sellerShareAttributedViews": 0,
+    "diagnosis": "traffic_acquisition_not_form_abandonment"
+  },
+  "candidateControls": {
+    "extendsExistingSellerFunnel": true,
+    "authenticatedOwnerOnly": true,
+    "activeListingsOnly": true,
+    "dailyChannelDeduplication": true,
+    "closedChannels": [
+      "native",
+      "whatsapp",
+      "email",
+      "copy",
+      "linkedin",
+      "facebook"
+    ],
+    "recipientDataStored": false,
+    "destinationDataStored": false,
+    "messageBodyStored": false,
+    "attributedBuyerReturnMeasuredSeparately": true,
+    "automaticPublication": false
+  },
+  "validation": {
+    "automatedTestsPassed": 220,
+    "operationalContractsPassed": 241,
+    "eslintPassed": true,
+    "typescriptPassed": true,
+    "optimizedBuildPassed": true,
+    "databaseRecoveryMigrationsVerified": 77
+  },
+  "releaseState": "candidate_only_requires_migration_and_explicit_consolidated_release"
+}

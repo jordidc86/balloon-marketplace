@@ -79,6 +79,7 @@ const optionalQuerySpecs = {
   listingCheckoutIntents: ['listing_checkout_intents', 'id,listing_id,user_id,stripe_session_id,source,status,created_at,completed_at,updated_at'],
   wantedMatchDispatches: ['wanted_match_dispatches', 'listing_ids,status,accepted_at,created_at'],
   listingSaleClarifications: ['listing_sale_clarifications', 'id,lifecycle_event_id,listing_id,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,actor_role,created_at'],
+  sellerDistributionEvents: ['seller_funnel_events', 'id,seller_id,listing_id,stage,channel,created_at'],
 }
 const optionalAuditResults = Object.fromEntries(await Promise.all(Object.entries(optionalQuerySpecs).map(async ([name, [table, columns]]) => [name, await optionalRows(table, columns)])))
 const {
@@ -124,6 +125,7 @@ const socialPublicationReceipts = optionalAuditResults.socialPublicationReceipts
 const listingCheckoutIntents = optionalAuditResults.listingCheckoutIntents.rows
 const wantedMatchDispatches = optionalAuditResults.wantedMatchDispatches.rows
 const listingSaleClarifications = optionalAuditResults.listingSaleClarifications.rows
+const sellerDistributionEvents = optionalAuditResults.sellerDistributionEvents.rows.filter((event) => event.stage === 'LISTING_SHARED')
 const catalogDemandEntryContextById = new Map(optionalAuditResults.catalogDemandEntryContexts.rows.map((row) => [row.id, row.entry_context]))
 const catalogSearchEvents = baseCatalogSearchEvents.map((event) => ({
   ...event,
@@ -444,6 +446,10 @@ const result = {
     stages30d: countBy(sellerFunnelEvents.filter((event) => event.created_at >= since30d), 'stage'),
     distinctSellers30d: new Set(sellerFunnelEvents.filter((event) => event.created_at >= since30d).map((event) => event.seller_id)).size,
     checkoutRecoveries30d: sellerFunnelEvents.filter((event) => event.created_at >= since30d && event.stage === 'CHECKOUT_RESUMED').length,
+    listingShareActions30d: sellerDistributionEvents.filter((event) => event.created_at >= since30d).length,
+    listingShareActionsByChannel30d: countBy(sellerDistributionEvents.filter((event) => event.created_at >= since30d), 'channel'),
+    sellerShareAttributedViews30d: recentViews.filter((event) => event.utm_source === 'seller_share').length,
+    caveat: 'A share action is authenticated seller intent, not proof that a buyer received or opened the link. Only an attributed listing view proves a return visit.',
   },
   opportunities: {
     quoteRequestsTotal: quotes.length,

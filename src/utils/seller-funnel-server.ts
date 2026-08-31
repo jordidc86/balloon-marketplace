@@ -12,6 +12,7 @@ export async function persistSellerFunnelEvent(
     listingPlan = null,
     source = 'web',
     entryContext = 'system',
+    channel = null,
   }: {
     sellerId: string
     stage: string
@@ -19,9 +20,10 @@ export async function persistSellerFunnelEvent(
     listingPlan?: 'free' | 'premium' | null
     source?: 'web' | 'stripe' | 'recovery'
     entryContext?: string
+    channel?: 'native' | 'whatsapp' | 'email' | 'copy' | 'linkedin' | 'facebook' | null
   },
 ) {
-  const eventKey = sellerFunnelEventKey({ sellerId, stage, listingId })
+  const eventKey = sellerFunnelEventKey({ sellerId, stage, listingId, channel })
   if (!eventKey) return false
   const { error } = await supabaseAdmin.from('seller_funnel_events').upsert({
     event_key: eventKey,
@@ -31,6 +33,7 @@ export async function persistSellerFunnelEvent(
     listing_plan: listingPlan,
     source,
     entry_context: entryContext,
+    channel,
   }, { onConflict: 'event_key', ignoreDuplicates: true })
   if (error) {
     console.error(`Could not record seller funnel stage ${stage}:`, error)

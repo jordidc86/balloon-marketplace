@@ -11,6 +11,9 @@ test('listing share links are canonical and measurable by channel', () => {
   assert.equal(url.searchParams.get('utm_source'), 'seller_share')
   assert.equal(url.searchParams.get('utm_medium'), 'whatsapp')
   assert.equal(url.searchParams.get('utm_campaign'), 'listing_distribution')
+  for (const medium of ['linkedin', 'facebook']) {
+    assert.equal(new URL(buildListingShareUrl({ baseUrl: 'https://aerotrade.app', listingId, source: 'seller_share', medium })).searchParams.get('utm_medium'), medium)
+  }
 })
 
 test('listing share links reject unsafe identifiers, origins and campaign values', () => {
@@ -25,4 +28,3 @@ test('listing share text is bounded and removes excess whitespace', () => {
   assert.match(text, /^See Cameron Z+/)
   assert.ok(text.length < 250)
 })
-

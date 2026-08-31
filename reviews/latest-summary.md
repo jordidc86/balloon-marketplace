@@ -6,9 +6,9 @@ Status: `Production is technically mature; the principal constraints are real ma
 ## Authoritative production state
 
 - Production: `https://aerotrade.app`, served from commit `e9630bda8507e7c609adad3148ab4c05df8bffd2` by ready Netlify deploy `6a95a2b7d784cef925c11da3` on the protected `production` branch.
-- Candidate validation: 219 automated tests, 239 operational contracts, ESLint, TypeScript, the optimized Next.js production build and a complete 76-migration disposable database recovery plus marketplace and new-balloon transaction rehearsals pass. Candidate capability is not counted as live production.
-- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v15.json`.
-- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v18.md` — mean technical readiness 97%, production/commercial proof 44%, evidence-weighted maturity 82%.
+- Candidate validation: 220 automated tests, 241 operational contracts, ESLint, TypeScript, the optimized Next.js production build and a complete 77-migration disposable database recovery plus marketplace and new-balloon transaction rehearsals pass. Candidate capability is not counted as live production.
+- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v16.json`.
+- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v19.md` — mean technical readiness 97%, production/commercial proof 44%, evidence-weighted maturity 82%.
 - Supply: 12 active listings from 6 sellers; all 84 active image files are reachable; one additional listing remains pending payment.
 - Trust: 1/12 active listings has current owner availability evidence; 11 remain unconfirmed and no listing has document-verification evidence.
 - Demand and closing: no comparable stored marketplace enquiry, negotiation, new-balloon request or closed marketplace transaction exists yet.
@@ -21,6 +21,7 @@ Status: `Production is technically mature; the principal constraints are real ma
 - Seller availability activation: a fresh read-only audit proves an exact actionable batch of 11 unconfirmed listings across 5 contactable sellers. The candidate presents one explicit batch authorization, fingerprints the reviewed scope, preflights every portfolio before any email and retains provider acceptance/readback per seller. No seller message was sent and no availability state was created. Evidence: `reviews/seller-availability-batch-verification-2026-08-31.json`.
 - Production automation rehearsal: seven authenticated dry-runs returned HTTP 200, all 12 active listings passed image quality, 37 indexing URLs were planned, and nine state datasets retained identical row counts and fingerprints. The deployed newsletter dry-run was deliberately not called because code inspection proved it writes an audit row; the candidate now makes it fully observational. No external message, provider submission or database mutation occurred. Evidence: `reviews/production-automation-dry-run-2026-08-31.json`.
 - Consent outreach control: the candidate disables blanket cron delivery, shows the exact current recipient set before approval, fingerprints that set, excludes earlier accepted invitations and lets the operator durably classify test or non-customer accounts with a closed private reason. It never changes consent automatically. Thirteen production accounts remain unclassified candidates and no invitation was sent. Evidence: `reviews/newsletter-consent-exact-batch-verification-2026-08-31.json`.
+- Seller-led distribution: the fresh audit found 60 older listing views but zero comparable views since complete buyer-funnel measurement began, so form abandonment is not yet demonstrated. The candidate now records authenticated, daily-deduplicated seller share intent by closed channel and separately measures buyer return visits. It adds LinkedIn and Facebook to the existing WhatsApp, email, copy and native controls without automatic publication or recipient data. Evidence: `reviews/seller-distribution-measurement-verification-2026-08-31.json`.
 
 ## Newly live acquisition capability
 

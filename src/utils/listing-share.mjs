@@ -1,6 +1,6 @@
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const shareSources = new Set(['listing_share', 'seller_share'])
-const shareMediums = new Set(['native', 'whatsapp', 'email', 'copy'])
+const shareMediums = new Set(['native', 'whatsapp', 'email', 'copy', 'linkedin', 'facebook'])
 
 export function buildListingShareUrl({ baseUrl, listingId, source = 'listing_share', medium = 'copy' }) {
   if (!uuidPattern.test(String(listingId || ''))) throw new Error('A valid listing is required')
@@ -29,4 +29,3 @@ export function buildListingShareText(title) {
     ? 'See ' + boundedTitle + ' on AeroTrade, the hot-air-balloon equipment marketplace.'
     : 'See this hot-air-balloon equipment listing on AeroTrade.'
 }
-

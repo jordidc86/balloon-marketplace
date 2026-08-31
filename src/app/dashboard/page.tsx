@@ -374,7 +374,7 @@ export default async function DashboardPage({
                             </form>
                           ) : null}
                           {!supportingEvidenceAvailable && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) ? <Link href={`/catalog/${item.id}/edit`} className="max-w-40 text-right text-xs font-semibold text-amber-700 hover:underline">Mark supporting evidence available to request review</Link> : null}
-                          {['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) ? <ListingShare baseUrl={siteUrl} listingId={item.id} title={item.title} source="seller_share" compact /> : null}
+                          {['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) ? <ListingShare baseUrl={siteUrl} listingId={item.id} title={item.title} source="seller_share" compact trackSellerShare /> : null}
                           {['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(item.status) && availability.ageDays !== 0 ? (
                             <form action={confirmListingAvailability.bind(null, item.id)}>
                               <button className="rounded-lg border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">Confirm still available</button>

@@ -315,7 +315,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             )}
           </div>
 
-          {canViewFully && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(typedListing.status) ? <ListingShare baseUrl={siteUrl} listingId={typedListing.id} title={typedListing.title} source={isOwner ? 'seller_share' : 'listing_share'} /> : null}
+          {canViewFully && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(typedListing.status) ? <ListingShare baseUrl={siteUrl} listingId={typedListing.id} title={typedListing.title} source={isOwner ? 'seller_share' : 'listing_share'} trackSellerShare={isOwner} /> : null}
 
           {/* Thumbnails */}
           {images.length > 1 && (

@@ -693,6 +693,18 @@ const checks = [
     required: ["recordSellerFunnelStage('SELL_PAGE_VIEWED', sellerEntryContext)", "recordSellerFunnelStage('FORM_STARTED', sellerEntryContext)", 'formStartedRecorded', 'onChangeCapture'],
   },
   {
+    name: 'Seller distribution extends the existing private funnel with closed channel evidence',
+    file: 'supabase/migrations/20260831750000_seller_listing_distribution_evidence.sql',
+    required: ['LISTING_SHARED', "channel in ('native', 'whatsapp', 'email', 'copy', 'linkedin', 'facebook')", 'seller_funnel_listing_share_channel_idx', 'stores no destination, recipient, message body or buyer identifier'],
+    forbidden: ['recipient_email', 'destination_url', 'message_body'],
+  },
+  {
+    name: 'Only the authenticated owner can record an active listing share action',
+    file: 'src/app/dashboard/share-actions.ts',
+    required: ['recordSellerListingShare', 'normalizeSellerListingShareChannel', ".eq('seller_id', user.id)", "['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(listing.status)", "stage: 'LISTING_SHARED'", 'persistSellerFunnelEvent'],
+    forbidden: ['sendEmail', 'sendCommercialReceiptEmail'],
+  },
+  {
     name: 'Late seller authentication preserves intent before the long form is exposed',
     file: 'src/app/sell/page.tsx',
     required: ['if (!user)', 'Start without losing your work', 'redirectTo=', 'Record a private sale request', '<SellForm'],

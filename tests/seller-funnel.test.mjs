@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   normalizeSellerFunnelStage,
+  normalizeSellerListingShareChannel,
   sellerFunnelEventKey,
   sellerFunnelStageOrder,
 } from '../src/utils/seller-funnel.mjs'
@@ -11,6 +12,21 @@ test('seller funnel accepts only the closed stage vocabulary', () => {
   assert.equal(normalizeSellerFunnelStage('CHECKOUT_RECOVERY_SENT'), 'CHECKOUT_RECOVERY_SENT')
   assert.equal(normalizeSellerFunnelStage('PAYMENT_CONFIRMED', true), null)
   assert.equal(normalizeSellerFunnelStage('send_everyone_an_email'), null)
+})
+
+test('seller listing distribution is channel-bound and daily deduplicated', () => {
+  const date = new Date('2026-08-31T09:00:00Z')
+  const later = new Date('2026-08-31T21:00:00Z')
+  const whatsapp = sellerFunnelEventKey({ sellerId: 'seller-123', listingId: 'listing-456', stage: 'LISTING_SHARED', channel: 'whatsapp', date })
+  const duplicate = sellerFunnelEventKey({ sellerId: 'seller-123', listingId: 'listing-456', stage: 'LISTING_SHARED', channel: 'WHATSAPP', date: later })
+  const linkedin = sellerFunnelEventKey({ sellerId: 'seller-123', listingId: 'listing-456', stage: 'LISTING_SHARED', channel: 'linkedin', date })
+  const nextDay = sellerFunnelEventKey({ sellerId: 'seller-123', listingId: 'listing-456', stage: 'LISTING_SHARED', channel: 'whatsapp', date: new Date('2026-09-01T09:00:00Z') })
+  assert.equal(normalizeSellerListingShareChannel(' LinkedIn '), 'linkedin')
+  assert.equal(normalizeSellerListingShareChannel('recipient@example.com'), null)
+  assert.equal(whatsapp, duplicate)
+  assert.notEqual(whatsapp, linkedin)
+  assert.notEqual(whatsapp, nextDay)
+  assert.equal(sellerFunnelEventKey({ sellerId: 'seller-123', listingId: 'listing-456', stage: 'LISTING_SHARED', channel: 'telegram', date }), null)
 })
 
 test('one checkout recovery notification is measured per Premium listing', () => {
