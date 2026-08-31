@@ -936,8 +936,18 @@ const checks = [
   {
     name: 'Account recovery is self-service, enumeration-safe and session-bound',
     file: 'src/app/forgot-password/actions.ts',
-    required: ['resetPasswordForEmail', 'neutralSuccessMessage', '/auth/callback?next=', "encodeURIComponent('/reset-password')"],
-    forbidden: ['createAdminClient', 'generateLink'],
+    required: ['neutralSuccessMessage', 'signAccountRecoveryCapability', 'sendCommercialReceiptEmail', "notificationType: 'account_password_recovery'", 'accountRecoveryRequestCooldownMs'],
+    forbidden: ['resetPasswordForEmail', 'generateLink'],
+  },
+  {
+    name: 'Account recovery email links are scanner-safe, one-time and cross-device',
+    file: 'src/app/account/recovery/actions.ts',
+    required: ['verifyAccountRecoveryCapability', "type: 'recovery'", 'hashed_token', ".is('consumed_at', null)", "session.auth.verifyOtp({ type: 'recovery'", "redirect('/reset-password')"],
+  },
+  {
+    name: 'Account recovery delivery extends the closed private receipt vocabulary',
+    file: 'supabase/migrations/20260831600000_account_password_recovery.sql',
+    required: ["'account_password_recovery'", 'consumed_at timestamp with time zone', 'Opening an email link is read-only', 'no email address or token is stored'],
   },
   {
     name: 'Recovered passwords require an authenticated recovery session and end it after use',

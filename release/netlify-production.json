@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-seller-account-and-image-recovery",
-  "productionBaseCommit": "b6b49b9d0e7b769c1780f5715139212f4502223e",
+  "releaseId": "2026-08-31-cross-device-account-recovery",
+  "productionBaseCommit": "5607f797ef26b97bee7b1732caffb4020c29d16c",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }
