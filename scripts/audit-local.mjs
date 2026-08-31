@@ -936,6 +936,12 @@ const checks = [
     forbidden: ['recipient', 'emailAddress', 'userId'],
   },
   {
+    name: 'Newsletter dispatch uses the canonical campaign period rather than its suffixed audit key',
+    file: 'src/app/api/cron/newsletter/route.ts',
+    required: ['const newsletterPeriodKey = periodKey;', 'generateNewsletterHtml(recentListings, periodKey)', 'buildNewsletterListingUrl({', 'utmCampaign: buildNewsletterCampaign(newsletterPeriodKey)'],
+    forbidden: ['generateNewsletterHtml(recentListings, activeRun.periodKey)'],
+  },
+  {
     name: 'Duplicate newsletter runs preserve partial failure semantics',
     file: 'src/app/api/cron/newsletter/route.ts',
     required: ['duplicateNewsletterRunResult', 'duplicateResult.success ? 200 : 409'],

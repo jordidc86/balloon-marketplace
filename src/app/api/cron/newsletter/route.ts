@@ -652,7 +652,7 @@ export async function GET(request: Request) {
     }
 
     if (dryRun) {
-      const newsletterPeriodKey = activeRun.periodKey;
+      const newsletterPeriodKey = periodKey;
       await finishNewsletterRun(supabase, activeRun.id, {
         status: 'skipped',
         recipientsCount: recipients.length,
@@ -696,7 +696,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const htmlBody = generateNewsletterHtml(recentListings, activeRun.periodKey);
+    const htmlBody = generateNewsletterHtml(recentListings, periodKey);
     await persistNewsletterContentSnapshot(
       supabase,
       activeRun.id,
