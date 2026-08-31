@@ -11,6 +11,9 @@ import { siteUrl } from '@/utils/site'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import SellerListingClosureForm from './SellerListingClosureForm'
 import { publishListingFree } from '@/app/catalog/[id]/actions'
+import { listingVerificationEvidenceMailto } from '@/utils/listing-verification-notifications.mjs'
+
+const verificationContactEmail = process.env.ADMIN_EMAIL?.trim()
 
 type DashboardListingImage = {
   url: string
@@ -344,6 +347,7 @@ export default async function DashboardPage({
                           {publicationIssues.length > 0 ? <p className="mt-1 text-xs font-medium text-amber-700">Aircraft data incomplete — {publicationIssues.join(', ')}</p> : null}
                           {verification?.status === 'VERIFIED' ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />AeroTrade evidence review complete</p> : null}
                           {verification?.status === 'IN_REVIEW' ? <p className="mt-1 text-xs font-semibold text-amber-700">Verification requested — queued for review</p> : null}
+                          {verification?.status === 'IN_REVIEW' && verificationContactEmail ? <a href={listingVerificationEvidenceMailto({ adminEmail: verificationContactEmail, listingId: item.id, listingTitle: item.title }) || undefined} className="mt-1 block text-xs font-semibold text-primary hover:underline">Send the requested evidence to AeroTrade</a> : null}
                           {verification?.status === 'REJECTED' ? <p className="mt-1 text-xs font-semibold text-red-700">Review incomplete — {verification.decision_reason ? formatClosedCode(verification.decision_reason) : 'evidence needs attention'}</p> : null}
                           {watcherCountByListing.get(item.id) ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-700"><BellRing className="h-3.5 w-3.5" />{watcherCountByListing.get(item.id)} confirmed buyer watcher(s)</p> : null}
                           {availability.status === 'fresh' && latestAvailability ? <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle className="h-3.5 w-3.5" />Availability confirmed {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'Europe/Madrid' }).format(new Date(latestAvailability))}</p> : null}

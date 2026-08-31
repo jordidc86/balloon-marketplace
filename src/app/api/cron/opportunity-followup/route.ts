@@ -26,6 +26,11 @@ import { buildSellerAvailabilityDigestNotification } from '@/utils/seller-availa
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { buildPublicNewsletterConfirmation } from '@/utils/newsletter-public-confirmation.mjs'
 import { parsePublicNewsletterConfirmationIdempotencyKey } from '@/utils/newsletter-public-subscription.mjs'
+import {
+  buildListingVerificationEvidenceInstructions,
+  listingVerificationEvidenceInstructionKey,
+  parseListingVerificationEvidenceInstructionKey,
+} from '@/utils/listing-verification-notifications.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -192,6 +197,30 @@ type PublicNewsletterSubscriptionRecovery = {
   confirmation_cycle: number
 }
 
+type ListingVerificationInstructionRetry = {
+  id: string
+  entity_id: string
+  idempotency_key: string
+  status: 'pending' | 'failed'
+}
+
+type ListingVerificationInstructionEvent = {
+  id: string
+  listing_id: string
+  event_type: string
+  to_status: string
+}
+
+type ListingVerificationInstructionListing = {
+  id: string
+  seller_id: string
+  title: string
+  contact_email: string | null
+  status: string
+  users: { email: string | null } | Array<{ email: string | null }> | null
+  listing_verifications: { status: string } | Array<{ status: string }> | null
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -213,7 +242,7 @@ export async function GET(request: Request) {
   const sellerEscalationCutoff = getSellerEnquiryEscalationCutoff()
   const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult, newBalloonNotificationRetryResult, acceptedNewBalloonNotificationResult, sellerAvailabilityDigestRetryResult, publicNewsletterConfirmationRetryResult] = await Promise.all([
+  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult, newBalloonNotificationRetryResult, acceptedNewBalloonNotificationResult, sellerAvailabilityDigestRetryResult, publicNewsletterConfirmationRetryResult, listingVerificationInstructionRetryResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -313,8 +342,18 @@ export async function GET(request: Request) {
       .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
       .order('created_at', { ascending: true })
       .limit(100),
+    supabase
+      .from('commercial_notification_receipts')
+      .select('id,entity_id,idempotency_key,status')
+      .eq('notification_type', 'listing_verification_evidence_instructions')
+      .eq('entity_type', 'listing')
+      .in('status', ['pending', 'failed'])
+      .lt('delivery_attempts', 2)
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+      .order('created_at', { ascending: true })
+      .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error || newBalloonNotificationRetryResult.error || acceptedNewBalloonNotificationResult.error || sellerAvailabilityDigestRetryResult.error || publicNewsletterConfirmationRetryResult.error) {
+  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error || newBalloonNotificationRetryResult.error || acceptedNewBalloonNotificationResult.error || sellerAvailabilityDigestRetryResult.error || publicNewsletterConfirmationRetryResult.error || listingVerificationInstructionRetryResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
@@ -333,6 +372,7 @@ export async function GET(request: Request) {
   ).values()]
   const sellerAvailabilityDigestRetries = (sellerAvailabilityDigestRetryResult.data || []) as SellerAvailabilityDigestRetry[]
   const publicNewsletterConfirmationRetries = (publicNewsletterConfirmationRetryResult.data || []) as PublicNewsletterConfirmationRetry[]
+  const listingVerificationInstructionRetries = (listingVerificationInstructionRetryResult.data || []) as ListingVerificationInstructionRetry[]
   const newBalloonProposalDeliveryCandidates = newBalloonNotificationCandidates.filter((retry) => retry.notification_type === 'new_balloon_proposal_buyer')
   const newBalloonResponseAdminCandidates = newBalloonNotificationCandidates.filter((retry) => retry.notification_type === 'new_balloon_proposal_response_admin')
   const sellerEscalationInquiryIds = new Set(acceptedSellerFollowups.map((receipt) => receipt.entity_id))
@@ -351,7 +391,11 @@ export async function GET(request: Request) {
     .filter((eventId): eventId is string => Boolean(eventId))
   const sellerAvailabilitySellerIds = [...new Set(sellerAvailabilityDigestRetries.map((retry) => retry.entity_id))]
   const publicNewsletterSubscriptionIds = [...new Set(publicNewsletterConfirmationRetries.map((retry) => retry.entity_id))]
-  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult, sellerAvailabilitySellersResult, sellerAvailabilityListingsResult, publicNewsletterSubscriptionsResult] = await Promise.all([
+  const listingVerificationEventIds = [...new Set(listingVerificationInstructionRetries
+    .map((retry) => parseListingVerificationEvidenceInstructionKey(retry.idempotency_key))
+    .filter((eventId): eventId is string => Boolean(eventId)))]
+  const listingVerificationListingIds = [...new Set(listingVerificationInstructionRetries.map((retry) => retry.entity_id))]
+  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult, sellerAvailabilitySellersResult, sellerAvailabilityListingsResult, publicNewsletterSubscriptionsResult, listingVerificationEventsResult, listingVerificationListingsResult] = await Promise.all([
     buyerAcknowledgementQuoteIds.length > 0
       ? supabase
         .from('quote_requests')
@@ -413,8 +457,20 @@ export async function GET(request: Request) {
         .select('id,email,status,confirmation_cycle')
         .in('id', publicNewsletterSubscriptionIds)
       : Promise.resolve({ data: [], error: null }),
+    listingVerificationEventIds.length > 0
+      ? supabase
+        .from('listing_verification_events')
+        .select('id,listing_id,event_type,to_status')
+        .in('id', listingVerificationEventIds)
+      : Promise.resolve({ data: [], error: null }),
+    listingVerificationListingIds.length > 0
+      ? supabase
+        .from('listings')
+        .select('id,seller_id,title,contact_email,status,users(email),listing_verifications(status)')
+        .in('id', listingVerificationListingIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
-  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error || sellerAvailabilitySellersResult.error || sellerAvailabilityListingsResult.error || publicNewsletterSubscriptionsResult.error) {
+  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error || sellerAvailabilitySellersResult.error || sellerAvailabilityListingsResult.error || publicNewsletterSubscriptionsResult.error || listingVerificationEventsResult.error || listingVerificationListingsResult.error) {
     return NextResponse.json({ error: 'Commercial notification recovery data could not be loaded' }, { status: 500 })
   }
   const buyerAcknowledgementQuoteById = new Map(
@@ -445,6 +501,12 @@ export async function GET(request: Request) {
   const sellerAvailabilityListings = (sellerAvailabilityListingsResult.data || []) as SellerAvailabilityRetryListing[]
   const publicNewsletterSubscriptionById = new Map(
     ((publicNewsletterSubscriptionsResult.data || []) as PublicNewsletterSubscriptionRecovery[]).map((subscription) => [subscription.id, subscription]),
+  )
+  const listingVerificationEventById = new Map(
+    ((listingVerificationEventsResult.data || []) as ListingVerificationInstructionEvent[]).map((event) => [event.id, event]),
+  )
+  const listingVerificationListingById = new Map(
+    ((listingVerificationListingsResult.data || []) as unknown as ListingVerificationInstructionListing[]).map((listing) => [listing.id, listing]),
   )
   const sellerAvailabilityListingIds = sellerAvailabilityListings.map((listing) => listing.id)
   const sellerAvailabilityConfirmationsResult = sellerAvailabilityListingIds.length > 0
@@ -509,6 +571,7 @@ export async function GET(request: Request) {
     dueBuyerEarlyAccessCheckoutRecoveries: buyerEarlyAccessRecoveries.length,
     dueSellerAvailabilityDigestRetries: sellerAvailabilityDigestRetries.length,
     duePublicNewsletterConfirmationRetries: publicNewsletterConfirmationRetries.length,
+    dueListingVerificationInstructionRetries: listingVerificationInstructionRetries.length,
     accepted: 0,
     alreadyAccepted: 0,
     retryDeferred: 0,
@@ -539,6 +602,11 @@ export async function GET(request: Request) {
     publicNewsletterConfirmationsDeferred: 0,
     publicNewsletterConfirmationsFailed: 0,
     publicNewsletterConfirmationsSuperseded: 0,
+    listingVerificationInstructionsAccepted: 0,
+    listingVerificationInstructionsAlreadyAccepted: 0,
+    listingVerificationInstructionsDeferred: 0,
+    listingVerificationInstructionsFailed: 0,
+    listingVerificationInstructionsSuperseded: 0,
     dryRun: !commit,
   }
   if (!commit) return NextResponse.json(result)
@@ -566,6 +634,17 @@ export async function GET(request: Request) {
   }
 
   const exhaustPublicNewsletterReceipt = async (receiptId: string, message: string) => {
+    const { data, error } = await supabase
+      .from('commercial_notification_receipts')
+      .update({ status: 'failed', delivery_attempts: 2, next_attempt_at: null, error_message: message })
+      .eq('id', receiptId)
+      .in('status', ['pending', 'failed'])
+      .select('id,delivery_attempts,next_attempt_at')
+      .single()
+    return !error && data?.delivery_attempts === 2 && data.next_attempt_at === null
+  }
+
+  const exhaustListingVerificationInstructionReceipt = async (receiptId: string, message: string) => {
     const { data, error } = await supabase
       .from('commercial_notification_receipts')
       .update({ status: 'failed', delivery_attempts: 2, next_attempt_at: null, error_message: message })
@@ -620,6 +699,64 @@ export async function GET(request: Request) {
     } catch (error) {
       console.error('Public newsletter confirmation recovery failed:', error)
       result.publicNewsletterConfirmationsFailed += 1
+    }
+  }
+
+  for (const retry of listingVerificationInstructionRetries) {
+    const eventId = parseListingVerificationEvidenceInstructionKey(retry.idempotency_key)
+    const event = eventId ? listingVerificationEventById.get(eventId) : null
+    const listing = listingVerificationListingById.get(retry.entity_id)
+    const verificationRelation = listing?.listing_verifications
+    const currentVerification = Array.isArray(verificationRelation) ? verificationRelation[0] : verificationRelation
+    const userRelation = listing?.users
+    const sellerProfile = Array.isArray(userRelation) ? userRelation[0] : userRelation
+    const sellerEmail = sellerProfile?.email || listing?.contact_email || null
+    const exactOpenRequest = Boolean(eventId
+      && event?.id === eventId
+      && event.listing_id === retry.entity_id
+      && event.event_type === 'REQUESTED'
+      && event.to_status === 'IN_REVIEW'
+      && currentVerification?.status === 'IN_REVIEW'
+      && listing
+      && ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'].includes(listing.status)
+      && retry.idempotency_key === listingVerificationEvidenceInstructionKey(eventId))
+    if (!adminEmail || !sellerEmail) {
+      result.configurationBlocked += 1
+      continue
+    }
+    if (!exactOpenRequest || !listing) {
+      const exhausted = await exhaustListingVerificationInstructionReceipt(retry.id, 'Listing verification evidence handoff was superseded by the current review state.')
+      if (exhausted) result.listingVerificationInstructionsSuperseded += 1
+      else result.listingVerificationInstructionsFailed += 1
+      continue
+    }
+
+    const instructions = buildListingVerificationEvidenceInstructions({
+      adminEmail,
+      listingId: listing.id,
+      listingTitle: listing.title,
+      dashboardUrl: `${siteUrl}/dashboard`,
+      listingUrl: `${siteUrl}/catalog/${listing.id}`,
+    })
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'listing_verification_evidence_instructions',
+        entityType: 'listing',
+        entityId: listing.id,
+        recipientRole: 'seller',
+        to: sellerEmail,
+        subject: instructions.subject,
+        html: instructions.html,
+        idempotencyKey: retry.idempotency_key,
+        replyTo: instructions.replyTo,
+      })
+      if (delivery.duplicate) result.listingVerificationInstructionsAlreadyAccepted += 1
+      else if (delivery.success) result.listingVerificationInstructionsAccepted += 1
+      else if (delivery.skipped) result.listingVerificationInstructionsDeferred += 1
+      else result.listingVerificationInstructionsFailed += 1
+    } catch (error) {
+      console.error('Listing verification evidence handoff recovery failed:', error)
+      result.listingVerificationInstructionsFailed += 1
     }
   }
 
@@ -1358,6 +1495,6 @@ export async function GET(request: Request) {
     }
   }
 
-  const hasFailure = result.failed > 0 || result.configurationBlocked > 0 || result.sellerAvailabilityDigestsFailed > 0 || result.publicNewsletterConfirmationsFailed > 0
+  const hasFailure = result.failed > 0 || result.configurationBlocked > 0 || result.sellerAvailabilityDigestsFailed > 0 || result.publicNewsletterConfirmationsFailed > 0 || result.listingVerificationInstructionsFailed > 0
   return NextResponse.json(result, { status: hasFailure ? 502 : 200 })
 }

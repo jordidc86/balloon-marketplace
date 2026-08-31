@@ -17,6 +17,7 @@ import { escapeHtml } from '@/utils/html'
 import { inquiryBuyerCapabilityLifetimeMs, inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerCapability, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
 import { parseListingClosure } from '@/utils/listing-closure.mjs'
 import { buildSellerResponseBuyerNotification } from '@/utils/inquiry-negotiation-notifications.mjs'
+import { buildListingVerificationEvidenceInstructions, listingVerificationEvidenceInstructionKey } from '@/utils/listing-verification-notifications.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
@@ -486,7 +487,7 @@ export async function requestListingVerification(listingId: string) {
 
   const { data: listing, error: listingError } = await supabase
     .from('listings')
-    .select('id,seller_id,title,status,category,details')
+    .select('id,seller_id,title,contact_email,status,category,details')
     .eq('id', listingId)
     .eq('seller_id', user.id)
     .single()
@@ -522,19 +523,40 @@ export async function requestListingVerification(listingId: string) {
   }
 
   if (adminEmail) {
+    const sellerEmail = user.email || listing.contact_email
+    const instructions = buildListingVerificationEvidenceInstructions({
+      adminEmail,
+      listingId: listing.id,
+      listingTitle: listing.title,
+      dashboardUrl: `${siteUrl}/dashboard`,
+      listingUrl: `${siteUrl}/catalog/${listing.id}`,
+    })
     try {
-      await sendCommercialReceiptEmail(admin, {
-        notificationType: 'listing_verification_requested',
-        entityType: 'listing',
-        entityId: listing.id,
-        recipientRole: 'admin',
-        to: adminEmail,
-        subject: `AeroTrade verification requested: ${listing.title}`,
-        html: `<p>A seller has requested the limited AeroTrade identity and supporting-evidence review for <strong>${escapeHtml(listing.title)}</strong>.</p><p>No document copies were uploaded or retained by this workflow.</p><p><a href="${siteUrl}/admin/listings">Open the verification queue</a></p>`,
-        idempotencyKey: `listing-verification-request-${result.event_id}`,
-      })
+      await Promise.all([
+        sendCommercialReceiptEmail(admin, {
+          notificationType: 'listing_verification_requested',
+          entityType: 'listing',
+          entityId: listing.id,
+          recipientRole: 'admin',
+          to: adminEmail,
+          subject: `AeroTrade verification requested: ${listing.title}`,
+          html: `<p>A seller has requested the limited AeroTrade identity and supporting-evidence review for <strong>${escapeHtml(listing.title)}</strong>.</p><p>The seller has received a reply-enabled evidence checklist. Document copies remain outside the marketplace database.</p><p><a href="${siteUrl}/admin/listings">Open the verification queue</a></p>`,
+          idempotencyKey: `listing-verification-request-${result.event_id}`,
+        }),
+        sellerEmail ? sendCommercialReceiptEmail(admin, {
+          notificationType: 'listing_verification_evidence_instructions',
+          entityType: 'listing',
+          entityId: listing.id,
+          recipientRole: 'seller',
+          to: sellerEmail,
+          subject: instructions.subject,
+          html: instructions.html,
+          idempotencyKey: listingVerificationEvidenceInstructionKey(result.event_id),
+          replyTo: instructions.replyTo,
+        }) : Promise.resolve(null),
+      ])
     } catch (error) {
-      console.error('Verification request was queued, but the admin notification needs review:', error)
+      console.error('Verification request was queued, but its handoff notification needs review:', error)
     }
   }
 

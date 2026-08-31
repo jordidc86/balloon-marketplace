@@ -24,6 +24,7 @@ export type EmailPayload = {
 
 export type EmailSendOptions = {
   idempotencyKey?: string;
+  replyTo?: string;
 }
 
 type BatchFailure = {
@@ -73,6 +74,11 @@ export const sendEmail = async (
   html: string,
   options: EmailSendOptions = {},
 ) => {
+  if (options.replyTo && !fromEmailPattern.test(options.replyTo)) {
+    const error = new Error('Email reply destination is invalid.');
+    console.error(error.message);
+    return { success: false, configurationError: true, error };
+  }
   if (resend) {
     try {
       const result = await resend.emails.send({
@@ -80,6 +86,7 @@ export const sendEmail = async (
         to,
         subject,
         html,
+        ...(options.replyTo ? { replyTo: options.replyTo } : {}),
       }, options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : undefined);
       if (result.error) {
         console.error('Failed to send email via Resend:', result.error);

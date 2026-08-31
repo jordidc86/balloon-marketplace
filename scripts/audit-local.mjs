@@ -753,6 +753,22 @@ const checks = [
     required: ['requestListingVerification', "eq('seller_id', user.id)", 'supporting_documents_available', 'assertStoredListingRequiredFields', 'assertListingHasReachableImage', "admin.rpc('request_listing_verification'", 'Verification request was not confirmed by readback', 'listing-verification-request-${result.event_id}'],
   },
   {
+    name: 'Verification requests provide a measured external evidence handoff without retaining documents',
+    file: 'src/app/dashboard/actions.ts',
+    required: ['buildListingVerificationEvidenceInstructions', "notificationType: 'listing_verification_evidence_instructions'", 'replyTo: instructions.replyTo', 'listingVerificationEvidenceInstructionKey(result.event_id)', 'Document copies remain outside the marketplace database'],
+  },
+  {
+    name: 'Failed verification evidence instructions retry only for the exact open review event',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ["eq('notification_type', 'listing_verification_evidence_instructions')", 'parseListingVerificationEvidenceInstructionKey', "event.event_type === 'REQUESTED'", "currentVerification?.status === 'IN_REVIEW'", "notificationType: 'listing_verification_evidence_instructions'", 'listingVerificationInstructionsSuperseded', 'replyTo: instructions.replyTo'],
+  },
+  {
+    name: 'Verification evidence notification type retains a closed non-document vocabulary',
+    file: 'supabase/migrations/20260831690000_listing_verification_evidence_handoff.sql',
+    required: ['listing_verification_evidence_instructions', 'no evidence copy, document number or link is stored'],
+    forbidden: ['document_url', 'document_number text', 'evidence_url'],
+  },
+  {
     name: 'Admin can decide only queued listing reviews with bounded evidence and readback',
     file: 'src/app/admin/actions.ts',
     required: ['parseListingVerificationDecision', "current.status !== 'IN_REVIEW'", "supabase.rpc('decide_listing_verification'", 'Verification decision was not confirmed by readback', 'listing-verification-decision-${result.event_id}', 'does not certify ownership, legal title, airworthiness or physical condition'],

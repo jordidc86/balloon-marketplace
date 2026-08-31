@@ -15,6 +15,7 @@ type NotificationInput = {
   subject: string
   html: string
   idempotencyKey: string
+  replyTo?: string
 }
 
 export async function sendCommercialReceiptEmail(supabase: SupabaseClient, input: NotificationInput) {
@@ -97,7 +98,10 @@ export async function sendCommercialReceiptEmail(supabase: SupabaseClient, input
     return { success: false, duplicate: false, skipped: true, reason: currentDecision === 'send' ? 'claim_conflict' : currentDecision, providerMessageId: null }
   }
 
-  const delivery = await sendEmail(input.to, input.subject, input.html, { idempotencyKey: input.idempotencyKey })
+  const delivery = await sendEmail(input.to, input.subject, input.html, {
+    idempotencyKey: input.idempotencyKey,
+    replyTo: input.replyTo,
+  })
   const accepted = delivery.success && delivery.resendId
   const { data: readback, error: updateError } = await supabase
     .from('commercial_notification_receipts')
