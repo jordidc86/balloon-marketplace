@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_seller_availability_reissue_recovery_verification",
+  "completedAt": "2026-08-31T12:34:35Z",
+  "containsPii": false,
+  "economicActionsPerformed": 0,
+  "externalMessagesSent": 0,
+  "release": {
+    "commit": "dc4a60e6ab9a87ae4da0e5014612bc292a7435fc",
+    "netlifyDeployId": "6a957433fd54d50008baabd3",
+    "state": "ready",
+    "publishedAt": "2026-08-31T12:32:39.722Z",
+    "deployTimeSeconds": 51
+  },
+  "database": {
+    "migration": "20260831650000",
+    "localRemoteMatch": true,
+    "reissuedDigestRpcReachable": true,
+    "invalidAuthorityFailsSafely": true,
+    "invalidAuthorityErrorCode": "P0001",
+    "writesFromNegativeVerification": 0
+  },
+  "productionEvidence": {
+    "activeListings": 12,
+    "freshSellerAvailabilityConfirmations": 1,
+    "activeListingsWithoutFreshSellerConfirmation": 11,
+    "sellersWithAvailabilityEvidenceDue": 5,
+    "sellerAvailabilityDigestReceipts": 0,
+    "proofWasNotInferred": true
+  },
+  "behavior": {
+    "acceptedCapabilityExpiresAfterDays": 14,
+    "expiredCapabilityCanBeExplicitlyReissued": true,
+    "reissuePreservesExactInventoryScope": true,
+    "changedInventoryIsNeverRetried": true,
+    "failedInitiatedDeliveryHasTwoAttemptBudget": true,
+    "acceptedProviderDeliveryIsNeverRepeated": true,
+    "cronNeverInitiatesFirstSellerRequest": true,
+    "openingCapabilityNeverConfirmsAvailability": true,
+    "confirmationNeverChangesListingOrPaymentState": true
+  },
+  "gates": {
+    "testsPassed": 183,
+    "operationalContractsPassed": 196,
+    "lintPassed": true,
+    "buildPassed": true,
+    "releaseGateRehearsalPassed": true,
+    "edgeRuntimeDeprecationWarningOnly": true
+  },
+  "productionDryRun": {
+    "status": 200,
+    "dryRun": true,
+    "dueSellerAvailabilityDigestRetries": 0,
+    "sellerAvailabilityDigestsAccepted": 0,
+    "sellerAvailabilityDigestsAlreadyAccepted": 0,
+    "sellerAvailabilityDigestsDeferred": 0,
+    "sellerAvailabilityDigestsFailed": 0,
+    "sellerAvailabilityDigestsSuperseded": 0,
+    "mutationsPerformed": 0,
+    "messagesSent": 0
+  },
+  "productionSmoke": {
+    "homeStatus": 200,
+    "catalogStatus": 200,
+    "commercialControlTowerStatus": 307,
+    "commercialControlTowerProtectedByLogin": true,
+    "sellerAvailabilityPageStatus": 200,
+    "soldListingPageStatus": 200,
+    "soldListingAbsentFromActiveCatalog": true
+  }
+}
