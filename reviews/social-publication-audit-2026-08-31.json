@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "projectId": "aerotrade",
+  "readOnly": true,
+  "containsPii": false,
+  "capturedAt": "2026-08-31T17:24:13.445Z",
+  "period": {
+    "rollingDays": 30,
+    "since": "2026-08-01T17:24:13.445Z"
+  },
+  "receiptEvidence": {
+    "total": 4,
+    "byStatus": {
+      "accepted": 4
+    },
+    "accepted": 4,
+    "acceptedByNetwork": {
+      "instagram": 2,
+      "facebook": 2
+    },
+    "acceptedByPlacement": {
+      "post": 2,
+      "story": 2
+    },
+    "acceptedByContentKind": {
+      "listing": 4
+    }
+  },
+  "providerEvidence": {
+    "pageDiscovery": {
+      "attempted": true,
+      "succeeded": false,
+      "pages": 0,
+      "instagramAccounts": 0,
+      "failure": "token_invalid_or_expired"
+    },
+    "readable": 0,
+    "unreadable": 4,
+    "expectedExpiredStories": 0,
+    "providerPermalinks": 0,
+    "providerTextMentionsAeroTrade": 0,
+    "exactAttributedDestinationPresent": 0,
+    "checksByFailure": {
+      "token_invalid_or_expired": 2,
+      "provider_read_failed": 2
+    },
+    "checksByNetworkAndPlacement": {
+      "instagram_post": 1,
+      "instagram_story": 1,
+      "facebook_post": 1,
+      "facebook_story": 1
+    }
+  },
+  "deliveryPathEvidence": {
+    "facebookPostOrVideoWithProviderLinkCandidate": 1,
+    "instagramPostCarouselOrReelWithDestinationOnlyInCaptionInput": 1,
+    "imageOnlyStoriesWithoutDestinationTransportInPublisher": 2,
+    "instagramProfileChecks": 0,
+    "instagramProfilesPointingToAeroTrade": 0,
+    "instagramProfileChecksByFailure": {}
+  },
+  "attributedActivity": {
+    "totalActions": 0,
+    "byDataset": {
+      "listing_events": {
+        "available": true,
+        "total": 0,
+        "byNetwork": {}
+      },
+      "catalog_search_events": {
+        "available": true,
+        "total": 0,
+        "byNetwork": {}
+      },
+      "marketplace_inquiries": {
+        "available": true,
+        "total": 0,
+        "byNetwork": {}
+      },
+      "wanted_requests": {
+        "available": true,
+        "total": 0,
+        "byNetwork": {}
+      },
+      "quote_requests": {
+        "available": true,
+        "total": 0,
+        "byNetwork": {}
+      },
+      "newsletter_public_subscriptions": {
+        "available": true,
+        "total": 0,
+        "byNetwork": {}
+      }
+    }
+  },
+  "conclusion": "Meta acceptance is proven, but no attributable AeroTrade action was observed. Story receipts are image-only awareness placements; they do not transport the stored destination URL.",
+  "caveat": "Provider acceptance proves that Meta returned an identifier, not reach, impressions or clicks. Expired stories may no longer be readable after their display window. No provider identifier, token, caption, account name or personal data is stored in this report."
+}

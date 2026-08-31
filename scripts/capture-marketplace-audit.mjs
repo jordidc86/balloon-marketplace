@@ -12,6 +12,7 @@ import { isActiveNewsletterConsent, normalizeNewsletterEmail } from '../src/util
 import { isActivePublicNewsletterConsent } from '../src/utils/newsletter-recipients.mjs'
 import { isSellerEnquiryEscalationDue } from '../src/utils/opportunity-followup.mjs'
 import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestReadiness } from '../src/utils/seller-availability-digest.mjs'
+import { getSocialAcquisitionMode } from '../src/utils/social-publication.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only after explicit approval for a read-only production audit.')
@@ -150,6 +151,11 @@ const activeNewsletterAudienceEmails = new Set([
 
 const countBy = (items, key) => items.reduce((counts, item) => {
   const value = String(item[key] ?? 'unknown')
+  counts[value] = (counts[value] || 0) + 1
+  return counts
+}, {})
+const countByValue = (items, valueFor) => items.reduce((counts, item) => {
+  const value = String(valueFor(item) || 'unknown')
   counts[value] = (counts[value] || 0) + 1
   return counts
 }, {})
@@ -540,6 +546,10 @@ const result = {
     socialPublicationStatuses30d: countBy(socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d), 'status'),
     socialPublicationNetworksAccepted30d: countBy(socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status === 'accepted'), 'network'),
     socialPublicationPlacementsAccepted30d: countBy(socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status === 'accepted'), 'placement'),
+    socialPublicationAcquisitionModesAccepted30d: countByValue(
+      socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status === 'accepted'),
+      (receipt) => getSocialAcquisitionMode(receipt),
+    ),
     socialPublicationNeedsAttention30d: socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status !== 'accepted').length,
     socialPublicationRetryable30d: socialPublicationReceipts.filter((receipt) => receipt.created_at >= since30d && receipt.status === 'failed' && receipt.retryable).length,
     runStatuses: {

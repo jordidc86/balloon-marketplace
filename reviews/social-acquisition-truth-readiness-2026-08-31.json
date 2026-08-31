@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_social_acquisition_truth_readiness",
+  "capturedAt": "2026-08-31T17:30:00.000Z",
+  "containsPii": false,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "providerPublicationsCreated": 0,
+  "productionEvidence": {
+    "acceptedPlacements30d": 4,
+    "destinationCaptionOnly": 1,
+    "destinationTextCandidate": 1,
+    "awarenessImageOnly": 2,
+    "attributedActions30d": 0,
+    "metaCredentialState": "expired"
+  },
+  "candidateBehavior": {
+    "separatesProviderAcceptanceFromTraffic": true,
+    "excludesImageOnlyStoriesFromDestinationCandidates": true,
+    "warnsWhenDestinationCandidatesProduceNoAttributedViews": true,
+    "retainsProviderIdentifiersAndCaptionsOutsideAuditOutput": true
+  },
+  "validation": {
+    "automatedTestsPassed": 212,
+    "operationalContractsPassed": 228,
+    "lintPassed": true,
+    "typecheckPassed": true,
+    "productionBuildPassed": true
+  },
+  "releaseState": "candidate_only_pending_explicit_production_approval"
+}

@@ -1,14 +1,14 @@
 # AeroTrade Latest Summary
 
 Date: 2026-08-31
-Status: `Production is technically mature and measurable; the principal constraint is now real marketplace liquidity and fresh seller participation, not missing core workflow code.`
+Status: `Production is technically mature; the principal constraints are real marketplace liquidity, fresh seller participation and a currently expired Meta credential.`
 
 ## Authoritative production state
 
 - Production: `https://aerotrade.app`, served from commit `e9630bda8507e7c609adad3148ab4c05df8bffd2` by ready Netlify deploy `6a95a2b7d784cef925c11da3` on the protected `production` branch.
-- Validation: 204 automated tests, 218 operational contracts, ESLint, TypeScript and the optimized Next.js production build pass.
-- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v9.json`.
-- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v10.md` — mean technical readiness 97%, production/commercial proof 46%, evidence-weighted maturity 82%.
+- Candidate validation: 212 automated tests, 228 operational contracts, ESLint, TypeScript and the optimized Next.js production build pass. Candidate capability is not counted as live production.
+- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v13.json`.
+- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v12.md` — mean technical readiness 97%, production/commercial proof 44%, evidence-weighted maturity 81%.
 - Supply: 12 active listings from 6 sellers; all 84 active image files are reachable; one additional listing remains pending payment.
 - Trust: 1/12 active listings has current owner availability evidence; 11 remain unconfirmed and no listing has document-verification evidence.
 - Demand and closing: no comparable stored marketplace enquiry, negotiation, new-balloon request or closed marketplace transaction exists yet.
@@ -36,7 +36,8 @@ Status: `Production is technically mature and measurable; the principal constrai
 3. **Seller activation:** the pending-payment seller can either resume the 5 EUR promotion checkout or publish free. AeroTrade must not choose for the seller.
 4. **Commercial closing proof:** negotiation, proposal, outcome and economics ledgers exist, but no genuine equipment transaction has exercised them end to end.
 5. **Availability and verification:** current photos do not prove current ownership, availability, identity, documents or airworthiness. These states remain separate and evidence-bound.
+6. **Social distribution:** Meta accepted four historical placements, but two were image-only stories and only two carried the destination in post text or caption. No attributable AeroTrade action followed, and the current production Meta token is expired. Evidence: `reviews/social-publication-audit-2026-08-31.json`.
 
 ## Next highest-value action
 
-The next internal engineering work should improve acquisition measurement and commercial follow-up only where it can be validated without manufacturing activity. The next external action with the highest immediate supply value is a single grouped availability request to each of the 5 due sellers covering 11 listings, but no seller message may be sent without explicit approval. Commercial-proof scores must not rise until a real seller confirms, a real visitor opts in, a qualified buyer contacts a seller, or a transaction/outcome is evidenced.
+The next internal engineering work should improve acquisition and commercial follow-up only where it can be validated without manufacturing activity. Social reporting now separates provider acceptance, awareness-only stories, destination candidates and observed traffic; it must not claim acquisition from acceptance alone. The next external action with the highest immediate supply value is a single grouped availability request to each of the 5 due sellers covering 11 listings, but no seller message may be sent without explicit approval. Restoring Meta requires a valid credential and a read-only provider check before any new publication. Commercial-proof scores must not rise until a real seller confirms, a real visitor opts in, a qualified buyer contacts a seller, or a transaction/outcome is evidenced.

@@ -1159,6 +1159,17 @@ const checks = [
     required: ['getAttributedSocialUrl', 'publishSocialPlacement', 'publishTracked', "contentKind: 'listing'", "contentKind: 'brand'", "network: 'instagram'", "network: 'facebook'"],
   },
   {
+    name: 'Social reporting separates provider acceptance, destination transport and observed traffic',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['getSocialAcquisitionMode', 'Destination candidates', 'image-only awareness placement(s) excluded', 'Observed on AeroTrade, not inferred from Meta acceptance'],
+  },
+  {
+    name: 'Read-only Meta audit retains aggregate provider evidence without identifiers or captions',
+    file: 'scripts/capture-social-publication-audit.mjs',
+    required: ['CONFIRM_READ_ONLY_META', "from('social_publication_receipts')", 'providerTextMentionsAeroTrade', 'imageOnlyStoriesWithoutDestinationTransportInPublisher', 'No provider identifier, token, caption, account name or personal data is stored'],
+    forbidden: ['providerId:', 'accessToken:', 'caption: providerText', 'message: providerText'],
+  },
+  {
     name: 'Future social creatives expose AeroTrade itself as the buyer destination',
     file: 'src/app/api/social-brand-card/[slug]/route.tsx',
     required: ['getBrandSocialSourceImagePath', 'Browse current balloon equipment', 'aerotrade.app', 'Cache-Control'],

@@ -7,6 +7,7 @@ import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '@/utils/buyer-funnel.mjs'
 import { isSellerEnquiryEscalationDue } from '@/utils/opportunity-followup.mjs'
 import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestReadiness } from '@/utils/seller-availability-digest.mjs'
+import { getSocialAcquisitionMode } from '@/utils/social-publication.mjs'
 import { clarifyListingSale, recordCommercialOutcome, recordCommercialUnitEconomics, requestSellerAvailabilityDigest, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
@@ -615,6 +616,14 @@ export default async function CommercialPage() {
   const retryableSocialPublications = failedSocialPublications.filter((receipt) => receipt.retryable)
   const instagramSocialPublications = acceptedSocialPublications.filter((receipt) => receipt.network === 'instagram').length
   const facebookSocialPublications = acceptedSocialPublications.filter((receipt) => receipt.network === 'facebook').length
+  const socialPublicationModes = acceptedSocialPublications.reduce<Record<string, number>>((counts, receipt) => {
+    const mode = getSocialAcquisitionMode(receipt)
+    counts[mode] = (counts[mode] || 0) + 1
+    return counts
+  }, {})
+  const socialDestinationCandidates = (socialPublicationModes.destination_text_candidate || 0) + (socialPublicationModes.destination_caption_only || 0)
+  const socialAwarenessOnlyPlacements = (socialPublicationModes.awareness_image_only || 0) + (socialPublicationModes.awareness_only || 0)
+  const attributedSocialViews = typedListingEvents.filter((event) => ['instagram', 'facebook'].includes(event.utm_source || '')).length
   const socialPublicationAttention = pendingSocialPublications.length + failedSocialPublications.length
   const pendingPublicNewsletterSubscriptions = typedPublicNewsletterSubscriptions.filter((subscription) => subscription.status === 'PENDING').length
   const activePublicNewsletterSubscriptions = typedPublicNewsletterSubscriptions.filter((subscription) => subscription.status === 'ACTIVE' && subscription.confirmed_at && !subscription.unsubscribed_at).length
@@ -679,13 +688,13 @@ export default async function CommercialPage() {
 
       <section className="rounded-2xl border bg-card p-6">
         <h2 className="text-xl font-semibold">Social acquisition delivery (30d)</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Each content, network and placement needs its own Meta acceptance identifier. Accepted placements are never repeated; interrupted or ambiguous operations fail closed for manual reconciliation.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Meta acceptance, destination transport and attributable traffic are separate evidence. Stories published by the current image-only integration count as awareness, never as click-capable acquisition.</p>
         {socialPublicationError ? <p className="mt-4 text-sm text-destructive">Social publication evidence is unavailable: {socialPublicationError.message}</p> : (
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Metric title="Accepted placements" value={acceptedSocialPublications.length} icon={<CheckCircle2 className="h-5 w-5" />} detail={`${instagramSocialPublications} Instagram · ${facebookSocialPublications} Facebook`} />
-            <Metric title="Unverified pending" value={pendingSocialPublications.length} icon={<TriangleAlert className="h-5 w-5" />} detail="Do not repeat automatically" warning={pendingSocialPublications.length > 0} />
-            <Metric title="Failed placements" value={failedSocialPublications.length} icon={<TriangleAlert className="h-5 w-5" />} detail={`${retryableSocialPublications.length} bounded safe retry`} warning={failedSocialPublications.length > 0} />
-            <Metric title="Attributed social views" value={typedListingEvents.filter((event) => ['instagram', 'facebook'].includes(event.utm_source || '')).length} icon={<Plane className="h-5 w-5" />} detail="Comparable against accepted publication evidence" />
+            <Metric title="Destination candidates" value={socialDestinationCandidates} icon={<Plane className="h-5 w-5" />} detail={`${socialAwarenessOnlyPlacements} image-only awareness placement(s) excluded`} />
+            <Metric title="Attributed social views" value={attributedSocialViews} icon={<Plane className="h-5 w-5" />} detail="Observed on AeroTrade, not inferred from Meta acceptance" warning={socialDestinationCandidates > 0 && attributedSocialViews === 0} />
+            <Metric title="Delivery attention" value={pendingSocialPublications.length + failedSocialPublications.length} icon={<TriangleAlert className="h-5 w-5" />} detail={`${pendingSocialPublications.length} unverified · ${failedSocialPublications.length} failed · ${retryableSocialPublications.length} safe retry`} warning={pendingSocialPublications.length + failedSocialPublications.length > 0} />
           </div>
         )}
       </section>

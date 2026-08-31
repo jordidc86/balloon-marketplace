@@ -38,6 +38,16 @@ export function getAttributedSocialUrl(rawUrl, { network, placement, contentKind
   return url.toString()
 }
 
+export function getSocialAcquisitionMode({ network, placement }) {
+  const normalizedNetwork = requiredPart(network, 'Network', allowedNetworks)
+  const normalizedPlacement = requiredPart(placement, 'Placement', allowedPlacements)
+
+  if (normalizedPlacement === 'story') return 'awareness_image_only'
+  if (normalizedNetwork === 'facebook' && ['post', 'video'].includes(normalizedPlacement)) return 'destination_text_candidate'
+  if (normalizedNetwork === 'instagram' && ['post', 'carousel', 'reel'].includes(normalizedPlacement)) return 'destination_caption_only'
+  return 'awareness_only'
+}
+
 export function getSocialPublicationDecision(receipt, now = new Date(), maxAttempts = socialPublicationMaxAttempts) {
   if (receipt?.status === 'accepted' && receipt?.provider_id) return 'duplicate'
   if (receipt?.status === 'pending' && Number(receipt?.attempt_count || 0) > 0) return 'unverified'

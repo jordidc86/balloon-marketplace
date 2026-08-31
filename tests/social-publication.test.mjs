@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildSocialPublicationKey,
   getAttributedSocialUrl,
+  getSocialAcquisitionMode,
   getNextSocialPublicationAttemptAt,
   getSocialPublicationDecision,
   isSocialPublicationRetrySafe,
@@ -13,6 +14,15 @@ test('social publication keys are stable and placement specific', () => {
   assert.equal(buildSocialPublicationKey(input), 'social:v1:2026-08-29:listing:4e2be39d-6390-409a-8304-ae16b1239fc1:facebook:post')
   assert.notEqual(buildSocialPublicationKey(input), buildSocialPublicationKey({ ...input, placement: 'story' }))
   assert.throws(() => buildSocialPublicationKey({ ...input, contentId: '../../unsafe' }), /invalid/)
+})
+
+test('social placements separate provider acceptance from acquisition transport', () => {
+  assert.equal(getSocialAcquisitionMode({ network: 'facebook', placement: 'post' }), 'destination_text_candidate')
+  assert.equal(getSocialAcquisitionMode({ network: 'facebook', placement: 'video' }), 'destination_text_candidate')
+  assert.equal(getSocialAcquisitionMode({ network: 'instagram', placement: 'post' }), 'destination_caption_only')
+  assert.equal(getSocialAcquisitionMode({ network: 'instagram', placement: 'reel' }), 'destination_caption_only')
+  assert.equal(getSocialAcquisitionMode({ network: 'instagram', placement: 'story' }), 'awareness_image_only')
+  assert.equal(getSocialAcquisitionMode({ network: 'facebook', placement: 'story' }), 'awareness_image_only')
 })
 
 test('social links preserve the destination and add closed acquisition attribution', () => {
