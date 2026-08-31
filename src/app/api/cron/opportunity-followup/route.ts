@@ -24,6 +24,8 @@ import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestInvento
 import { sellerAvailabilityCapabilityLifetimeMs, signSellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
 import { buildSellerAvailabilityDigestNotification } from '@/utils/seller-availability-notification.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
+import { buildPublicNewsletterConfirmation } from '@/utils/newsletter-public-confirmation.mjs'
+import { parsePublicNewsletterConfirmationIdempotencyKey } from '@/utils/newsletter-public-subscription.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -176,6 +178,20 @@ type SellerAvailabilityRetryConfirmation = {
   confirmed_at: string
 }
 
+type PublicNewsletterConfirmationRetry = {
+  id: string
+  entity_id: string
+  idempotency_key: string
+  status: 'pending' | 'failed'
+}
+
+type PublicNewsletterSubscriptionRecovery = {
+  id: string
+  email: string
+  status: 'PENDING' | 'ACTIVE' | 'UNSUBSCRIBED'
+  confirmation_cycle: number
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -197,7 +213,7 @@ export async function GET(request: Request) {
   const sellerEscalationCutoff = getSellerEnquiryEscalationCutoff()
   const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult, newBalloonNotificationRetryResult, acceptedNewBalloonNotificationResult, sellerAvailabilityDigestRetryResult] = await Promise.all([
+  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult, newBalloonNotificationRetryResult, acceptedNewBalloonNotificationResult, sellerAvailabilityDigestRetryResult, publicNewsletterConfirmationRetryResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -287,8 +303,18 @@ export async function GET(request: Request) {
       .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
       .order('created_at', { ascending: true })
       .limit(100),
+    supabase
+      .from('commercial_notification_receipts')
+      .select('id,entity_id,idempotency_key,status')
+      .eq('notification_type', 'newsletter_public_optin_confirmation')
+      .eq('entity_type', 'newsletter_subscription')
+      .in('status', ['pending', 'failed'])
+      .lt('delivery_attempts', 2)
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+      .order('created_at', { ascending: true })
+      .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error || newBalloonNotificationRetryResult.error || acceptedNewBalloonNotificationResult.error || sellerAvailabilityDigestRetryResult.error) {
+  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error || newBalloonNotificationRetryResult.error || acceptedNewBalloonNotificationResult.error || sellerAvailabilityDigestRetryResult.error || publicNewsletterConfirmationRetryResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
@@ -306,6 +332,7 @@ export async function GET(request: Request) {
       .map((receipt) => [receipt.id, receipt]),
   ).values()]
   const sellerAvailabilityDigestRetries = (sellerAvailabilityDigestRetryResult.data || []) as SellerAvailabilityDigestRetry[]
+  const publicNewsletterConfirmationRetries = (publicNewsletterConfirmationRetryResult.data || []) as PublicNewsletterConfirmationRetry[]
   const newBalloonProposalDeliveryCandidates = newBalloonNotificationCandidates.filter((retry) => retry.notification_type === 'new_balloon_proposal_buyer')
   const newBalloonResponseAdminCandidates = newBalloonNotificationCandidates.filter((retry) => retry.notification_type === 'new_balloon_proposal_response_admin')
   const sellerEscalationInquiryIds = new Set(acceptedSellerFollowups.map((receipt) => receipt.entity_id))
@@ -323,7 +350,8 @@ export async function GET(request: Request) {
     .map((retry) => parseNewBalloonProposalResponseNotificationEventId(retry.idempotency_key))
     .filter((eventId): eventId is string => Boolean(eventId))
   const sellerAvailabilitySellerIds = [...new Set(sellerAvailabilityDigestRetries.map((retry) => retry.entity_id))]
-  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult, sellerAvailabilitySellersResult, sellerAvailabilityListingsResult] = await Promise.all([
+  const publicNewsletterSubscriptionIds = [...new Set(publicNewsletterConfirmationRetries.map((retry) => retry.entity_id))]
+  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult, newBalloonProposalsResult, newBalloonResponseEventsResult, sellerAvailabilitySellersResult, sellerAvailabilityListingsResult, publicNewsletterSubscriptionsResult] = await Promise.all([
     buyerAcknowledgementQuoteIds.length > 0
       ? supabase
         .from('quote_requests')
@@ -379,8 +407,14 @@ export async function GET(request: Request) {
         .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
         .order('id')
       : Promise.resolve({ data: [], error: null }),
+    publicNewsletterSubscriptionIds.length > 0
+      ? supabase
+        .from('newsletter_public_subscriptions')
+        .select('id,email,status,confirmation_cycle')
+        .in('id', publicNewsletterSubscriptionIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
-  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error || sellerAvailabilitySellersResult.error || sellerAvailabilityListingsResult.error) {
+  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error || newBalloonProposalsResult.error || newBalloonResponseEventsResult.error || sellerAvailabilitySellersResult.error || sellerAvailabilityListingsResult.error || publicNewsletterSubscriptionsResult.error) {
     return NextResponse.json({ error: 'Commercial notification recovery data could not be loaded' }, { status: 500 })
   }
   const buyerAcknowledgementQuoteById = new Map(
@@ -409,6 +443,9 @@ export async function GET(request: Request) {
     ((sellerAvailabilitySellersResult.data || []) as SellerAvailabilityRetrySeller[]).map((seller) => [seller.id, seller]),
   )
   const sellerAvailabilityListings = (sellerAvailabilityListingsResult.data || []) as SellerAvailabilityRetryListing[]
+  const publicNewsletterSubscriptionById = new Map(
+    ((publicNewsletterSubscriptionsResult.data || []) as PublicNewsletterSubscriptionRecovery[]).map((subscription) => [subscription.id, subscription]),
+  )
   const sellerAvailabilityListingIds = sellerAvailabilityListings.map((listing) => listing.id)
   const sellerAvailabilityConfirmationsResult = sellerAvailabilityListingIds.length > 0
     ? await supabase
@@ -471,6 +508,7 @@ export async function GET(request: Request) {
     dueNewBalloonResponseAdminNotificationRetries: newBalloonResponseAdminRetries.length,
     dueBuyerEarlyAccessCheckoutRecoveries: buyerEarlyAccessRecoveries.length,
     dueSellerAvailabilityDigestRetries: sellerAvailabilityDigestRetries.length,
+    duePublicNewsletterConfirmationRetries: publicNewsletterConfirmationRetries.length,
     accepted: 0,
     alreadyAccepted: 0,
     retryDeferred: 0,
@@ -496,6 +534,11 @@ export async function GET(request: Request) {
     sellerAvailabilityDigestsDeferred: 0,
     sellerAvailabilityDigestsFailed: 0,
     sellerAvailabilityDigestsSuperseded: 0,
+    publicNewsletterConfirmationsAccepted: 0,
+    publicNewsletterConfirmationsAlreadyAccepted: 0,
+    publicNewsletterConfirmationsDeferred: 0,
+    publicNewsletterConfirmationsFailed: 0,
+    publicNewsletterConfirmationsSuperseded: 0,
     dryRun: !commit,
   }
   if (!commit) return NextResponse.json(result)
@@ -520,6 +563,64 @@ export async function GET(request: Request) {
       .select('id,delivery_attempts,next_attempt_at')
       .single()
     return !error && data?.delivery_attempts === 2 && data.next_attempt_at === null
+  }
+
+  const exhaustPublicNewsletterReceipt = async (receiptId: string, message: string) => {
+    const { data, error } = await supabase
+      .from('commercial_notification_receipts')
+      .update({ status: 'failed', delivery_attempts: 2, next_attempt_at: null, error_message: message })
+      .eq('id', receiptId)
+      .in('status', ['pending', 'failed'])
+      .select('id,delivery_attempts,next_attempt_at')
+      .single()
+    return !error && data?.delivery_attempts === 2 && data.next_attempt_at === null
+  }
+
+  for (const retry of publicNewsletterConfirmationRetries) {
+    const parsedKey = parsePublicNewsletterConfirmationIdempotencyKey(retry.idempotency_key)
+    const subscription = publicNewsletterSubscriptionById.get(retry.entity_id)
+    const exactPendingRequest = Boolean(parsedKey
+      && parsedKey.subscriptionId === retry.entity_id
+      && subscription?.id === retry.entity_id
+      && subscription.status === 'PENDING'
+      && subscription.confirmation_cycle === parsedKey.confirmationCycle)
+    if (!exactPendingRequest || !subscription) {
+      const exhausted = await exhaustPublicNewsletterReceipt(retry.id, 'Public newsletter confirmation recovery was superseded by the current consent state.')
+      if (exhausted) result.publicNewsletterConfirmationsSuperseded += 1
+      else result.publicNewsletterConfirmationsFailed += 1
+      continue
+    }
+
+    const confirmation = buildPublicNewsletterConfirmation({
+      subscriptionId: subscription.id,
+      email: subscription.email,
+      confirmationCycle: subscription.confirmation_cycle,
+      secret: serviceRoleKey,
+      baseUrl: siteUrl,
+    })
+    if (!confirmation || confirmation.idempotencyKey !== retry.idempotency_key) {
+      result.configurationBlocked += 1
+      continue
+    }
+    try {
+      const delivery = await sendCommercialReceiptEmail(supabase, {
+        notificationType: 'newsletter_public_optin_confirmation',
+        entityType: 'newsletter_subscription',
+        entityId: subscription.id,
+        recipientRole: 'buyer',
+        to: subscription.email,
+        subject: confirmation.subject,
+        html: confirmation.html,
+        idempotencyKey: confirmation.idempotencyKey,
+      })
+      if (delivery.duplicate) result.publicNewsletterConfirmationsAlreadyAccepted += 1
+      else if (delivery.success) result.publicNewsletterConfirmationsAccepted += 1
+      else if (delivery.skipped) result.publicNewsletterConfirmationsDeferred += 1
+      else result.publicNewsletterConfirmationsFailed += 1
+    } catch (error) {
+      console.error('Public newsletter confirmation recovery failed:', error)
+      result.publicNewsletterConfirmationsFailed += 1
+    }
   }
 
   for (const retry of sellerAvailabilityDigestRetries) {
@@ -1257,6 +1358,6 @@ export async function GET(request: Request) {
     }
   }
 
-  const hasFailure = result.failed > 0 || result.configurationBlocked > 0 || result.sellerAvailabilityDigestsFailed > 0
+  const hasFailure = result.failed > 0 || result.configurationBlocked > 0 || result.sellerAvailabilityDigestsFailed > 0 || result.publicNewsletterConfirmationsFailed > 0
   return NextResponse.json(result, { status: hasFailure ? 502 : 200 })
 }

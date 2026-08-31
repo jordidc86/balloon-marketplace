@@ -6,6 +6,7 @@ import { Metadata } from 'next'
 import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
 import SafeListingImage from '@/components/SafeListingImage'
 import CatalogSearchTracker from './CatalogSearchTracker'
+import PublicNewsletterSignup from '@/components/PublicNewsletterSignup'
 import { getCatalogCategory, getCatalogCategoryPath } from '@/utils/catalog-categories.mjs'
 import {
   getCatalogManufacturer,
@@ -321,6 +322,10 @@ export async function CatalogExperience({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="mt-10">
+        <PublicNewsletterSignup compact />
       </div>
     </div>
   )

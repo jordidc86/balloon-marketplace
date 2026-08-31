@@ -8,7 +8,8 @@ import { buildNewBalloonManufacturerFunnel } from '../src/utils/new-balloon-manu
 import { getListingAvailabilityState } from '../src/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '../src/utils/buyer-funnel.mjs'
 import { isOptionalSupabaseSchemaError } from '../src/utils/audit-schema-compatibility.mjs'
-import { isActiveNewsletterConsent } from '../src/utils/newsletter-consent.mjs'
+import { isActiveNewsletterConsent, normalizeNewsletterEmail } from '../src/utils/newsletter-consent.mjs'
+import { isActivePublicNewsletterConsent } from '../src/utils/newsletter-recipients.mjs'
 import { isSellerEnquiryEscalationDue } from '../src/utils/opportunity-followup.mjs'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
@@ -70,7 +71,8 @@ const optionalQuerySpecs = {
   commercialUnitEconomicsEvents: ['commercial_unit_economics_events', 'id,outcome_id,event_type,currency,aerotrade_revenue_minor,direct_cost_minor,payment_fee_minor,tax_amount_minor,contribution_margin_minor,evidence_level,evidence_source,created_at'],
   newBalloonProposalResponses: ['new_balloon_proposal_response_events', 'id,proposal_id,quote_request_id,response_type,admin_notification_status,created_at'],
   socialPublicationReceipts: ['social_publication_receipts', 'status,network,placement,content_kind,content_id,attempt_count,retryable,created_at,accepted_at'],
-  newsletterConsentProfiles: ['users', 'id,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at'],
+  newsletterConsentProfiles: ['users', 'id,email,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at'],
+  newsletterPublicSubscriptions: ['newsletter_public_subscriptions', 'id,email,status,confirmed_at,unsubscribed_at'],
   catalogDemandEntryContexts: ['catalog_search_events', 'id,entry_context'],
   listingCheckoutIntents: ['listing_checkout_intents', 'id,listing_id,user_id,stripe_session_id,source,status,created_at,completed_at,updated_at'],
   wantedMatchDispatches: ['wanted_match_dispatches', 'listing_ids,status,accepted_at,created_at'],
@@ -131,6 +133,17 @@ const newsletterConsentProfiles = users.map((user) => ({
   newsletter_unsubscribed_at: null,
   ...(newsletterConsentByUserId.get(user.id) || {}),
 }))
+const newsletterPublicSubscriptions = optionalAuditResults.newsletterPublicSubscriptions.rows
+const activeNewsletterAudienceEmails = new Set([
+  ...newsletterConsentProfiles
+    .filter(isActiveNewsletterConsent)
+    .map((profile) => normalizeNewsletterEmail(profile.email))
+    .filter(Boolean),
+  ...newsletterPublicSubscriptions
+    .filter(isActivePublicNewsletterConsent)
+    .map((subscription) => normalizeNewsletterEmail(subscription.email))
+    .filter(Boolean),
+])
 
 const countBy = (items, key) => items.reduce((counts, item) => {
   const value = String(item[key] ?? 'unknown')
@@ -438,6 +451,10 @@ const result = {
     newsletterConsentProfiles: newsletterConsentProfiles.length,
     newsletterActiveConsents: newsletterConsentProfiles.filter(isActiveNewsletterConsent).length,
     newsletterConsentStatuses: countBy(newsletterConsentProfiles, 'newsletter_consent_status'),
+    newsletterPublicSubscriptions: newsletterPublicSubscriptions.length,
+    newsletterPublicActiveConsents: newsletterPublicSubscriptions.filter(isActivePublicNewsletterConsent).length,
+    newsletterPublicConsentStatuses: countBy(newsletterPublicSubscriptions, 'status'),
+    newsletterCombinedActiveAudience: activeNewsletterAudienceEmails.size,
     newsletterRuns: newsletterRuns.length,
     successfulLiveNewsletterRuns: successfulNewsletterRuns.length,
     newsletterRecipientsAccepted: successfulNewsletterRuns.reduce((sum, run) => sum + Number(run.sent_count || 0), 0),

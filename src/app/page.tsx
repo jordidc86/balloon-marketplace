@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/utils/supabase/server';
 import { formatDistanceToNow } from 'date-fns';
 import { getListingVisibility, getPrimaryImageUrl, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings';
 import SafeListingImage from '@/components/SafeListingImage';
+import PublicNewsletterSignup from '@/components/PublicNewsletterSignup';
 import { getCatalogCategoryPath } from '@/utils/catalog-categories.mjs';
 
 import { Metadata } from "next";
@@ -242,6 +243,12 @@ export default async function Home() {
         <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-[1fr_auto] lg:items-center lg:px-8">
           <div><p className="text-sm font-bold uppercase tracking-wider text-primary">Used or new</p><h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">Do not stop because today’s catalog is not the right fit.</h2><p className="mt-3 max-w-3xl text-slate-600">Tell AeroTrade what used equipment you need, or request an approximate price direction for a new Pasha or Schroeder balloon. The commercial path continues either way.</p></div>
           <div className="flex flex-col gap-3 sm:flex-row"><Link href="/wanted" className="rounded-xl border border-slate-300 px-5 py-3 text-center font-bold text-slate-800 hover:border-primary hover:text-primary">Tell us what you need</Link><Link href="/new-balloon?source=home" className="rounded-xl bg-primary px-5 py-3 text-center font-bold text-white hover:bg-primary/90">Get a new-balloon estimate</Link></div>
+        </div>
+      </section>
+
+      <section className="border-t bg-slate-50 py-10">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <PublicNewsletterSignup />
         </div>
       </section>
 

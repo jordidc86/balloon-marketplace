@@ -17,11 +17,12 @@ import {
   newsletterAttribution,
 } from '@/utils/newsletter-links.mjs';
 import {
-  isActiveNewsletterConsent,
   newsletterUnsubscribePlaceholder,
   personalizeNewsletterHtml,
   signNewsletterUnsubscribeCapability,
 } from '@/utils/newsletter-consent.mjs';
+import { buildNewsletterRecipients } from '@/utils/newsletter-recipients.mjs';
+import { signPublicNewsletterUnsubscribe } from '@/utils/newsletter-public-subscription.mjs';
 
 type NewsletterImage = {
   url: string
@@ -50,7 +51,15 @@ type NewsletterUser = {
   newsletter_unsubscribed_at: string | null
 }
 
-type NewsletterRecipient = { id: string | null; email: string }
+type NewsletterPublicSubscription = {
+  id: string
+  email: string
+  status: string
+  confirmed_at: string | null
+  unsubscribed_at: string | null
+}
+
+type NewsletterRecipient = { id: string | null; email: string; kind: 'account' | 'public' | 'test' }
 
 type NewsletterRunStatus = 'running' | 'sent' | 'partial' | 'failed' | 'skipped' | 'audit_uncertain'
 
@@ -104,7 +113,16 @@ const getPromotedNewsletterListings = (listings: NewsletterListing[]) =>
   listings.filter((listing) => isPromotedListing(listing.details));
 
 const getNewsletterUnsubscribeUrl = (recipient: NewsletterRecipient, secret: string) => {
-  if (!recipient.id) return `${siteUrl}/dashboard`;
+  if (!recipient.id || recipient.kind === 'test') return `${siteUrl}/dashboard`;
+  if (recipient.kind === 'public') {
+    const token = signPublicNewsletterUnsubscribe({
+      subscriptionId: recipient.id,
+      email: recipient.email,
+      secret,
+    });
+    if (!token) throw new Error('A public newsletter unsubscribe capability could not be created.');
+    return `${siteUrl}/newsletter/unsubscribe?subscription=${encodeURIComponent(recipient.id)}&token=${encodeURIComponent(token)}`;
+  }
   const token = signNewsletterUnsubscribeCapability({
     userId: recipient.id,
     email: recipient.email,
@@ -582,53 +600,32 @@ export async function GET(request: Request) {
       });
     }
 
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id,email,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
-      .eq('newsletter_consent_status', 'ACTIVE');
+    const [{ data: users, error: usersError }, { data: publicSubscriptions, error: publicSubscriptionsError }] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id,email,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
+        .eq('newsletter_consent_status', 'ACTIVE'),
+      supabase
+        .from('newsletter_public_subscriptions')
+        .select('id,email,status,confirmed_at,unsubscribed_at')
+        .eq('status', 'ACTIVE'),
+    ]);
 
-    if (usersError) {
+    if (usersError || publicSubscriptionsError) {
       await finishNewsletterRun(supabase, activeRun.id, {
         status: 'failed',
-        errorMessage: `Error fetching users: ${usersError.message}`,
+        errorMessage: `Error fetching newsletter consent: ${usersError?.message || publicSubscriptionsError?.message}`,
       });
-      return new NextResponse('Error fetching users', { status: 500 });
+      return new NextResponse('Error fetching newsletter consent', { status: 500 });
     }
 
-    if (!testEmail && (!users || users.length === 0)) {
-      await finishNewsletterRun(supabase, activeRun.id, {
-        status: 'skipped',
-        listingsCount: recentListings.length,
-        primaryListingCount,
-        listingIds: recentListings.map(listing => listing.id),
-        metadata: { reason: 'no_users' },
-      });
-
-      return NextResponse.json({
-        success: true,
-        skipped: true,
-        runId: activeRun.id,
-        periodKey: activeRun.periodKey,
-        auditUnavailable: activeRun.auditUnavailable || undefined,
-        message: 'No users to send email to.',
-      });
-    }
-
-    const recipientByEmail = new Map<string, NewsletterRecipient>();
-    for (const user of (users || []) as NewsletterUser[]) {
-      const email = normalizeEmail(user.email);
-      if (email && isActiveNewsletterConsent(user) && !recipientByEmail.has(email)) {
-        recipientByEmail.set(email, { id: user.id, email });
-      }
-    }
-    const testRecipientEmail = testEmail ? normalizeEmail(testEmail) : null;
-    const recipients: NewsletterRecipient[] = testEmail
-      ? (testRecipientEmail ? [{ id: null, email: testRecipientEmail }] : [])
-      : Array.from(recipientByEmail.values());
-
-    const skippedInvalidRecipients = testEmail
-      ? Number(recipients.length === 0)
-      : (users || []).length - recipients.length;
+    const recipientPlan = buildNewsletterRecipients({
+      users: (users || []) as NewsletterUser[],
+      publicSubscriptions: (publicSubscriptions || []) as NewsletterPublicSubscription[],
+      testEmail,
+    });
+    const recipients = recipientPlan.recipients as NewsletterRecipient[];
+    const { skippedInvalidRecipients, duplicateRecipients } = recipientPlan;
 
     if (recipients.length === 0) {
       await finishNewsletterRun(supabase, activeRun.id, {
@@ -648,6 +645,7 @@ export async function GET(request: Request) {
         auditUnavailable: activeRun.auditUnavailable || undefined,
         message: 'No valid recipient emails to send newsletter to.',
         skippedInvalidRecipients,
+        duplicateRecipients,
       });
     }
 
@@ -673,6 +671,7 @@ export async function GET(request: Request) {
         auditUnavailable: activeRun.auditUnavailable || undefined,
         recipients: recipients.length,
         skippedInvalidRecipients,
+        duplicateRecipients,
         daysFilter: days,
         mixWithLatest,
         primaryListingCount,
@@ -937,18 +936,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: currentlyConsentedUsers, error: consentReadError } = await supabase
-      .from('users')
-      .select('id,email,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
-      .eq('newsletter_consent_status', 'ACTIVE');
-    if (consentReadError) {
-      throw new Error(`Could not recheck newsletter consent: ${consentReadError.message}`);
+    const [{ data: currentlyConsentedUsers, error: consentReadError }, { data: currentlyConsentedPublic, error: publicConsentReadError }] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id,email,newsletter_consent_status,newsletter_consented_at,newsletter_unsubscribed_at')
+        .eq('newsletter_consent_status', 'ACTIVE'),
+      supabase
+        .from('newsletter_public_subscriptions')
+        .select('id,email,status,confirmed_at,unsubscribed_at')
+        .eq('status', 'ACTIVE'),
+    ]);
+    if (consentReadError || publicConsentReadError) {
+      throw new Error(`Could not recheck newsletter consent: ${consentReadError?.message || publicConsentReadError?.message}`);
     }
-    const consentedByEmail = new Map<string, NewsletterRecipient>();
-    for (const user of (currentlyConsentedUsers || []) as NewsletterUser[]) {
-      const email = normalizeEmail(user.email);
-      if (email && isActiveNewsletterConsent(user)) consentedByEmail.set(email, { id: user.id, email });
-    }
+    const currentRecipientPlan = buildNewsletterRecipients({
+      users: (currentlyConsentedUsers || []) as NewsletterUser[],
+      publicSubscriptions: (currentlyConsentedPublic || []) as NewsletterPublicSubscription[],
+    });
+    const consentedByEmail = new Map<string, NewsletterRecipient>(
+      (currentRecipientPlan.recipients as NewsletterRecipient[]).map((recipient) => [recipient.email, recipient]),
+    );
     const eligibleRecoveryRecipients = plan.failedRecipients
       .map((recipient) => consentedByEmail.get(normalizeEmail(recipient.email) || ''))
       .filter(Boolean) as NewsletterRecipient[];

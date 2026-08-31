@@ -977,7 +977,7 @@ const checks = [
   {
     name: 'Newsletter dispatch and recovery recheck live consent and include a signed stop control',
     file: 'src/app/api/cron/newsletter/route.ts',
-    required: [".eq('newsletter_consent_status', 'ACTIVE')", 'isActiveNewsletterConsent(user)', 'signNewsletterUnsubscribeCapability', 'newsletterUnsubscribePlaceholder', 'eligibleRecoveryRecipients', 'excludedAfterConsentRecheck', 'predates explicit consent and unsubscribe controls'],
+    required: [".eq('newsletter_consent_status', 'ACTIVE')", 'buildNewsletterRecipients', 'signNewsletterUnsubscribeCapability', 'newsletterUnsubscribePlaceholder', 'eligibleRecoveryRecipients', 'excludedAfterConsentRecheck', 'predates explicit consent and unsubscribe controls'],
     forbidden: ["select('email');", 'because you are a registered user'],
   },
   {
@@ -1005,6 +1005,37 @@ const checks = [
     name: 'Consent invitation delivery is part of the closed private receipt vocabulary',
     file: 'supabase/migrations/20260829600000_newsletter_consent_invitation.sql',
     required: ["'newsletter_consent_invitation'", 'Opening the link is read-only', 'does not activate consent on delivery or link open'],
+  },
+  {
+    name: 'Public newsletter consent is private, double-opt-in and abuse controlled',
+    file: 'supabase/migrations/20260831670000_public_newsletter_double_opt_in.sql',
+    required: ['newsletter_public_subscriptions', "status in ('PENDING','ACTIVE','UNSUBSCRIBED')", 'email_hash text not null unique', 'request_key text', 'enable row level security', 'revoke all on public.newsletter_public_subscriptions from public, anon, authenticated', 'begin_public_newsletter_optin', 'confirm_public_newsletter_optin', "receipt.status = 'accepted'", 'provider_message_id is not null', 'grant execute on function public.begin_public_newsletter_optin(text, text, text) to service_role', 'never activates consent'],
+    forbidden: ['grant insert', 'grant update', 'ip_address', 'user_agent text'],
+  },
+  {
+    name: 'Public newsletter request is generic, explicit and creates no consent on delivery',
+    file: 'src/app/newsletter/actions.ts',
+    required: ['parsePublicNewsletterOptIn', 'publicNewsletterEmailHash', 'publicNewsletterSubmissionKey', "rpc('begin_public_newsletter_optin'", 'buildPublicNewsletterConfirmation', "notificationType: 'newsletter_public_optin_confirmation'", 'Nothing is subscribed until you confirm it'],
+  },
+  {
+    name: 'Public newsletter confirmation and stop links require explicit signed POST and readback',
+    file: 'src/app/newsletter/subscribe/actions.ts',
+    required: ['confirmPublicNewsletterConsent', 'verifyPublicNewsletterConfirmation', "receipt?.status === 'accepted'", "rpc('confirm_public_newsletter_optin'", "readback?.status !== 'ACTIVE'"],
+  },
+  {
+    name: 'Public newsletter stop action is signed, idempotent and independently read back',
+    file: 'src/app/newsletter/unsubscribe/actions.ts',
+    required: ['unsubscribePublicNewsletter', 'verifyPublicNewsletterUnsubscribe', "rpc('unsubscribe_public_newsletter'", "result?.subscription_status !== 'UNSUBSCRIBED'", "readback?.status !== 'UNSUBSCRIBED'"],
+  },
+  {
+    name: 'Public newsletter dispatch and recovery deduplicate and recheck live consent',
+    file: 'src/app/api/cron/newsletter/route.ts',
+    required: ['buildNewsletterRecipients', "kind: 'account' | 'public' | 'test'", 'signPublicNewsletterUnsubscribe', "from('newsletter_public_subscriptions')", 'currentlyConsentedPublic', 'currentRecipientPlan', 'eligibleRecoveryRecipients'],
+  },
+  {
+    name: 'Failed public confirmation delivery retries only the exact current consent cycle',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ["notification_type', 'newsletter_public_optin_confirmation'", 'parsePublicNewsletterConfirmationIdempotencyKey', "subscription.status === 'PENDING'", 'subscription.confirmation_cycle === parsedKey.confirmationCycle', 'buildPublicNewsletterConfirmation', 'publicNewsletterConfirmationsSuperseded'],
   },
   {
     name: 'Partial email runs block unsafe automatic retries',

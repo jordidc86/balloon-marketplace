@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-newsletter-commercial-attribution-hotfix",
-  "productionBaseCommit": "dd3a9c5bd841ead6e6047a0d073b21b795674d6c",
+  "releaseId": "2026-08-31-public-newsletter-double-optin",
+  "productionBaseCommit": "0368941c38c30f9008a38206744d17f607b2a9a5",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }
