@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_production_postflight_verification_readiness",
+  "verifiedAt": "2026-08-31T20:05:35Z",
+  "containsPii": false,
+  "productionCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+  "candidateCommit": "eb66b13439fc0d6b971ddce0aea3a49abe636f54",
+  "releaseId": "2026-08-31-acquisition-and-supply-activation",
+  "result": "ready_for_explicit_database_and_production_promotion",
+  "productionMutated": false,
+  "productionBranchUpdated": false,
+  "netlifyDeploysRequested": 0,
+  "postflightLiveExecution": false,
+  "database": {
+    "provider": "supabase",
+    "remoteLatestMigration": "20260831700000",
+    "pendingMigrationCount": 5,
+    "pendingMigrationVersions": [
+      "20260831710000",
+      "20260831720000",
+      "20260831730000",
+      "20260831740000",
+      "20260831750000"
+    ],
+    "migrationManifestSha256": "5a9f5e82b57d34cf1906b5030bc8e238381fd6413bb049bbbcf01935e7345797",
+    "applyBeforeApplication": true
+  },
+  "postflight": {
+    "exactCommitRequired": true,
+    "exactProductionDeployCountRequired": 1,
+    "readyProviderStateRequired": true,
+    "immutableOriginRequired": true,
+    "canonicalOriginRequired": true,
+    "endpointContractsPerOrigin": 5,
+    "paths": [
+      "/",
+      "/catalog",
+      "/feed.xml",
+      "/sitemap.xml",
+      "/robots.txt"
+    ],
+    "http200Required": true,
+    "mediaTypeRequired": true,
+    "contentMarkerRequired": true
+  },
+  "verification": {
+    "automatedTestsPassed": 240,
+    "operationalContractsPassed": 244,
+    "eslintPassed": true,
+    "typescriptPassed": true,
+    "optimizedBuildPassed": true,
+    "focusedPostflightTestsPassed": 4,
+    "promotionDryRunPassed": true,
+    "backwardCompatibilityRowsChecked": 25,
+    "externalMessagesSent": 0,
+    "economicActionsPerformed": 0
+  },
+  "productionReadback": {
+    "deployId": "6a95a2b7d784cef925c11da3",
+    "deployState": "ready",
+    "commit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+    "unchanged": true
+  }
+}
