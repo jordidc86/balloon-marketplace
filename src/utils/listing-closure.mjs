@@ -49,3 +49,13 @@ export function parseListingClosure(formData, listingCurrency) {
   }
 }
 
+export function parseListingSaleClarification(formData, listingCurrency) {
+  const closureForm = {
+    get(key) {
+      return key === 'closure_action' ? 'SOLD' : formData.get(key)
+    },
+  }
+  const clarification = parseListingClosure(closureForm, listingCurrency)
+  if (clarification.sale_channel === 'NOT_DISCLOSED') throw new Error('Choose the clarified sale channel')
+  return clarification
+}

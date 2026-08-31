@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { parseListingClosure } from '../src/utils/listing-closure.mjs'
+import { parseListingClosure, parseListingSaleClarification } from '../src/utils/listing-closure.mjs'
 
 test('seller may withdraw without accidentally reporting a sale', () => {
   const form = new FormData()
@@ -52,4 +52,18 @@ test('malformed, zero and unsupported monetary evidence fails closed', () => {
   valid.set('closure_action', 'SOLD')
   valid.set('sale_channel', 'NOT_DISCLOSED')
   assert.throws(() => parseListingClosure(valid, 'BTC'), /currency/i)
+})
+
+test('a later sale clarification must disclose one real bounded channel', () => {
+  const other = new FormData()
+  other.set('sale_channel', 'other_channel')
+  other.set('gross_amount', '24500')
+  assert.deepEqual(parseListingSaleClarification(other, 'EUR'), {
+    action: 'SOLD', sale_channel: 'OTHER_CHANNEL', marketplace_inquiry_id: null,
+    gross_amount_minor: 2450000, currency: 'EUR',
+  })
+
+  const undisclosed = new FormData()
+  undisclosed.set('sale_channel', 'not_disclosed')
+  assert.throws(() => parseListingSaleClarification(undisclosed, 'EUR'), /clarified sale channel/i)
 })

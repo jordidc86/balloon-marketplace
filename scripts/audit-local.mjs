@@ -334,6 +334,23 @@ const checks = [
     required: ['markListingSold', "sessionSupabase.rpc('close_listing_by_actor'", "p_sale_channel: 'NOT_DISCLOSED'", 'Administrative listing closure was not verified by readback'],
   },
   {
+    name: 'Undisclosed sale clarification is append-only, admin-only and cannot invent revenue or reopen inventory',
+    file: 'supabase/migrations/20260831700000_listing_sale_clarification.sql',
+    required: ['listing_sale_clarifications', 'lifecycle_event_id uuid not null unique', "actor_role text not null check (actor_role = 'ADMIN')", "sale_channel text not null check (sale_channel in ('AEROTRADE', 'OTHER_CHANNEL'))", 'prevent_listing_sale_clarification_mutation', 'Listing sale clarifications are append-only', 'clarify_listing_sale_by_admin', 'for update', "v_event.sale_channel <> 'NOT_DISCLOSED'", "status <> 'SPAM'", 'An AeroTrade clarification requires a matching non-spam enquiry', 'never creates a commercial outcome or revenue'],
+    forbidden: ['insert into public.commercial_outcomes', 'update public.listings set', 'update public.listing_lifecycle_events'],
+  },
+  {
+    name: 'Administrative sale clarification verifies the append-only record and unchanged closure',
+    file: 'src/app/admin/actions.ts',
+    required: ['clarifyListingSale', 'parseListingSaleClarification', "rpc('clarify_listing_sale_by_admin'", "from('listing_sale_clarifications')", "original?.sale_channel !== 'NOT_DISCLOSED'", "listingReadback?.status !== 'SOLD'", 'Sale clarification was not verified by readback'],
+    forbidden: ["update({ sale_channel: clarification.sale_channel", "update({ status: 'SOLD' })"],
+  },
+  {
+    name: 'Control Tower applies clarified attribution without obscuring the immutable original',
+    file: 'src/app/admin/commercial/page.tsx',
+    required: ['effectiveLifecycleEvents', 'clarificationByLifecycleEvent', 'Clarify sale channel', 'The original closure remains unchanged.', 'It does not create revenue, a commercial outcome or reopen the listing.', 'Store immutable clarification'],
+  },
+  {
     name: 'Control Tower turns seller sale reports into review, never automatic revenue',
     file: 'src/app/admin/commercial/page.tsx',
     required: ['pendingReportedSaleReview', 'closureSuggestionByInquiry', 'Review seller-reported AeroTrade sale', 'These fields are only a review aid: verify them before saving.', 'AeroTrade revenue remains 0 until you enter supported evidence.'],

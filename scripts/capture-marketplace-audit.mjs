@@ -76,6 +76,7 @@ const optionalQuerySpecs = {
   catalogDemandEntryContexts: ['catalog_search_events', 'id,entry_context'],
   listingCheckoutIntents: ['listing_checkout_intents', 'id,listing_id,user_id,stripe_session_id,source,status,created_at,completed_at,updated_at'],
   wantedMatchDispatches: ['wanted_match_dispatches', 'listing_ids,status,accepted_at,created_at'],
+  listingSaleClarifications: ['listing_sale_clarifications', 'id,lifecycle_event_id,listing_id,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,actor_role,created_at'],
 }
 const optionalAuditResults = Object.fromEntries(await Promise.all(Object.entries(optionalQuerySpecs).map(async ([name, [table, columns]]) => [name, await optionalRows(table, columns)])))
 const {
@@ -120,6 +121,7 @@ const newBalloonProposalResponses = optionalAuditResults.newBalloonProposalRespo
 const socialPublicationReceipts = optionalAuditResults.socialPublicationReceipts.rows
 const listingCheckoutIntents = optionalAuditResults.listingCheckoutIntents.rows
 const wantedMatchDispatches = optionalAuditResults.wantedMatchDispatches.rows
+const listingSaleClarifications = optionalAuditResults.listingSaleClarifications.rows
 const catalogDemandEntryContextById = new Map(optionalAuditResults.catalogDemandEntryContexts.rows.map((row) => [row.id, row.entry_context]))
 const catalogSearchEvents = baseCatalogSearchEvents.map((event) => ({
   ...event,
@@ -270,7 +272,19 @@ const newBalloonManufacturerFunnel = buildNewBalloonManufacturerFunnel({
 const recentListingWatchers = listingWatchers.filter((watcher) => watcher.created_at >= since30d)
 const comparableBuyerFunnel = buildComparableBuyerFunnel({ events, inquiries, now })
 const outcomeInquiryIds = new Set(commercialOutcomes.filter((outcome) => outcome.entity_type === 'marketplace_inquiry').map((outcome) => outcome.entity_id))
-const reportedAeroTradeListingSales = listingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE')
+const listingSaleClarificationByLifecycleEvent = new Map(listingSaleClarifications.map((clarification) => [clarification.lifecycle_event_id, clarification]))
+const effectiveListingLifecycleEvents = listingLifecycleEvents.map((event) => {
+  const clarification = listingSaleClarificationByLifecycleEvent.get(event.id)
+  return clarification ? {
+    ...event,
+    sale_channel: clarification.sale_channel,
+    marketplace_inquiry_id: clarification.marketplace_inquiry_id,
+    gross_amount_minor: clarification.gross_amount_minor,
+    currency: clarification.currency,
+    clarified_at: clarification.created_at,
+  } : { ...event, clarified_at: null }
+})
+const reportedAeroTradeListingSales = effectiveListingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE')
 const pendingReportedSaleReview = reportedAeroTradeListingSales.filter((event) => event.marketplace_inquiry_id && !outcomeInquiryIds.has(event.marketplace_inquiry_id))
 const successfulNewsletterRuns = newsletterRuns.filter((run) => !run.dry_run && run.status === 'sent')
 const successfulPremiumAlerts = premiumAlertRuns.filter((run) => run.status === 'sent')
@@ -321,12 +335,14 @@ const result = {
     },
     listingClosures: {
       eventsTotal: listingLifecycleEvents.length,
+      clarificationsTotal: listingSaleClarifications.length,
+      originalNotDisclosed: listingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED').length,
       soldAeroTradeReported: reportedAeroTradeListingSales.length,
-      soldOtherChannel: listingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'OTHER_CHANNEL').length,
-      soldNotDisclosed: listingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED').length,
-      withdrawn: listingLifecycleEvents.filter((event) => event.event_type === 'WITHDRAWN').length,
+      soldOtherChannel: effectiveListingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'OTHER_CHANNEL').length,
+      soldNotDisclosed: effectiveListingLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED').length,
+      withdrawn: effectiveListingLifecycleEvents.filter((event) => event.event_type === 'WITHDRAWN').length,
       pendingOutcomeReview: pendingReportedSaleReview.length,
-      caveat: 'A seller-reported AeroTrade sale is a review signal, not settled revenue or a completed commercial outcome.',
+      caveat: 'A clarification is append-only and never rewrites the original closure. An AeroTrade sale remains a review signal, not settled revenue or a completed commercial outcome.',
     },
   },
   quality: {

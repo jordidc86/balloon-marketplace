@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-listing-verification-evidence-handoff",
-  "productionBaseCommit": "b62c5a0b12a26c250b48607d762bb6b5d5c5b795",
+  "releaseId": "2026-08-31-listing-sale-clarification",
+  "productionBaseCommit": "0ebeec9f118615236b25c859861018be0af29a92",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

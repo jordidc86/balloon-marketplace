@@ -7,7 +7,7 @@ import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '@/utils/buyer-funnel.mjs'
 import { isSellerEnquiryEscalationDue } from '@/utils/opportunity-followup.mjs'
 import { sellerAvailabilityDigestRequestLifetimeMs } from '@/utils/seller-availability-digest.mjs'
-import { recordCommercialOutcome, recordCommercialUnitEconomics, requestSellerAvailabilityDigest, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
+import { clarifyListingSale, recordCommercialOutcome, recordCommercialUnitEconomics, requestSellerAvailabilityDigest, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -208,6 +208,23 @@ type ListingLifecycleEvent = {
   listings: { title: string } | null
 }
 
+type ListingSaleClarification = {
+  id: string
+  lifecycle_event_id: string
+  listing_id: string
+  sale_channel: 'AEROTRADE' | 'OTHER_CHANNEL'
+  marketplace_inquiry_id: string | null
+  gross_amount_minor: number | null
+  currency: string | null
+  actor_role: 'ADMIN'
+  created_at: string
+}
+
+type EffectiveListingLifecycleEvent = ListingLifecycleEvent & {
+  clarification_id: string | null
+  clarified_at: string | null
+}
+
 type OutcomeSuggestion = {
   gross_amount_minor: number | null
   currency: string | null
@@ -347,6 +364,11 @@ export default async function CommercialPage() {
     .select('id,listing_id,actor_role,event_type,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,created_at,listings(title)')
     .order('created_at', { ascending: false })
     .limit(500)
+  const { data: saleClarifications, error: saleClarificationsError } = await supabase
+    .from('listing_sale_clarifications')
+    .select('id,lifecycle_event_id,listing_id,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency,actor_role,created_at')
+    .order('created_at', { ascending: false })
+    .limit(500)
   const latestAvailabilityByListing = ((listingAvailabilityConfirmations as ListingAvailabilityConfirmation[] | null) || []).reduce<Map<string, string>>((latest, confirmation) => {
     if (!latest.has(confirmation.listing_id)) latest.set(confirmation.listing_id, confirmation.confirmed_at)
     return latest
@@ -395,26 +417,41 @@ export default async function CommercialPage() {
     }, new Map())
   const typedOutcomes = (outcomes || []) as CommercialOutcome[]
   const typedLifecycleEvents = (lifecycleEvents || []) as unknown as ListingLifecycleEvent[]
+  const typedSaleClarifications = (saleClarifications || []) as ListingSaleClarification[]
+  const clarificationByLifecycleEvent = new Map(typedSaleClarifications.map((clarification) => [clarification.lifecycle_event_id, clarification]))
+  const effectiveLifecycleEvents: EffectiveListingLifecycleEvent[] = typedLifecycleEvents.map((event) => {
+    const clarification = clarificationByLifecycleEvent.get(event.id)
+    return clarification ? {
+      ...event,
+      sale_channel: clarification.sale_channel,
+      marketplace_inquiry_id: clarification.marketplace_inquiry_id,
+      gross_amount_minor: clarification.gross_amount_minor,
+      currency: clarification.currency,
+      clarification_id: clarification.id,
+      clarified_at: clarification.created_at,
+    } : { ...event, clarification_id: null, clarified_at: null }
+  })
+  const effectiveLifecycleEventById = new Map(effectiveLifecycleEvents.map((event) => [event.id, event]))
   const typedIndexingReceipts = (indexingReceipts || []) as IndexingSubmissionReceipt[]
   const latestIndexingReceipt = typedIndexingReceipts[0]
   const outcomesByEntity = new Map(typedOutcomes.map((outcome) => [`${outcome.entity_type}:${outcome.entity_id}`, outcome]))
-  const pendingReportedSaleReview = typedLifecycleEvents.filter((event) => (
+  const pendingReportedSaleReview = effectiveLifecycleEvents.filter((event) => (
     event.event_type === 'SOLD'
     && event.sale_channel === 'AEROTRADE'
     && event.marketplace_inquiry_id
     && !outcomesByEntity.has(`marketplace_inquiry:${event.marketplace_inquiry_id}`)
   ))
-  const closureSuggestionByInquiry = new Map<string, OutcomeSuggestion>(typedLifecycleEvents
+  const closureSuggestionByInquiry = new Map<string, OutcomeSuggestion>(effectiveLifecycleEvents
     .filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE' && event.marketplace_inquiry_id)
     .map((event) => [event.marketplace_inquiry_id as string, {
       gross_amount_minor: event.gross_amount_minor,
       currency: event.currency,
-      reported_at: event.created_at,
+      reported_at: event.clarified_at || event.created_at,
     }]))
-  const sellerReportedAeroTradeSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE')
-  const sellerReportedOtherSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'OTHER_CHANNEL')
-  const sellerReportedUndisclosedSales = typedLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED')
-  const withdrawnListings = typedLifecycleEvents.filter((event) => event.event_type === 'WITHDRAWN')
+  const sellerReportedAeroTradeSales = effectiveLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'AEROTRADE')
+  const sellerReportedOtherSales = effectiveLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'OTHER_CHANNEL')
+  const sellerReportedUndisclosedSales = effectiveLifecycleEvents.filter((event) => event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED')
+  const withdrawnListings = effectiveLifecycleEvents.filter((event) => event.event_type === 'WITHDRAWN')
   const latestProposalByQuote = new Map<string, NewBalloonProposal>()
   for (const proposal of typedProposals) if (!latestProposalByQuote.has(proposal.quote_request_id)) latestProposalByQuote.set(proposal.quote_request_id, proposal)
   const responseByProposal = new Map<string, NewBalloonProposalResponse>()
@@ -732,7 +769,7 @@ export default async function CommercialPage() {
 
       <section className="rounded-2xl border bg-card overflow-hidden">
         <div className="border-b p-6"><h2 className="text-xl font-semibold">Listing closure evidence</h2><p className="mt-1 text-sm text-muted-foreground">Seller and administrator closures are immutable and attributed. Seller-reported sales remain unverified until the normal commercial-outcome evidence is recorded.</p></div>
-        {lifecycleEventsError ? <p className="p-6 text-destructive">Listing closure evidence unavailable: {lifecycleEventsError.message}</p> : (
+        {lifecycleEventsError || saleClarificationsError ? <p className="p-6 text-destructive">Listing closure evidence unavailable: {lifecycleEventsError?.message || saleClarificationsError?.message}</p> : (
           <>
             <div className="grid gap-3 border-b p-6 sm:grid-cols-2 lg:grid-cols-5">
               <FunnelStep label="AeroTrade reported" value={sellerReportedAeroTradeSales.length} />
@@ -742,11 +779,43 @@ export default async function CommercialPage() {
               <FunnelStep label="Outcome review" value={pendingReportedSaleReview.length} />
             </div>
             {typedLifecycleEvents.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No listing has been closed through the audited workflow yet.</p> : <div className="divide-y">{typedLifecycleEvents.map((event) => {
-              const reportedAmount = event.gross_amount_minor !== null && event.currency
-                ? (Number(event.gross_amount_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: event.currency })
+              const effectiveEvent = effectiveLifecycleEventById.get(event.id) || { ...event, clarification_id: null, clarified_at: null }
+              const reportedAmount = effectiveEvent.gross_amount_minor !== null && effectiveEvent.currency
+                ? (Number(effectiveEvent.gross_amount_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: effectiveEvent.currency })
                 : null
               const pendingReview = pendingReportedSaleReview.some((candidate) => candidate.id === event.id)
-              return <div key={event.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold">{event.listings?.title || 'Listing'} · {event.event_type === 'WITHDRAWN' ? 'withdrawn' : `sold · ${(event.sale_channel || '').replaceAll('_', ' ').toLowerCase()}`}</p><p className="mt-1 text-xs text-muted-foreground">{formatDate(event.created_at)} · recorded by {event.actor_role.toLowerCase()}{reportedAmount ? ` · seller-reported gross ${reportedAmount}` : ''}</p></div>{pendingReview && event.marketplace_inquiry_id ? <a href={`#inquiry-${event.marketplace_inquiry_id}`} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-center text-sm font-semibold text-amber-900">Review reported AeroTrade sale</a> : <span className="text-xs text-muted-foreground">{event.sale_channel === 'AEROTRADE' ? 'Outcome evidence recorded' : 'No AeroTrade revenue claim'}</span>}</div>
+              const matchingInquiries = typedInquiries.filter((inquiry) => inquiry.listing_id === event.listing_id && inquiry.status !== 'SPAM')
+              const canClarify = event.event_type === 'SOLD' && event.sale_channel === 'NOT_DISCLOSED' && !effectiveEvent.clarification_id
+              return <div key={event.id} className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="font-semibold">{event.listings?.title || 'Listing'} · {event.event_type === 'WITHDRAWN' ? 'withdrawn' : `sold · ${(effectiveEvent.sale_channel || '').replaceAll('_', ' ').toLowerCase()}`}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Closed {formatDate(event.created_at)} · recorded by {event.actor_role.toLowerCase()}{reportedAmount ? ` · reported gross ${reportedAmount}` : ''}</p>
+                  {effectiveEvent.clarified_at ? <p className="mt-1 text-xs font-semibold text-emerald-700">Channel clarified by an administrator {formatDate(effectiveEvent.clarified_at)}. The original closure remains unchanged.</p> : null}
+                </div>
+                {canClarify ? <details className="w-full max-w-xl rounded-xl border bg-muted/20 p-4">
+                  <summary className="cursor-pointer text-sm font-semibold">Clarify sale channel</summary>
+                  <p className="mt-2 text-xs text-muted-foreground">Adds one append-only clarification. It does not create revenue, a commercial outcome or reopen the listing.</p>
+                  <form action={clarifyListingSale.bind(null, event.id)} className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className="text-xs font-semibold">Effective channel
+                      <select name="sale_channel" required defaultValue="" className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm font-normal">
+                        <option value="" disabled>Select one</option>
+                        <option value="OTHER_CHANNEL">Other channel</option>
+                        {matchingInquiries.length > 0 ? <option value="AEROTRADE">AeroTrade</option> : null}
+                      </select>
+                    </label>
+                    <label className="text-xs font-semibold">Matching AeroTrade enquiry
+                      <select name="marketplace_inquiry_id" defaultValue="" className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm font-normal">
+                        <option value="">None</option>
+                        {matchingInquiries.map((inquiry) => <option key={inquiry.id} value={inquiry.id}>{formatDate(inquiry.created_at)} · {inquiry.buyer_name}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-xs font-semibold">Reported gross (optional)
+                      <input name="gross_amount" inputMode="decimal" placeholder="e.g. 24500" className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm font-normal" />
+                    </label>
+                    <div className="flex items-end"><button type="submit" className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Store immutable clarification</button></div>
+                  </form>
+                </details> : pendingReview && effectiveEvent.marketplace_inquiry_id ? <a href={`#inquiry-${effectiveEvent.marketplace_inquiry_id}`} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-center text-sm font-semibold text-amber-900">Review reported AeroTrade sale</a> : <span className="text-xs text-muted-foreground">{effectiveEvent.sale_channel === 'AEROTRADE' ? 'Outcome evidence recorded' : 'No AeroTrade revenue claim'}</span>}
+              </div>
             })}</div>}
           </>
         )}

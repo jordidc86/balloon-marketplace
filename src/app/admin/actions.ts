@@ -24,6 +24,7 @@ import { listingAvailabilityRequestIdempotencyKey } from '@/utils/listing-availa
 import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestRequestKey } from '@/utils/seller-availability-digest.mjs'
 import { sellerAvailabilityCapabilityLifetimeMs, signSellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
 import { buildSellerAvailabilityDigestNotification } from '@/utils/seller-availability-notification.mjs'
+import { parseListingSaleClarification } from '@/utils/listing-closure.mjs'
 
 async function checkAdmin() {
   const sessionSupabase = await createClient()
@@ -163,6 +164,56 @@ export async function markListingSold(listingId: string) {
   revalidatePath('/admin/commercial')
   revalidatePath('/catalog')
   revalidatePath(`/catalog/${listingId}`)
+}
+
+export async function clarifyListingSale(lifecycleEventId: string, formData: FormData) {
+  const { supabase, sessionSupabase, adminUserId } = await checkAdmin()
+  const { data: lifecycle, error: lifecycleError } = await supabase
+    .from('listing_lifecycle_events')
+    .select('id,listing_id,event_type,sale_channel,listings(id,status,currency)')
+    .eq('id', lifecycleEventId)
+    .single()
+  const listingRelation = lifecycle?.listings
+  const listing = Array.isArray(listingRelation) ? listingRelation[0] : listingRelation
+  if (lifecycleError || !lifecycle || !listing || lifecycle.event_type !== 'SOLD' || lifecycle.sale_channel !== 'NOT_DISCLOSED' || listing.status !== 'SOLD') {
+    throw new Error('Only an undisclosed sold listing can be clarified')
+  }
+  const clarification = parseListingSaleClarification(formData, listing.currency)
+  const { data: transition, error } = await sessionSupabase.rpc('clarify_listing_sale_by_admin', {
+    p_lifecycle_event_id: lifecycle.id,
+    p_sale_channel: clarification.sale_channel,
+    p_marketplace_inquiry_id: clarification.marketplace_inquiry_id,
+    p_gross_amount_minor: clarification.gross_amount_minor,
+    p_currency: clarification.currency,
+  })
+  const result = Array.isArray(transition) ? transition[0] : transition
+  if (error || !result?.clarification_id || result.effective_sale_channel !== clarification.sale_channel) {
+    throw new Error(error?.message || 'Sale clarification could not be stored')
+  }
+
+  const [{ data: stored, error: readbackError }, { data: original, error: originalError }, { data: listingReadback, error: listingError }] = await Promise.all([
+    supabase
+      .from('listing_sale_clarifications')
+      .select('id,lifecycle_event_id,listing_id,recorded_by,actor_role,sale_channel,marketplace_inquiry_id,gross_amount_minor,currency')
+      .eq('id', result.clarification_id)
+      .single(),
+    supabase.from('listing_lifecycle_events').select('id,sale_channel').eq('id', lifecycle.id).single(),
+    supabase.from('listings').select('id,status').eq('id', listing.id).single(),
+  ])
+  if (readbackError || originalError || listingError
+    || stored?.recorded_by !== adminUserId
+    || stored.actor_role !== 'ADMIN'
+    || stored.lifecycle_event_id !== lifecycle.id
+    || stored.listing_id !== listing.id
+    || stored.sale_channel !== clarification.sale_channel
+    || stored.marketplace_inquiry_id !== clarification.marketplace_inquiry_id
+    || (stored.gross_amount_minor === null ? null : Number(stored.gross_amount_minor)) !== clarification.gross_amount_minor
+    || stored.currency !== clarification.currency
+    || original?.sale_channel !== 'NOT_DISCLOSED'
+    || listingReadback?.status !== 'SOLD') {
+    throw new Error('Sale clarification was not verified by readback')
+  }
+  revalidatePath('/admin/commercial')
 }
 
 export async function promoteListing(listingId: string) {
