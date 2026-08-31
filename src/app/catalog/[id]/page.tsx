@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 
   return {
-    title: `${seo.title} | AeroTrade Marketplace`,
+    title: `${listing?.status === 'SOLD' ? 'Sold: ' : ''}${seo.title} | AeroTrade Marketplace`,
     description: seo.description,
     alternates: { canonical: `/catalog/${id}` },
     robots: {
@@ -143,6 +143,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     isPremium
   )
   const isActiveListing = typedListing.status === 'ACTIVE_PUBLIC' || typedListing.status === 'ACTIVE_PREMIUM'
+  const isSoldListing = typedListing.status === 'SOLD' && isListingPubliclyIndexable(typedListing)
   const isQualityRecovery = typedListing.status === 'DRAFT'
     && qualityState?.status !== undefined
     && ['QUARANTINED', 'RESOLVED'].includes(qualityState.status)
@@ -153,7 +154,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const breadcrumbJsonLd = buildListingBreadcrumbJsonLd(typedListing, siteUrl)
   const structuredData = [productJsonLd, breadcrumbJsonLd].filter(Boolean)
 
-  if (!isActiveListing && !isOwner) {
+  if (!isActiveListing && !isSoldListing && !isOwner) {
     notFound()
   }
 
@@ -163,23 +164,43 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         .map((img) => img.url)
     : []
   const displayTitle = canViewFully ? typedListing.title : getPublicTeaserTitle(typedListing.category)
-  const displayPrice = canViewFully
+  const displayPrice = isSoldListing
+    ? 'Sold — no longer available'
+    : canViewFully
     ? typedListing.price === 0 ? 'Inquire for Pricing' : `${Number(typedListing.price).toLocaleString()} ${typedListing.currency}`
     : 'Buyer Early Access'
   const publicAtLabel = typedListing.public_at
     ? formatDistanceToNow(new Date(typedListing.public_at))
     : 'soon'
   const newBalloonParams = new URLSearchParams({
-    source: 'listing',
+    source: isSoldListing ? 'sold-listing' : 'listing',
     category: typedListing.category,
     q: typedListing.title,
     country: typedListing.location_country,
   })
   const newBalloonHref = `/new-balloon?${newBalloonParams.toString()}`
+  const wantedParams = new URLSearchParams({
+    category: typedListing.category,
+    utm_source: 'sold_listing',
+    utm_medium: 'internal',
+    utm_campaign: 'inventory_recovery',
+  })
+  const wantedHref = `/wanted?${wantedParams.toString()}`
+  const { data: relatedRows } = isSoldListing
+    ? await supabaseAdmin
+      .from('listings')
+      .select('id,title,price,currency,location_country,status,public_at,images(url,is_primary)')
+      .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+      .eq('category', typedListing.category)
+      .neq('id', typedListing.id)
+      .order('created_at', { ascending: false })
+      .limit(3)
+    : { data: [] }
+  const relatedListings = (relatedRows || []).filter((candidate) => isListingPubliclyIndexable(candidate))
 
   return (
     <div className="max-w-7xl mx-auto px-4 pb-28 pt-12 sm:px-6 sm:pb-12 lg:px-8">
-      <ListingViewTracker listingId={typedListing.id} />
+      {isActiveListing || isSoldListing ? <ListingViewTracker listingId={typedListing.id} sold={isSoldListing} /> : null}
       {/* Public-only structured data. Premium previews and owner-only drafts never leak into it. */}
       {isPubliclyIndexable && canViewFully && structuredData.length > 0 && (
         <script
@@ -204,6 +225,15 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           </Link>
         </div>
       )}
+
+      {isSoldListing ? (
+        <div className="mb-8 rounded-2xl border border-slate-300 bg-slate-100 p-5 text-slate-950">
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-600">Marketplace status</p>
+          <h2 className="mt-1 text-xl font-bold">This equipment has been sold</h2>
+          <p className="mt-2 text-sm leading-6">The advert remains available only as a reference. Seller contact, enquiries and watch alerts are closed. AeroTrade can help you find a comparable used option or price a new balloon.</p>
+          {Number(typedListing.price) > 0 ? <p className="mt-2 text-xs font-medium text-slate-600">Previous asking price: {Number(typedListing.price).toLocaleString()} {typedListing.currency}</p> : null}
+        </div>
+      ) : null}
 
       {canViewFully && isDocumentChecked ? (
         <div className="mb-8 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
@@ -321,12 +351,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 <MapPin className="w-4 h-4 mr-1" /> {typedListing.location_country}
               </p>
             )}
-            {canViewFully && availabilityConfirmation.publiclyFresh && latestAvailabilityConfirmation?.confirmed_at ? (
+            {canViewFully && !isSoldListing && availabilityConfirmation.publiclyFresh && latestAvailabilityConfirmation?.confirmed_at ? (
               <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Seller confirmed availability on {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'Europe/Madrid' }).format(new Date(latestAvailabilityConfirmation.confirmed_at))}
               </p>
             ) : null}
-            {canViewFully && !isOwner && !isAdmin ? (
+            {canViewFully && !isSoldListing && !isOwner && !isAdmin ? (
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 <BuyerIntentLink listingId={typedListing.id} href="#buyer-enquiry" primary>Ask the seller or make an offer</BuyerIntentLink>
                 <a href="#listing-watch" className="rounded-xl border px-4 py-3 text-center text-sm font-semibold text-primary hover:bg-primary/5">Watch price and availability</a>
@@ -385,7 +415,16 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
           {/* Contact Action */}
           <div className="mt-auto">
-            {!canViewFully ? (
+            {isSoldListing ? (
+              <div className="space-y-3 rounded-2xl border bg-card p-5">
+                <p className="font-bold">Looking for something comparable?</p>
+                <p className="text-sm text-muted-foreground">Record the exact equipment you need so AeroTrade can match future supply, or request an indicative factory-new budget.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Link href={wantedHref} className="rounded-xl bg-primary px-4 py-3 text-center font-bold text-primary-foreground hover:bg-primary/90">Find another used option</Link>
+                  <Link href={newBalloonHref} className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-center font-bold text-primary hover:bg-primary/10">Price a new balloon</Link>
+                </div>
+              </div>
+            ) : !canViewFully ? (
               <div className="space-y-3">
                 <Link href="/pricing" className="w-full flex justify-center items-center gap-2 bg-accent text-accent-foreground py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity">
                   <Lock className="w-5 h-5" />
@@ -454,7 +493,26 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
         </div>
       </div>
-      {canViewFully && !isOwner && !isAdmin ? <MobileBuyerAction listingId={typedListing.id} /> : null}
+      {isSoldListing && relatedListings.length > 0 ? (
+        <section className="mt-14 border-t pt-10">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Available now</p><h2 className="mt-1 text-2xl font-bold">Comparable equipment still on AeroTrade</h2></div>
+            <Link href={`/catalog/category/${encodeURIComponent(typedListing.category)}`} className="text-sm font-semibold text-primary hover:underline">View category →</Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {relatedListings.map((candidate) => {
+              const candidateImages = [...(candidate.images || [])].sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+              return (
+                <Link key={candidate.id} href={`/catalog/${candidate.id}`} className="overflow-hidden rounded-2xl border bg-card transition hover:-translate-y-0.5 hover:shadow-md">
+                  <div className="relative aspect-[4/3] bg-muted">{candidateImages[0]?.url ? <SafeListingImage src={candidateImages[0].url} alt={candidate.title} sizes="(min-width: 768px) 33vw, 100vw" className="object-contain" /> : null}</div>
+                  <div className="p-4"><p className="font-bold">{candidate.title}</p><p className="mt-1 text-sm text-muted-foreground">{Number(candidate.price) === 0 ? 'Price on request' : `${Number(candidate.price).toLocaleString()} ${candidate.currency}`} · {candidate.location_country}</p></div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+      {canViewFully && !isSoldListing && !isOwner && !isAdmin ? <MobileBuyerAction listingId={typedListing.id} /> : null}
     </div>
   )
 }

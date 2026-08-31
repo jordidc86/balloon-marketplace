@@ -70,8 +70,53 @@ async function recordListingEvent(listingId: string, eventType: string, rawConte
   return true
 }
 
+async function recordSoldListingView(listingId: string, rawContext?: BrowserCommercialContext) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const supabaseAdmin = createAdminClient()
+  const { data: listing, error: listingError } = await supabaseAdmin
+    .from('listings')
+    .select('id,seller_id,status,public_at')
+    .eq('id', listingId)
+    .eq('status', 'SOLD')
+    .maybeSingle()
+
+  const publicAt = listing?.public_at ? new Date(listing.public_at) : null
+  if (listingError || !listing || !publicAt || !Number.isFinite(publicAt.getTime()) || publicAt > new Date()) return false
+  if (user) {
+    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).maybeSingle()
+    if (profile?.role === 'admin' || listing.seller_id === user.id) return false
+  }
+
+  const context = normalizeCommercialContext(rawContext)
+  const principal = user?.id || context.visitorId
+  if (!principal) return false
+  const eventType = 'SOLD_VIEW'
+  const eventKey = commercialEventKey({ listingId: listing.id, eventType, principal })
+  const { error } = await supabaseAdmin.from('listing_events').upsert({
+    listing_id: listing.id,
+    user_id: user?.id || null,
+    event_type: eventType,
+    event_key: eventKey,
+    referrer_host: context.referrer_host,
+    utm_source: context.utm_source,
+    utm_medium: context.utm_medium,
+    utm_campaign: context.utm_campaign,
+    journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
+  }, { onConflict: 'event_key', ignoreDuplicates: true })
+  if (error) {
+    console.error('Failed to log sold listing view:', error)
+    return false
+  }
+  return true
+}
+
 export async function logListingView(listingId: string, rawContext?: BrowserCommercialContext) {
   return recordListingEvent(listingId, 'VIEW', rawContext)
+}
+
+export async function logSoldListingView(listingId: string, rawContext?: BrowserCommercialContext) {
+  return recordSoldListingView(listingId, rawContext)
 }
 
 export async function logListingCommercialIntent(listingId: string, rawStage: string, rawContext?: BrowserCommercialContext) {

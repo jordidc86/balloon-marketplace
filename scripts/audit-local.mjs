@@ -465,7 +465,12 @@ const checks = [
   {
     name: 'Transactional SEO publishes only public listings and truthful offers',
     file: 'src/utils/marketplace-seo.mjs',
-    required: ['isListingPubliclyIndexable', "listing.status === 'ACTIVE_PUBLIC'", "listing.status !== 'ACTIVE_PREMIUM'", 'price <= 0', 'buildListingProductJsonLd', 'buildNewBalloonServiceJsonLd', ".replace(/</g, '\\\\u003c')"],
+    required: ['isListingPubliclyIndexable', "listing.status === 'ACTIVE_PUBLIC'", "listing.status === 'SOLD'", "listing.status !== 'ACTIVE_PREMIUM'", 'price <= 0', 'buildListingProductJsonLd', "'https://schema.org/SoldOut'", 'buildNewBalloonServiceJsonLd', ".replace(/</g, '\\\\u003c')"],
+  },
+  {
+    name: 'Sold public listings recover demand without reopening seller contact',
+    file: 'src/app/catalog/[id]/page.tsx',
+    required: ["typedListing.status === 'SOLD'", 'This equipment has been sold', "source: isSoldListing ? 'sold-listing' : 'listing'", "utm_source: 'sold_listing'", 'Find another used option', 'Price a new balloon', '!isSoldListing && !isOwner && !isAdmin', 'sold={isSoldListing}'],
   },
   {
     name: 'The sitemap excludes private Premium inventory and includes listing images',

@@ -33,6 +33,10 @@ const listingConditionUrl = (condition) => {
 
 export const isListingPubliclyIndexable = (listing, now = new Date()) => {
   if (!listing || listing.status === 'ACTIVE_PUBLIC') return Boolean(listing)
+  if (listing.status === 'SOLD' && listing.public_at) {
+    const publicAt = new Date(listing.public_at)
+    return Number.isFinite(publicAt.getTime()) && publicAt <= now
+  }
   if (listing.status !== 'ACTIVE_PREMIUM' || !listing.public_at) return false
 
   const publicAt = new Date(listing.public_at)
@@ -47,7 +51,9 @@ export const getPublicListingSeoData = (listing, siteUrl, now = new Date()) => {
 
   const url = `${String(siteUrl).replace(/\/+$/, '')}/catalog/${encodeURIComponent(listing.id)}`
   const description = compactText(
-    listing.description || `${title}, offered on AeroTrade's European hot air balloon marketplace.`,
+    listing.status === 'SOLD'
+      ? `${title} has been sold. Browse comparable European hot air balloon equipment or ask AeroTrade to source another used or new option.`
+      : listing.description || `${title}, offered on AeroTrade's European hot air balloon marketplace.`,
     160
   )
   const images = (listing.images || [])
@@ -89,7 +95,7 @@ export const buildListingProductJsonLd = (listing, siteUrl, now = new Date()) =>
       priceCurrency,
       price,
       itemCondition: listingConditionUrl(listing.condition),
-      availability: 'https://schema.org/InStock',
+      availability: listing.status === 'SOLD' ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
     },
   }
 }

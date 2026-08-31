@@ -28,6 +28,8 @@ const listing = {
 
 test('only public listings and matured Premium listings are indexable', () => {
   assert.equal(isListingPubliclyIndexable(listing, now), true)
+  assert.equal(isListingPubliclyIndexable({ ...listing, status: 'SOLD', public_at: '2026-08-20T09:00:00.000Z' }, now), true)
+  assert.equal(isListingPubliclyIndexable({ ...listing, status: 'SOLD', public_at: null }, now), false)
   assert.equal(isListingPubliclyIndexable({ ...listing, status: 'DRAFT' }, now), false)
   assert.equal(isListingPubliclyIndexable({ ...listing, status: 'PENDING_PAYMENT' }, now), false)
   assert.equal(isListingPubliclyIndexable({ ...listing, status: 'ACTIVE_PREMIUM', public_at: '2026-08-29T11:00:00.000Z' }, now), false)
@@ -39,6 +41,8 @@ test('public listing SEO excludes private lifecycle states', () => {
   const seo = getPublicListingSeoData(listing, 'https://aerotrade.app/', now)
   assert.equal(seo.url, 'https://aerotrade.app/catalog/public-listing')
   assert.deepEqual(seo.images, ['https://cdn.example.com/balloon.jpg'])
+  const soldSeo = getPublicListingSeoData({ ...listing, status: 'SOLD', public_at: '2026-08-20T09:00:00.000Z' }, 'https://aerotrade.app/', now)
+  assert.match(soldSeo.description, /has been sold/)
 })
 
 test('product markup represents a real priced offer and never invents a zero price', () => {
@@ -47,11 +51,15 @@ test('product markup represents a real priced offer and never invents a zero pri
   assert.equal(product.offers.price, 45000)
   assert.equal(product.offers.priceCurrency, 'EUR')
   assert.equal(product.offers.itemCondition, 'https://schema.org/UsedCondition')
+  assert.equal(product.offers.availability, 'https://schema.org/InStock')
   assert.equal(product.brand.name, 'Schroeder')
 
   assert.equal(buildListingProductJsonLd({ ...listing, price: 0 }, 'https://aerotrade.app', now), null)
   assert.equal(buildListingProductJsonLd({ ...listing, currency: 'unknown' }, 'https://aerotrade.app', now), null)
   assert.equal(buildListingProductJsonLd({ ...listing, status: 'DRAFT' }, 'https://aerotrade.app', now), null)
+
+  const soldProduct = buildListingProductJsonLd({ ...listing, status: 'SOLD', public_at: '2026-08-20T09:00:00.000Z' }, 'https://aerotrade.app', now)
+  assert.equal(soldProduct.offers.availability, 'https://schema.org/SoldOut')
 })
 
 test('structured data contains no executable closing script token', () => {

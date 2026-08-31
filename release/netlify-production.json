@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-single-step-account-recovery-v2",
-  "productionBaseCommit": "6cfb3d488517d0cd6db5b4f08d17b32bf8e8c17a",
+  "releaseId": "2026-08-31-sold-listing-demand-recovery",
+  "productionBaseCommit": "ad00282c499209bb314faf476b0f04281af0d71e",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }
