@@ -16,6 +16,7 @@ import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { escapeHtml } from '@/utils/html'
 import { inquiryBuyerCapabilityLifetimeMs, inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerCapability, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
 import { parseListingClosure } from '@/utils/listing-closure.mjs'
+import { buildSellerResponseBuyerNotification } from '@/utils/inquiry-negotiation-notifications.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
 
@@ -402,19 +403,6 @@ export async function respondToBuyerInquiry(inquiryId: string, formData: FormDat
   }
 
   if (event.buyer_notification_status !== 'accepted') {
-    const amount = event.amount_minor === null
-      ? null
-      : (Number(event.amount_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: event.currency })
-    const heading = event.event_type === 'SELLER_COUNTERED'
-      ? `The seller has proposed ${amount}`
-      : event.event_type === 'SELLER_DECLINED'
-        ? 'The seller has declined this enquiry'
-        : 'The seller would like to continue negotiating'
-    const detail = event.event_type === 'SELLER_COUNTERED'
-      ? `<p>The seller has made a non-binding counteroffer of <strong>${escapeHtml(amount || '')}</strong>.</p>`
-      : event.event_type === 'SELLER_DECLINED'
-        ? '<p>The seller has declined this opportunity. No reservation, payment or sale has been created.</p>'
-        : '<p>The seller has accepted your price indication as a basis for further negotiation.</p>'
     const capabilityExpiresAt = new Date(new Date(event.created_at).getTime() + inquiryBuyerCapabilityLifetimeMs)
     const buyerCapability = event.event_type === 'SELLER_DECLINED' ? null : signInquiryBuyerCapability({
       inquiryId: inquiry.id,
@@ -438,6 +426,21 @@ export async function respondToBuyerInquiry(inquiryId: string, formData: FormDat
     const buyerPortalUrl = buyerPortalCapability
       ? `${siteUrl}/inquiry/status?id=${encodeURIComponent(inquiry.id)}&token=${encodeURIComponent(buyerPortalCapability)}`
       : null
+    const notification = buildSellerResponseBuyerNotification({
+      listing: {
+        title: listing.title,
+        contactEmail: listing.contact_email,
+        url: `${siteUrl}/catalog/${listing.id}`,
+      },
+      event: {
+        eventType: event.event_type,
+        amountMinor: event.amount_minor === null ? null : Number(event.amount_minor),
+        currency: event.currency,
+        note: event.note,
+      },
+      buyerResponseUrl,
+      buyerPortalUrl,
+    })
     let notificationStatus: 'accepted' | 'failed' = 'failed'
     let providerMessageId: string | null = null
     try {
@@ -447,15 +450,8 @@ export async function respondToBuyerInquiry(inquiryId: string, formData: FormDat
         entityId: inquiry.id,
         recipientRole: 'buyer',
         to: inquiry.buyer_email,
-        subject: `AeroTrade negotiation update: ${listing.title}`,
-        html: `<h2>${escapeHtml(heading)}</h2>
-        <p><strong>Listing:</strong> ${escapeHtml(listing.title)}</p>
-        ${detail}
-        ${event.note ? `<p><strong>Seller note:</strong><br />${escapeHtml(event.note).replaceAll('\n', '<br />')}</p>` : ''}
-        <p>All amounts in this message are invitations to negotiate only. This message does not reserve the equipment, execute a payment or form a sale contract.</p>
-        ${buyerResponseUrl ? `<p><a href="${escapeHtml(buyerResponseUrl)}">Respond securely through AeroTrade</a>. This private link expires after 30 days.</p>` : ''}
-        ${buyerPortalUrl ? `<p><a href="${escapeHtml(buyerPortalUrl)}">Open the complete private enquiry history</a>. This status link expires after 90 days.</p>` : ''}
-        <p>You can also contact the seller at <a href="mailto:${escapeHtml(listing.contact_email)}">${escapeHtml(listing.contact_email)}</a> or <a href="${escapeHtml(`${siteUrl}/catalog/${listing.id}`)}">return to the listing</a>.</p>`,
+        subject: notification.subject,
+        html: notification.html,
         idempotencyKey: `inquiry-buyer-seller-response-${event.id}`,
       })
       notificationStatus = delivery.success ? 'accepted' : 'failed'

@@ -8,8 +8,9 @@ import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 import { siteUrl } from '@/utils/site'
 import { buildNewBalloonBuyerAcknowledgement } from '@/utils/new-balloon-buyer-acknowledgement.mjs'
 import { buildInquiryBuyerAcknowledgement } from '@/utils/inquiry-buyer-acknowledgement.mjs'
-import { inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
+import { inquiryBuyerCapabilityLifetimeMs, inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerCapability, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
 import { buyerEarlyAccessProduct } from '@/utils/paid-product-labels.mjs'
+import { buildBuyerResponseSellerNotification, buildSellerResponseBuyerNotification, parseNegotiationNotificationEventId } from '@/utils/inquiry-negotiation-notifications.mjs'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,6 +70,33 @@ type AcceptedSellerFollowup = {
   accepted_at: string
 }
 
+type NegotiationRetryReceipt = {
+  id: string
+  notification_type: 'inquiry_buyer_seller_response' | 'inquiry_seller_buyer_response'
+  entity_id: string
+  idempotency_key: string
+}
+
+type NegotiationEvent = {
+  id: string
+  inquiry_id: string
+  event_type: string
+  amount_minor: number | null
+  currency: string
+  note: string | null
+  buyer_notification_status: string
+  seller_notification_status: string
+  created_at: string
+}
+
+type NegotiationInquiry = {
+  id: string
+  buyer_name: string
+  buyer_email: string
+  status: string
+  listings: { id: string; title: string; contact_email: string } | Array<{ id: string; title: string; contact_email: string }> | null
+}
+
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || ''
@@ -77,6 +105,7 @@ const isAuthorized = (request: Request) => {
 }
 
 const getInquiryListing = (inquiry: Inquiry) => Array.isArray(inquiry.listings) ? inquiry.listings[0] : inquiry.listings
+const getNegotiationListing = (inquiry: NegotiationInquiry) => Array.isArray(inquiry.listings) ? inquiry.listings[0] : inquiry.listings
 
 export async function GET(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -89,7 +118,7 @@ export async function GET(request: Request) {
   const sellerEscalationCutoff = getSellerEnquiryEscalationCutoff()
   const nowIso = new Date().toISOString()
   const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult] = await Promise.all([
+  const [inquiryResult, quoteResult, buyerResponseQuoteResult, premiumListingResult, sellerAssistanceResult, buyerAcknowledgementRetryResult, buyerEarlyAccessRecoveryResult, acceptedSellerFollowupResult, negotiationRetryResult] = await Promise.all([
     supabase
       .from('marketplace_inquiries')
       .select('id,status,last_activity_at,listings(id,title,contact_email)')
@@ -144,8 +173,17 @@ export async function GET(request: Request) {
       .lte('accepted_at', sellerEscalationCutoff)
       .order('accepted_at', { ascending: true })
       .limit(100),
+    supabase
+      .from('commercial_notification_receipts')
+      .select('id,notification_type,entity_id,idempotency_key')
+      .in('notification_type', ['inquiry_buyer_seller_response', 'inquiry_seller_buyer_response'])
+      .in('status', ['pending', 'failed'])
+      .lt('delivery_attempts', 2)
+      .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+      .order('created_at', { ascending: true })
+      .limit(100),
   ])
-  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error) {
+  if (inquiryResult.error || quoteResult.error || buyerResponseQuoteResult.error || premiumListingResult.error || sellerAssistanceResult.error || buyerAcknowledgementRetryResult.error || buyerEarlyAccessRecoveryResult.error || acceptedSellerFollowupResult.error || negotiationRetryResult.error) {
     return NextResponse.json({ error: 'Open opportunities could not be loaded' }, { status: 500 })
   }
 
@@ -157,13 +195,18 @@ export async function GET(request: Request) {
   const buyerAcknowledgementRetries = (buyerAcknowledgementRetryResult.data || []) as BuyerAcknowledgementRetry[]
   const buyerEarlyAccessRecoveries = (buyerEarlyAccessRecoveryResult.data || []) as BuyerEarlyAccessCheckoutRecovery[]
   const acceptedSellerFollowups = (acceptedSellerFollowupResult.data || []) as AcceptedSellerFollowup[]
+  const negotiationRetries = (negotiationRetryResult.data || []) as NegotiationRetryReceipt[]
   const sellerEscalationInquiryIds = new Set(acceptedSellerFollowups.map((receipt) => receipt.entity_id))
   const sellerEnquiryEscalations = inquiries.filter((inquiry) => sellerEscalationInquiryIds.has(inquiry.id))
   const newBalloonBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'new_balloon_buyer_ack')
   const inquiryBuyerAcknowledgementRetries = buyerAcknowledgementRetries.filter((retry) => retry.notification_type === 'inquiry_buyer_ack')
   const buyerAcknowledgementQuoteIds = [...new Set(newBalloonBuyerAcknowledgementRetries.map((retry) => retry.entity_id))]
   const buyerAcknowledgementInquiryIds = [...new Set(inquiryBuyerAcknowledgementRetries.map((retry) => retry.entity_id))]
-  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult] = await Promise.all([
+  const negotiationEventIds = negotiationRetries
+    .map((retry) => parseNegotiationNotificationEventId(retry.notification_type, retry.idempotency_key))
+    .filter((eventId): eventId is string => Boolean(eventId))
+  const negotiationInquiryIds = [...new Set(negotiationRetries.map((retry) => retry.entity_id))]
+  const [buyerAcknowledgementQuotesResult, buyerAcknowledgementInquiriesResult, negotiationEventsResult, negotiationInquiriesResult, latestNegotiationEventsResult] = await Promise.all([
     buyerAcknowledgementQuoteIds.length > 0
       ? supabase
         .from('quote_requests')
@@ -176,9 +219,29 @@ export async function GET(request: Request) {
         .select('id,buyer_email,currency,initial_offer_amount_minor,seller_notification_status,listings(id,title)')
         .in('id', buyerAcknowledgementInquiryIds)
       : Promise.resolve({ data: [], error: null }),
+    negotiationEventIds.length > 0
+      ? supabase
+        .from('marketplace_inquiry_offer_events')
+        .select('id,inquiry_id,event_type,amount_minor,currency,note,buyer_notification_status,seller_notification_status,created_at')
+        .in('id', negotiationEventIds)
+      : Promise.resolve({ data: [], error: null }),
+    negotiationInquiryIds.length > 0
+      ? supabase
+        .from('marketplace_inquiries')
+        .select('id,buyer_name,buyer_email,status,listings(id,title,contact_email)')
+        .in('id', negotiationInquiryIds)
+      : Promise.resolve({ data: [], error: null }),
+    negotiationInquiryIds.length > 0
+      ? supabase
+        .from('marketplace_inquiry_offer_events')
+        .select('id,inquiry_id,created_at')
+        .in('inquiry_id', negotiationInquiryIds)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
   ])
-  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error) {
-    return NextResponse.json({ error: 'Buyer acknowledgement recovery data could not be loaded' }, { status: 500 })
+  if (buyerAcknowledgementQuotesResult.error || buyerAcknowledgementInquiriesResult.error || negotiationEventsResult.error || negotiationInquiriesResult.error || latestNegotiationEventsResult.error) {
+    return NextResponse.json({ error: 'Commercial notification recovery data could not be loaded' }, { status: 500 })
   }
   const buyerAcknowledgementQuoteById = new Map(
     ((buyerAcknowledgementQuotesResult.data || []) as NewBalloonQuote[]).map((quote) => [quote.id, quote]),
@@ -186,6 +249,16 @@ export async function GET(request: Request) {
   const buyerAcknowledgementInquiryById = new Map(
     ((buyerAcknowledgementInquiriesResult.data || []) as unknown as InquiryBuyerAcknowledgement[]).map((inquiry) => [inquiry.id, inquiry]),
   )
+  const negotiationEventById = new Map(
+    ((negotiationEventsResult.data || []) as NegotiationEvent[]).map((event) => [event.id, event]),
+  )
+  const negotiationInquiryById = new Map(
+    ((negotiationInquiriesResult.data || []) as unknown as NegotiationInquiry[]).map((inquiry) => [inquiry.id, inquiry]),
+  )
+  const latestNegotiationEventByInquiry = new Map<string, string>()
+  for (const event of latestNegotiationEventsResult.data || []) {
+    if (!latestNegotiationEventByInquiry.has(event.inquiry_id)) latestNegotiationEventByInquiry.set(event.inquiry_id, event.id)
+  }
   const result = {
     dueSellerEnquiries: inquiries.length,
     dueSellerEnquiryEscalations: sellerEnquiryEscalations.length,
@@ -195,15 +268,182 @@ export async function GET(request: Request) {
     dueSellerAssistance: sellerAssistance.length,
     dueNewBalloonBuyerAcknowledgementRetries: newBalloonBuyerAcknowledgementRetries.length,
     dueMarketplaceInquiryBuyerAcknowledgementRetries: inquiryBuyerAcknowledgementRetries.length,
+    dueNegotiationNotificationRetries: negotiationRetries.length,
     dueBuyerEarlyAccessCheckoutRecoveries: buyerEarlyAccessRecoveries.length,
     accepted: 0,
     alreadyAccepted: 0,
     retryDeferred: 0,
     failed: 0,
     configurationBlocked: 0,
+    negotiationNotificationsAccepted: 0,
+    negotiationNotificationsAlreadyAccepted: 0,
+    negotiationNotificationsDeferred: 0,
+    negotiationNotificationsFailed: 0,
+    negotiationNotificationsSuperseded: 0,
     dryRun: !commit,
   }
   if (!commit) return NextResponse.json(result)
+
+  for (const retry of negotiationRetries) {
+    const eventId = parseNegotiationNotificationEventId(retry.notification_type, retry.idempotency_key)
+    const event = eventId ? negotiationEventById.get(eventId) : null
+    const inquiry = negotiationInquiryById.get(retry.entity_id)
+    const listing = inquiry ? getNegotiationListing(inquiry) : null
+    const notLatest = event?.inquiry_id === retry.entity_id
+      && latestNegotiationEventByInquiry.get(retry.entity_id) !== event.id
+    const terminallySuperseded = inquiry?.status === 'SPAM' || inquiry?.status === 'WON' || notLatest
+    if (terminallySuperseded) {
+      const { data: exhausted, error: exhaustedError } = await supabase
+        .from('commercial_notification_receipts')
+        .update({
+          status: 'failed',
+          delivery_attempts: 2,
+          next_attempt_at: null,
+          error_message: 'Notification superseded by later negotiation state.',
+        })
+        .eq('id', retry.id)
+        .in('status', ['pending', 'failed'])
+        .select('id,delivery_attempts,next_attempt_at')
+        .single()
+      if (exhaustedError || exhausted?.delivery_attempts !== 2 || exhausted.next_attempt_at !== null) result.negotiationNotificationsFailed += 1
+      else result.negotiationNotificationsSuperseded += 1
+      continue
+    }
+    if (!eventId || !event || event.inquiry_id !== retry.entity_id || !inquiry || !listing?.id || !listing.title || !listing.contact_email) {
+      result.configurationBlocked += 1
+      continue
+    }
+
+    try {
+      if (retry.notification_type === 'inquiry_buyer_seller_response') {
+        if (!['SELLER_ACCEPTED_FOR_NEGOTIATION', 'SELLER_COUNTERED', 'SELLER_DECLINED'].includes(event.event_type) || !inquiry.buyer_email) {
+          result.configurationBlocked += 1
+          continue
+        }
+        const capabilityExpiresAt = new Date(new Date(event.created_at).getTime() + inquiryBuyerCapabilityLifetimeMs)
+        if (event.event_type !== 'SELLER_DECLINED' && capabilityExpiresAt <= new Date()) {
+          result.configurationBlocked += 1
+          continue
+        }
+        const buyerCapability = event.event_type === 'SELLER_DECLINED' ? null : signInquiryBuyerCapability({
+          inquiryId: inquiry.id,
+          eventId: event.id,
+          buyerEmail: inquiry.buyer_email,
+          expiresAt: capabilityExpiresAt,
+          secret: serviceRoleKey,
+        })
+        if (event.event_type !== 'SELLER_DECLINED' && !buyerCapability) {
+          result.configurationBlocked += 1
+          continue
+        }
+        const buyerResponseUrl = buyerCapability
+          ? `${siteUrl}/inquiry/respond?id=${encodeURIComponent(inquiry.id)}&event=${encodeURIComponent(event.id)}&token=${encodeURIComponent(buyerCapability)}`
+          : null
+        const buyerPortalCapability = signInquiryBuyerPortalCapability({
+          inquiryId: inquiry.id,
+          buyerEmail: inquiry.buyer_email,
+          expiresAt: new Date(Date.now() + inquiryBuyerPortalCapabilityLifetimeMs),
+          secret: serviceRoleKey,
+        })
+        const notification = buildSellerResponseBuyerNotification({
+          listing: {
+            title: listing.title,
+            contactEmail: listing.contact_email,
+            url: `${siteUrl}/catalog/${listing.id}`,
+          },
+          event: {
+            eventType: event.event_type,
+            amountMinor: event.amount_minor === null ? null : Number(event.amount_minor),
+            currency: event.currency,
+            note: event.note,
+          },
+          buyerResponseUrl,
+          buyerPortalUrl: buyerPortalCapability
+            ? `${siteUrl}/inquiry/status?id=${encodeURIComponent(inquiry.id)}&token=${encodeURIComponent(buyerPortalCapability)}`
+            : null,
+        })
+        const delivery = await sendCommercialReceiptEmail(supabase, {
+          notificationType: retry.notification_type,
+          entityType: 'inquiry',
+          entityId: inquiry.id,
+          recipientRole: 'buyer',
+          to: inquiry.buyer_email,
+          subject: notification.subject,
+          html: notification.html,
+          idempotencyKey: retry.idempotency_key,
+        })
+        if (delivery.skipped) {
+          result.negotiationNotificationsDeferred += 1
+          continue
+        }
+        const notificationStatus = delivery.success ? 'accepted' : 'failed'
+        const { data: readback, error } = await supabase
+          .from('marketplace_inquiry_offer_events')
+          .update({
+            buyer_notification_status: notificationStatus,
+            buyer_notification_provider_id: delivery.providerMessageId,
+            buyer_notification_error: delivery.success ? null : 'Provider acceptance was not confirmed after the retry budget.',
+          })
+          .eq('id', event.id)
+          .eq('inquiry_id', inquiry.id)
+          .select('buyer_notification_status,buyer_notification_provider_id')
+          .single()
+        if (error || readback?.buyer_notification_status !== notificationStatus) throw new Error('Buyer negotiation notification retry readback failed')
+        if (delivery.duplicate) result.negotiationNotificationsAlreadyAccepted += 1
+        else if (delivery.success) result.negotiationNotificationsAccepted += 1
+        else result.negotiationNotificationsFailed += 1
+      } else {
+        if (!['BUYER_ACCEPTED_FOR_NEGOTIATION', 'BUYER_COUNTERED', 'BUYER_DECLINED'].includes(event.event_type) || !inquiry.buyer_name) {
+          result.configurationBlocked += 1
+          continue
+        }
+        const notification = buildBuyerResponseSellerNotification({
+          listing: { title: listing.title },
+          inquiry: { buyerName: inquiry.buyer_name },
+          event: {
+            eventType: event.event_type,
+            amountMinor: event.amount_minor === null ? null : Number(event.amount_minor),
+            currency: event.currency,
+            note: event.note,
+          },
+          dashboardUrl: `${siteUrl}/dashboard`,
+        })
+        const delivery = await sendCommercialReceiptEmail(supabase, {
+          notificationType: retry.notification_type,
+          entityType: 'inquiry',
+          entityId: inquiry.id,
+          recipientRole: 'seller',
+          to: listing.contact_email,
+          subject: notification.subject,
+          html: notification.html,
+          idempotencyKey: retry.idempotency_key,
+        })
+        if (delivery.skipped) {
+          result.negotiationNotificationsDeferred += 1
+          continue
+        }
+        const notificationStatus = delivery.success ? 'accepted' : 'failed'
+        const { data: readback, error } = await supabase
+          .from('marketplace_inquiry_offer_events')
+          .update({
+            seller_notification_status: notificationStatus,
+            seller_notification_provider_id: delivery.providerMessageId,
+            seller_notification_error: delivery.success ? null : 'Provider acceptance was not confirmed after the retry budget.',
+          })
+          .eq('id', event.id)
+          .eq('inquiry_id', inquiry.id)
+          .select('seller_notification_status,seller_notification_provider_id')
+          .single()
+        if (error || readback?.seller_notification_status !== notificationStatus) throw new Error('Seller negotiation notification retry readback failed')
+        if (delivery.duplicate) result.negotiationNotificationsAlreadyAccepted += 1
+        else if (delivery.success) result.negotiationNotificationsAccepted += 1
+        else result.negotiationNotificationsFailed += 1
+      }
+    } catch (error) {
+      console.error('Negotiation notification recovery failed:', error)
+      result.negotiationNotificationsFailed += 1
+    }
+  }
 
   for (const retry of inquiryBuyerAcknowledgementRetries) {
     const inquiry = buyerAcknowledgementInquiryById.get(retry.entity_id)

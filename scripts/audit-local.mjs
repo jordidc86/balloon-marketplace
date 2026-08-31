@@ -268,7 +268,12 @@ const checks = [
   {
     name: 'Seller responses issue a buyer capability without weakening delivery evidence',
     file: 'src/app/dashboard/actions.ts',
-    required: ['signInquiryBuyerCapability', 'signInquiryBuyerPortalCapability', 'capabilityExpiresAt', 'Respond securely through AeroTrade', 'This private link expires after 30 days.', 'Open the complete private enquiry history', 'This status link expires after 90 days.', 'inquiry_buyer_seller_response'],
+    required: ['signInquiryBuyerCapability', 'signInquiryBuyerPortalCapability', 'capabilityExpiresAt', 'buildSellerResponseBuyerNotification', 'inquiry_buyer_seller_response'],
+  },
+  {
+    name: 'Negotiation message builders preserve private links and non-binding boundaries',
+    file: 'src/utils/inquiry-negotiation-notifications.mjs',
+    required: ['Respond securely through AeroTrade', 'This private link expires after 30 days.', 'Open the complete private enquiry history', 'This status link expires after 90 days.', 'invitations to negotiate only', 'does not reserve equipment, execute payment or form a sale contract', 'parseNegotiationNotificationEventId'],
   },
   {
     name: 'Buyer replies verify authority before atomic storage and seller notification',
@@ -784,6 +789,11 @@ const checks = [
     name: 'Open commercial opportunities receive one evidence-backed operational follow-up',
     file: 'src/app/api/cron/opportunity-followup/route.ts',
     required: ['getOpportunityFollowupCutoff', 'openInquiryStatuses', 'sendCommercialReceiptEmail', 'inquiry-seller-followup-', 'quote-admin-followup-', 'premium-listing-checkout-recovery-', 'new-balloon-buyer-ack-', 'dueNewBalloonBuyerAcknowledgementRetries', 'single operational reminder'],
+  },
+  {
+    name: 'Failed negotiation updates recover in both directions without reviving stale messages',
+    file: 'src/app/api/cron/opportunity-followup/route.ts',
+    required: ["'inquiry_buyer_seller_response', 'inquiry_seller_buyer_response'", 'parseNegotiationNotificationEventId', 'dueNegotiationNotificationRetries', 'latestNegotiationEventByInquiry', 'Notification superseded by later negotiation state.', 'buildSellerResponseBuyerNotification', 'buildBuyerResponseSellerNotification', 'negotiationNotificationsAccepted', 'negotiationNotificationsSuperseded', 'Buyer negotiation notification retry readback failed', 'Seller negotiation notification retry readback failed'],
   },
   {
     name: 'Unanswered seller enquiries escalate internally only after an accepted reminder ages 48 hours',

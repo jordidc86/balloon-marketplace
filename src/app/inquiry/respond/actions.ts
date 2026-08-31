@@ -2,10 +2,10 @@
 
 import { createAdminClient } from '@/utils/supabase/server'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
-import { escapeHtml } from '@/utils/html'
 import { inquiryBuyerCapabilityLifetimeMs, verifyInquiryBuyerCapability } from '@/utils/inquiry-buyer-capability.mjs'
 import { parseBuyerInquiryResponse } from '@/utils/inquiry-safety.mjs'
 import { siteUrl } from '@/utils/site'
+import { buildBuyerResponseSellerNotification } from '@/utils/inquiry-negotiation-notifications.mjs'
 
 export type BuyerInquiryResponseState = { success: boolean; message: string }
 
@@ -70,14 +70,17 @@ export async function submitBuyerInquiryResponse(_state: BuyerInquiryResponseSta
   }
 
   if (event.seller_notification_status !== 'accepted') {
-    const amount = event.amount_minor === null
-      ? null
-      : (Number(event.amount_minor) / 100).toLocaleString('en-IE', { style: 'currency', currency: event.currency })
-    const responseLabel = event.event_type === 'BUYER_COUNTERED'
-      ? `The buyer proposed ${amount}`
-      : event.event_type === 'BUYER_DECLINED'
-        ? 'The buyer declined this negotiation'
-        : 'The buyer wants to continue negotiating'
+    const notification = buildBuyerResponseSellerNotification({
+      listing: { title: listing.title },
+      inquiry: { buyerName: inquiry.buyer_name },
+      event: {
+        eventType: event.event_type,
+        amountMinor: event.amount_minor === null ? null : Number(event.amount_minor),
+        currency: event.currency,
+        note: event.note,
+      },
+      dashboardUrl: `${siteUrl}/dashboard`,
+    })
     let notificationStatus: 'accepted' | 'failed' = 'failed'
     let providerMessageId: string | null = null
     try {
@@ -87,13 +90,8 @@ export async function submitBuyerInquiryResponse(_state: BuyerInquiryResponseSta
         entityId: inquiry.id,
         recipientRole: 'seller',
         to: listing.contact_email,
-        subject: `AeroTrade buyer response: ${listing.title}`,
-        html: `<h2>${escapeHtml(responseLabel)}</h2>
-        <p><strong>Listing:</strong> ${escapeHtml(listing.title)}</p>
-        <p><strong>Buyer:</strong> ${escapeHtml(inquiry.buyer_name)}</p>
-        ${event.note ? `<p><strong>Buyer note:</strong><br />${escapeHtml(event.note).replaceAll('\n', '<br />')}</p>` : ''}
-        <p>This is a non-binding negotiation response. It does not reserve equipment, execute payment or form a sale contract.</p>
-        <p><a href="${escapeHtml(`${siteUrl}/dashboard`)}">Open the enquiry in your AeroTrade dashboard</a></p>`,
+        subject: notification.subject,
+        html: notification.html,
         idempotencyKey: `inquiry-seller-buyer-response-${event.id}`,
       })
       notificationStatus = delivery.success ? 'accepted' : 'failed'

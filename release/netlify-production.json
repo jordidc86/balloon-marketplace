@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-truthful-buyer-enquiry-acknowledgement",
-  "productionBaseCommit": "97463157d3ea958bcbd4934f1b7169b09df8b325",
+  "releaseId": "2026-08-31-negotiation-delivery-recovery",
+  "productionBaseCommit": "afe95611ce231603a47823971e01a4458b8012a6",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }
