@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_pending_listing_free_recovery_verification",
+  "completedAt": "2026-08-31T12:51:25Z",
+  "containsPii": false,
+  "economicActionsPerformed": 0,
+  "externalMessagesSent": 0,
+  "release": {
+    "commit": "b506b8cefdace0d113b4fbebe80bf854348af5de",
+    "netlifyDeployId": "6a957851e1114d000808cde2",
+    "state": "ready",
+    "publishedAt": "2026-08-31T12:50:14.142Z",
+    "deployTimeSeconds": 48
+  },
+  "database": {
+    "migration": "20260831660000",
+    "localRemoteMatch": true,
+    "serviceRolePublicationRpcReachable": true,
+    "wrongSellerFailsSafely": true,
+    "negativeVerificationErrorCode": "P0001",
+    "writesFromNegativeVerification": 0
+  },
+  "productionEvidence": {
+    "pendingPaymentListings": 1,
+    "trackedCheckoutIntentsForPendingListing": 0,
+    "historicalMatchingStripeSessions": 1,
+    "historicalSessionStatus": "expired",
+    "historicalSessionPaymentStatus": "unpaid",
+    "recoveryReceiptsAccepted": 1,
+    "sellerPublicationDecisionObserved": false,
+    "productionProofWasNotInferred": true
+  },
+  "behavior": {
+    "dashboardOffersResumePayment": true,
+    "dashboardOffersPublishFree": true,
+    "completedPaymentBlocksFreePublication": true,
+    "openMatchingCheckoutIsExpiredBeforeFreePublication": true,
+    "listingAndFunnelEvidenceTransitionAtomically": true,
+    "ownerStatusPlanImageAndQualityAreRechecked": true,
+    "listingAndFunnelReadbackRequired": true,
+    "rpcRestrictedToServiceRole": true
+  },
+  "gates": {
+    "testsPassed": 184,
+    "operationalContractsPassed": 199,
+    "lintPassed": true,
+    "buildPassed": true,
+    "releaseGateRehearsalPassed": true,
+    "edgeRuntimeDeprecationWarningOnly": true
+  },
+  "productionReadback": {
+    "listingStatus": "PENDING_PAYMENT",
+    "listingPlan": "premium",
+    "publicAt": null,
+    "publishedFunnelEvents": 0,
+    "noSellerDecisionWasInvented": true,
+    "mutationsPerformedByReleaseVerification": 0
+  },
+  "productionSmoke": {
+    "homeStatus": 200,
+    "catalogStatus": 200,
+    "dashboardAnonymousStatus": 307,
+    "dashboardProtectedByLogin": true,
+    "pendingListingAnonymousStatus": 404,
+    "pendingListingRemainsPrivate": true
+  }
+}
