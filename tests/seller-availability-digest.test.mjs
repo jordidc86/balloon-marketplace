@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   changedSellerAvailabilityDigestIsCoolingDown,
+  sellerAvailabilityBatchKey,
   sellerAvailabilityDigestChangeCooldownMs,
   sellerAvailabilityDigestIdempotencyKey,
   sellerAvailabilityDigestInventoryKey,
@@ -30,6 +31,17 @@ test('seller availability digest is stable across listing order and changes afte
   ])
   assert.equal(first, reordered)
   assert.notEqual(first, nextCycle)
+})
+
+test('seller availability batch approval is stable, bounded and rejects duplicate scope', () => {
+  const first = sellerAvailabilityDigestIdempotencyKey(sellerId, [{ listingId: listingOne, confirmationId: null }])
+  const secondSeller = 'a61e6ad6-22bd-41d6-81ad-94e76b214cad'
+  const second = sellerAvailabilityDigestIdempotencyKey(secondSeller, [{ listingId: listingTwo, confirmationId: null }])
+
+  assert.equal(sellerAvailabilityBatchKey([first, second]), sellerAvailabilityBatchKey([second, first]))
+  assert.throws(() => sellerAvailabilityBatchKey([]), /between 1 and 100/i)
+  assert.throws(() => sellerAvailabilityBatchKey([first, first]), /duplicate/i)
+  assert.throws(() => sellerAvailabilityBatchKey([first, 'untrusted']), /invalid seller inventory/i)
 })
 
 test('an ignored accepted digest can be explicitly reissued after its 14-day capability expires', () => {

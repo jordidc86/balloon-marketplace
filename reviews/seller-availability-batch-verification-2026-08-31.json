@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_seller_availability_batch_candidate_verification",
+  "verifiedAt": "2026-08-31T18:31:10Z",
+  "containsPii": false,
+  "readOnlyProductionAudit": true,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "batch": {
+    "activeListings": 12,
+    "activeSellers": 6,
+    "dueListings": 11,
+    "dueSellers": 5,
+    "portfolioDistribution": {
+      "1": 2,
+      "2": 2,
+      "5": 1
+    },
+    "actionableGroupedRequests": 5,
+    "readyNew": 5,
+    "missingContact": 0,
+    "coolingDown": 0,
+    "priorDigestReceipts": 0
+  },
+  "candidateControls": {
+    "singleVisibleExactAuthorization": true,
+    "scopeFingerprintRequired": true,
+    "allScopesPreflightBeforeDelivery": true,
+    "inventoryDriftFailsBeforeDelivery": true,
+    "oneEmailPerSeller": true,
+    "providerAcceptanceReadbackPerSeller": true,
+    "partialFailureRemainsRetryable": true,
+    "openingSellerLinkMutatesNothing": true
+  },
+  "releaseGates": {
+    "automatedTestsPassed": 216,
+    "operationalContractsPassed": 235,
+    "eslintPassed": true,
+    "typescriptPassed": true,
+    "optimizedBuildPassed": true
+  },
+  "limitations": {
+    "deployed": false,
+    "sellerConfirmationProven": false,
+    "availabilityEvidenceCreated": 0
+  }
+}

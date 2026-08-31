@@ -6,9 +6,10 @@ import { buildNewBalloonManufacturerFunnel, newBalloonManufacturers } from '@/ut
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { buildComparableBuyerFunnel } from '@/utils/buyer-funnel.mjs'
 import { isSellerEnquiryEscalationDue } from '@/utils/opportunity-followup.mjs'
-import { sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestReadiness } from '@/utils/seller-availability-digest.mjs'
+import { sellerAvailabilityBatchKey, sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestReadiness } from '@/utils/seller-availability-digest.mjs'
 import { getSocialAcquisitionMode } from '@/utils/social-publication.mjs'
 import { clarifyListingSale, recordCommercialOutcome, recordCommercialUnitEconomics, requestSellerAvailabilityDigest, sendNewBalloonProposal, updateAdminInquiryStatus, updateQuoteRequestStatus, updateSellerAssistanceStatus, updateWantedRequestStatus } from '../actions'
+import SellerAvailabilityBatchForm from './SellerAvailabilityBatchForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -556,6 +557,23 @@ export default async function CommercialPage() {
     return !typedSellerPipelineListings.some((listing) => listing.seller_id === event.seller_id && listing.created_at >= event.created_at)
   })
   const sellerEmailById = new Map(typedSellerUsers.map((user) => [user.id, user.email]))
+  const actionableAvailabilityScopes = Array.from(availabilityDueBySeller.entries()).flatMap(([sellerId, dueListings]) => {
+    const inventoryKey = sellerAvailabilityDigestIdempotencyKey(sellerId, dueListings.map((listing) => ({
+      listingId: listing.id,
+      confirmationId: latestAvailabilityRowsByListing.get(listing.id)?.id || null,
+    })))
+    const readiness = sellerAvailabilityDigestReadiness({
+      hasContact: sellerEmailById.has(sellerId),
+      currentKey: inventoryKey,
+      latestReceipt: availabilityDigestBySeller.get(sellerId),
+      now: new Date(nowMs),
+    })
+    return readiness.actionable ? [{ sellerId, inventoryKey, listingCount: dueListings.length }] : []
+  })
+  const actionableAvailabilityBatchKey = actionableAvailabilityScopes.length
+    ? sellerAvailabilityBatchKey(actionableAvailabilityScopes.map((scope) => scope.inventoryKey))
+    : null
+  const actionableAvailabilityListingCount = actionableAvailabilityScopes.reduce((total, scope) => total + scope.listingCount, 0)
   const won = typedInquiries.filter((inquiry) => inquiry.status === 'WON').length + typedQuotes.filter((quote) => quote.status === 'WON').length
   const buyerOffers = typedNegotiationEvents.filter((event) => event.event_type === 'BUYER_OFFERED')
   const sellerNegotiationResponses = typedNegotiationEvents.filter((event) => event.actor_role !== 'BUYER')
@@ -727,6 +745,12 @@ export default async function CommercialPage() {
               <Metric title="Never confirmed" value={activeListingsNeverConfirmed} icon={<TriangleAlert className="h-5 w-5" />} detail="No availability evidence yet" warning={activeListingsNeverConfirmed > 0} />
               <Metric title="Confirmation expired" value={activeListingsWithStaleAvailability} icon={<TriangleAlert className="h-5 w-5" />} detail="Last confirmation is older than 90 days" warning={activeListingsWithStaleAvailability > 0} />
             </div>
+            {actionableAvailabilityBatchKey ? <SellerAvailabilityBatchForm
+              batchKey={actionableAvailabilityBatchKey}
+              scopes={actionableAvailabilityScopes.map(({ sellerId, inventoryKey }) => ({ sellerId, inventoryKey }))}
+              sellerCount={actionableAvailabilityScopes.length}
+              listingCount={actionableAvailabilityListingCount}
+            /> : null}
             <div className="mt-5 divide-y rounded-xl border">
               {Array.from(availabilityDueBySeller.entries()).map(([sellerId, dueListings]) => {
                 const request = availabilityDigestBySeller.get(sellerId)

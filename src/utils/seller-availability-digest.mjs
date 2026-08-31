@@ -5,6 +5,18 @@ const digestKeyPattern = /^seller-availability-digest-[0-9a-f]{8}-[0-9a-f]{4}-[1
 export const sellerAvailabilityDigestChangeCooldownMs = 30 * 86_400_000
 export const sellerAvailabilityDigestRequestLifetimeMs = 14 * 86_400_000
 
+export function sellerAvailabilityBatchKey(inventoryKeys) {
+  if (!Array.isArray(inventoryKeys) || inventoryKeys.length === 0 || inventoryKeys.length > 100) {
+    throw new Error('Availability batch requires between 1 and 100 seller inventories')
+  }
+  const normalized = inventoryKeys.map((value) => sellerAvailabilityDigestInventoryKey(value))
+  if (normalized.some((value) => !value)) throw new Error('Availability batch contains an invalid seller inventory')
+  if (new Set(normalized).size !== normalized.length) throw new Error('Availability batch contains a duplicate seller inventory')
+
+  const fingerprint = createHash('sha256').update(normalized.sort().join('|')).digest('hex').slice(0, 32)
+  return `seller-availability-batch-${normalized.length}-${fingerprint}`
+}
+
 export function sellerAvailabilityDigestIdempotencyKey(sellerId, listingCycles) {
   if (!uuidPattern.test(String(sellerId || ''))) throw new Error('Invalid seller identifier')
   if (!Array.isArray(listingCycles) || listingCycles.length === 0 || listingCycles.length > 100) {

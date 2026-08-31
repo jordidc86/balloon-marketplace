@@ -21,7 +21,7 @@ import { newBalloonProposalResponseExpiry, signNewBalloonProposalCapability } fr
 import { buildNewBalloonProposalBuyerNotification } from '@/utils/new-balloon-proposal-notifications.mjs'
 import { getListingAvailabilityState } from '@/utils/listing-availability.mjs'
 import { listingAvailabilityRequestIdempotencyKey } from '@/utils/listing-availability-request.mjs'
-import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestRequestKey } from '@/utils/seller-availability-digest.mjs'
+import { changedSellerAvailabilityDigestIsCoolingDown, sellerAvailabilityBatchKey, sellerAvailabilityDigestIdempotencyKey, sellerAvailabilityDigestInventoryKey, sellerAvailabilityDigestRequestKey } from '@/utils/seller-availability-digest.mjs'
 import { sellerAvailabilityCapabilityLifetimeMs, signSellerAvailabilityCapability } from '@/utils/seller-availability-capability.mjs'
 import { buildSellerAvailabilityDigestNotification } from '@/utils/seller-availability-notification.mjs'
 import { parseListingSaleClarification } from '@/utils/listing-closure.mjs'
@@ -548,8 +548,19 @@ export async function requestListingAvailabilityConfirmation(listingId: string) 
   revalidatePath('/admin/commercial')
 }
 
-export async function requestSellerAvailabilityDigest(sellerId: string) {
-  const { supabase } = await checkAdmin()
+type PreparedSellerAvailabilityDigest = {
+  sellerId: string
+  sellerEmail: string
+  inventoryKey: string
+  idempotencyKey: string
+  notification: { subject: string; html: string }
+}
+
+async function prepareSellerAvailabilityDigest(
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
+  sellerId: string,
+  expectedInventoryKey?: string,
+): Promise<PreparedSellerAvailabilityDigest> {
   const [{ data: seller, error: sellerError }, { data: activeListings, error: listingsError }] = await Promise.all([
     supabase.from('users').select('id,email').eq('id', sellerId).single(),
     supabase
@@ -584,6 +595,9 @@ export async function requestSellerAvailabilityDigest(sellerId: string) {
     listingId: listing.id,
     confirmationId: latestConfirmationByListing.get(listing.id)?.id || null,
   })))
+  if (expectedInventoryKey && inventoryKey !== expectedInventoryKey) {
+    throw new Error('Seller inventory changed after batch review')
+  }
   const { data: latestDigest, error: digestError } = await supabase
     .from('commercial_notification_receipts')
     .select('idempotency_key,status,created_at,accepted_at')
@@ -615,15 +629,28 @@ export async function requestSellerAvailabilityDigest(sellerId: string) {
     capabilityUrl,
     dashboardUrl: `${siteUrl}/dashboard`,
   })
+  return {
+    sellerId: seller.id,
+    sellerEmail: seller.email,
+    inventoryKey,
+    idempotencyKey,
+    notification,
+  }
+}
+
+async function deliverPreparedSellerAvailabilityDigest(
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
+  prepared: PreparedSellerAvailabilityDigest,
+) {
   const delivery = await sendCommercialReceiptEmail(supabase, {
     notificationType: 'seller_availability_digest',
     entityType: 'user',
-    entityId: seller.id,
+    entityId: prepared.sellerId,
     recipientRole: 'seller',
-    to: seller.email,
-    subject: notification.subject,
-    html: notification.html,
-    idempotencyKey,
+    to: prepared.sellerEmail,
+    subject: prepared.notification.subject,
+    html: prepared.notification.html,
+    idempotencyKey: prepared.idempotencyKey,
   })
   if (!delivery.success || !delivery.providerMessageId) {
     throw new Error(delivery.skipped
@@ -636,13 +663,73 @@ export async function requestSellerAvailabilityDigest(sellerId: string) {
   const { data: receipt, error: receiptError } = await supabase
     .from('commercial_notification_receipts')
     .select('status,provider_message_id,idempotency_key')
-    .eq('idempotency_key', idempotencyKey)
+    .eq('idempotency_key', prepared.idempotencyKey)
     .single()
   if (receiptError || receipt?.status !== 'accepted' || receipt.provider_message_id !== delivery.providerMessageId) {
     throw new Error('Seller availability digest acceptance was not verified by readback')
   }
+}
+
+export async function requestSellerAvailabilityDigest(sellerId: string) {
+  const { supabase } = await checkAdmin()
+  const prepared = await prepareSellerAvailabilityDigest(supabase, sellerId)
+  await deliverPreparedSellerAvailabilityDigest(supabase, prepared)
 
   revalidatePath('/admin/commercial')
+}
+
+export async function requestSellerAvailabilityDigestBatch(formData: FormData) {
+  const { supabase } = await checkAdmin()
+  if (formData.get('availability_batch_authorization') !== 'yes') {
+    return { success: false, message: 'Explicit authorization for this exact batch is required.' }
+  }
+
+  const expectedBatchKey = String(formData.get('expected_batch_key') || '')
+  let scopes: Array<{ sellerId: string; inventoryKey: string }>
+  try {
+    const parsed = JSON.parse(String(formData.get('approved_scopes') || ''))
+    if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 100) throw new Error('invalid scope')
+    scopes = parsed.map((scope) => {
+      const sellerId = String(scope?.sellerId || '').toLowerCase()
+      const inventoryKey = sellerAvailabilityDigestInventoryKey(scope?.inventoryKey)
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(sellerId) || !inventoryKey) {
+        throw new Error('invalid scope')
+      }
+      return { sellerId, inventoryKey }
+    })
+  } catch {
+    return { success: false, message: 'The reviewed seller scope is invalid. Refresh before sending.' }
+  }
+
+  let currentBatchKey: string
+  try {
+    currentBatchKey = sellerAvailabilityBatchKey(scopes.map((scope) => scope.inventoryKey))
+  } catch {
+    return { success: false, message: 'The reviewed seller scope is not a safe unique batch.' }
+  }
+  if (currentBatchKey !== expectedBatchKey) {
+    return { success: false, message: 'The reviewed batch fingerprint does not match. Refresh before sending.' }
+  }
+
+  let prepared: PreparedSellerAvailabilityDigest[]
+  try {
+    prepared = await Promise.all(scopes.map((scope) => (
+      prepareSellerAvailabilityDigest(supabase, scope.sellerId, scope.inventoryKey)
+    )))
+  } catch {
+    return { success: false, message: 'Seller inventory changed after review. No email was sent; refresh the evidence.' }
+  }
+
+  const deliveries = await Promise.allSettled(prepared.map((digest) => (
+    deliverPreparedSellerAvailabilityDigest(supabase, digest)
+  )))
+  const accepted = deliveries.filter((delivery) => delivery.status === 'fulfilled').length
+  const failed = deliveries.length - accepted
+  revalidatePath('/admin/commercial')
+
+  return failed === 0
+    ? { success: true, message: `${accepted} grouped seller request${accepted === 1 ? '' : 's'} accepted by the provider and verified by readback.` }
+    : { success: false, message: `${accepted} grouped request${accepted === 1 ? '' : 's'} accepted and ${failed} failed safely. Refresh to review the remaining retry state.` }
 }
 
 export async function setListingVerification(listingId: string, formData: FormData) {

@@ -814,7 +814,18 @@ const checks = [
   {
     name: 'Control Tower explains seller outreach readiness before an operator can send',
     file: 'src/app/admin/commercial/page.tsx',
-    required: ['sellerAvailabilityDigestIdempotencyKey', 'sellerAvailabilityDigestReadiness', 'latestAvailabilityRowsByListing', "readiness.status === 'cooling_down'", 'readiness.actionable'],
+    required: ['sellerAvailabilityDigestIdempotencyKey', 'sellerAvailabilityDigestReadiness', 'sellerAvailabilityBatchKey', 'SellerAvailabilityBatchForm', 'latestAvailabilityRowsByListing', "readiness.status === 'cooling_down'", 'readiness.actionable'],
+  },
+  {
+    name: 'One batch approval is exact, preflighted and preserves per-seller delivery evidence',
+    file: 'src/app/admin/actions.ts',
+    required: ['requestSellerAvailabilityDigestBatch', "formData.get('availability_batch_authorization') !== 'yes'", 'sellerAvailabilityBatchKey', 'expectedInventoryKey', 'Promise.all(scopes.map', 'Promise.allSettled(prepared.map', 'deliverPreparedSellerAvailabilityDigest', 'verified by readback'],
+  },
+  {
+    name: 'Seller availability batch UI requires a visible exact authorization',
+    file: 'src/app/admin/commercial/SellerAvailabilityBatchForm.tsx',
+    required: ['availability_batch_authorization', 'I authorize this exact', 'currently unconfirmed active listings', 'It does not change publication, price, ownership or payment.', 'requestSellerAvailabilityDigestBatch'],
+    forbidden: ['sendEmail(', 'fetch('],
   },
   {
     name: 'Expired grouped seller authority can be explicitly reissued without changing its inventory scope',
