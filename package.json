@@ -11,6 +11,8 @@
     "audit:local": "node scripts/audit-local.mjs",
     "rehearse:db-recovery": "node scripts/rehearse-database-recovery.mjs",
     "rehearse:netlify-release-gate": "node scripts/rehearse-netlify-release-gate.mjs",
+    "promote:production": "node scripts/promote-netlify-production.mjs",
+    "verify:production-release": "npm test && npm run lint && npx tsc --noEmit && npm run build",
     "baseline:commercial": "node scripts/capture-commercial-baseline.mjs",
     "audit:marketplace": "node scripts/capture-marketplace-audit.mjs",
     "audit:stripe-commercial": "node scripts/capture-stripe-commercial-audit.mjs",
