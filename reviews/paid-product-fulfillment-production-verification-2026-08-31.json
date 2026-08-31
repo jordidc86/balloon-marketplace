@@ -1,19 +1,22 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "aerotrade_paid_product_fulfillment_verification",
-  "completedAt": "2026-08-31T10:58:48Z",
+  "completedAt": "2026-08-31T11:12:19Z",
   "containsPii": false,
   "economicActionsPerformed": 0,
   "externalMessagesSent": 0,
   "release": {
-    "commit": "3acd279711f538f86cb5424b176cf06738c97711",
-    "netlifyDeployId": "6a955d74636ebf0008c5408e",
+    "commit": "97463157d3ea958bcbd4934f1b7169b09df8b325",
+    "netlifyDeployId": "6a955ffde33f91000852a211",
     "state": "ready",
-    "publishedAt": "2026-08-31T10:55:35.070Z",
-    "deployTimeSeconds": 48
+    "publishedAt": "2026-08-31T11:06:20.605Z",
+    "deployTimeSeconds": 45
   },
   "database": {
-    "migration": "20260831620000_paid_listing_checkout_traceability.sql",
+    "migrations": [
+      "20260831620000_paid_listing_checkout_traceability.sql",
+      "20260831630000_idempotent_listing_checkout_registration.sql"
+    ],
     "localRemoteMigrationMatch": true,
     "listingCheckoutIntentSchemaReadable": true,
     "linkedPaymentReceiptColumnsReadable": true,
@@ -34,8 +37,8 @@
     }
   },
   "gates": {
-    "testsPassed": 170,
-    "operationalContractsPassed": 187,
+    "testsPassed": 171,
+    "operationalContractsPassed": 188,
     "lintPassed": true,
     "buildPassed": true,
     "edgeRuntimeDeprecationWarningOnly": true
