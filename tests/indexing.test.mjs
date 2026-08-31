@@ -9,6 +9,7 @@ const listings = [
   { id: 'mature-premium', title: 'Cameron Shadow', details: { manufacturer: 'Cameron' }, category: 'burners', location_country: 'Spain', status: 'ACTIVE_PREMIUM', public_at: '2026-08-28T10:00:00Z' },
   { id: 'locked-premium', category: 'envelopes', status: 'ACTIVE_PREMIUM', public_at: '2026-08-30T10:00:00Z' },
   { id: 'draft', category: 'baskets', status: 'DRAFT', public_at: null },
+  { id: 'sold-cylinder', title: 'Lindstrand cylinder', details: { manufacturer: 'Lindstrand' }, category: 'cylinders', location_country: 'Portugal', status: 'SOLD', public_at: '2026-08-20T10:00:00Z' },
 ]
 
 test('public indexing includes commercial routes and only releasable inventory', () => {
@@ -26,6 +27,10 @@ test('public indexing includes commercial routes and only releasable inventory',
   assert.ok(urls.includes('https://aerotrade.app/catalog/country/spain'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/public-complete'))
   assert.ok(urls.includes('https://aerotrade.app/catalog/mature-premium'))
+  assert.ok(urls.includes('https://aerotrade.app/catalog/sold-cylinder'))
+  assert.ok(!urls.includes('https://aerotrade.app/catalog/category/cylinders'))
+  assert.ok(!urls.includes('https://aerotrade.app/catalog/manufacturer/lindstrand'))
+  assert.ok(!urls.includes('https://aerotrade.app/catalog/country/portugal'))
   assert.ok(!urls.some((url) => url.includes('locked-premium')))
   assert.ok(!urls.some((url) => url.includes('draft')))
   assert.ok(!urls.some((url) => /login|dashboard|admin/.test(url)))

@@ -25,13 +25,17 @@ export function buildPublicIndexingUrls({ origin, listings = [], now = new Date(
   if (!safeOrigin) throw new Error('A secure public origin is required')
 
   const publicListings = listings.filter((listing) => isListingPubliclyIndexable(listing, now))
-  const categoryPaths = Array.from(new Set(publicListings
+  // A sold listing is still a public recovery page and must be resubmitted when
+  // its status changes. It must not, however, make an empty inventory facet look
+  // commercially active.
+  const activeListings = publicListings.filter((listing) => listing.status !== 'SOLD')
+  const categoryPaths = Array.from(new Set(activeListings
     .map((listing) => getCatalogCategory(listing.category)?.slug)
     .filter(Boolean)))
     .map((category) => getCatalogCategoryPath(category))
-  const manufacturerPaths = getCatalogManufacturersWithInventory(publicListings, minimumManufacturerInventoryForIndexing)
+  const manufacturerPaths = getCatalogManufacturersWithInventory(activeListings, minimumManufacturerInventoryForIndexing)
     .map((manufacturer) => getCatalogManufacturerPath(manufacturer.slug))
-  const countryPaths = getCatalogCountriesWithInventory(publicListings, minimumCountryInventoryForIndexing)
+  const countryPaths = getCatalogCountriesWithInventory(activeListings, minimumCountryInventoryForIndexing)
     .map((country) => getCatalogCountryPath(country.slug))
   const listingPaths = publicListings
     .filter((listing) => typeof listing.id === 'string' && listing.id)

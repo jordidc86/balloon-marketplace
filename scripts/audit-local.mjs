@@ -562,15 +562,20 @@ const checks = [
     required: ["event.event_type === 'SOLD_VIEW'", "quote.source_context === 'sold-listing'", "request.utm_source === 'sold_listing'", 'Demand recovered from sold inventory (30d)', 'A sold-page view is not an active listing view'],
   },
   {
-    name: 'The sitemap excludes private Premium inventory and includes listing images',
+    name: 'The sitemap excludes private Premium inventory, refreshes sold recovery pages and includes listing images',
     file: 'src/app/sitemap.ts',
-    required: ["export const dynamic = 'force-dynamic'", 'isListingPubliclyIndexable', '.filter((listing) => isListingPubliclyIndexable(listing))', 'images: (listing.images || [])'],
+    required: ["export const dynamic = 'force-dynamic'", 'isListingPubliclyIndexable', 'getListingSearchLastModified', ".in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM', 'SOLD'])", "from('listing_lifecycle_events')", "event_type', 'SOLD'", 'const publicListings =', 'const activeListings =', "listing.status !== 'SOLD'", 'images: (listing.images || [])'],
     forbidden: ["'/login'", "'/signup'"],
+  },
+  {
+    name: 'Every listing mutation refreshes search and operational freshness evidence',
+    file: 'supabase/migrations/20260831710000_listing_updated_at_integrity.sql',
+    required: ['create trigger set_listings_updated_at', 'before update on public.listings', 'public.set_updated_at()', "event_type = 'SOLD'", 'greatest(listing.updated_at, lifecycle.created_at)'],
   },
   {
     name: 'Public URL discovery is scheduled, deduplicated and auditable without retaining URL lists',
     file: 'src/app/api/cron/indexing/route.ts',
-    required: ['buildPublicIndexingUrls', 'buildIndexNowSubmission', "from('indexing_submission_receipts')", "status: accepted ? 'ACCEPTED' : 'FAILED'", 'Provider result could not be persisted', 'Retry limit reached'],
+    required: ['buildPublicIndexingUrls', 'buildIndexNowSubmission', ".in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM', 'SOLD'])", "from('indexing_submission_receipts')", "status: accepted ? 'ACCEPTED' : 'FAILED'", 'Provider result could not be persisted', 'Retry limit reached'],
   },
   {
     name: 'Indexing receipts are private aggregate evidence',

@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 import { createAdminClient } from '@/utils/supabase/server';
 import { siteUrl } from '@/utils/site';
-import { isListingPubliclyIndexable } from '@/utils/marketplace-seo.mjs';
+import { getListingSearchLastModified, isListingPubliclyIndexable } from '@/utils/marketplace-seo.mjs';
 import { getCatalogCategory, getCatalogCategoryPath } from '@/utils/catalog-categories.mjs';
 import { getCatalogManufacturerPath, getCatalogManufacturersWithInventory, minimumManufacturerInventoryForIndexing } from '@/utils/catalog-manufacturers.mjs';
 import { getCatalogCountriesWithInventory, getCatalogCountryPath, minimumCountryInventoryForIndexing } from '@/utils/catalog-countries.mjs';
@@ -40,23 +40,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: listings } = await supabase
     .from('listings')
     .select('id, title, details, category, location_country, status, public_at, updated_at, images(url, is_primary)')
-    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']);
+    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM', 'SOLD']);
 
-  const listingRoutes = (listings || [])
-    .filter((listing) => isListingPubliclyIndexable(listing))
-    .map((listing) => ({
-      url: `${siteUrl}/catalog/${listing.id}`,
-      ...(listing.updated_at ? { lastModified: new Date(listing.updated_at) } : {}),
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-      images: (listing.images || [])
-        .map((image) => image.url)
-        .filter((url) => typeof url === 'string' && /^https?:\/\//.test(url)),
-    }));
+  // Sold pages remain useful, truthful landing pages for comparable-equipment
+  // recovery. Keep them in the sitemap so a status change is recrawled, but do
+  // not let sold inventory create category, manufacturer or country facets.
+  const publicListings = (listings || [])
+    .filter((listing) => isListingPubliclyIndexable(listing));
+  const activeListings = publicListings
+    .filter((listing) => listing.status !== 'SOLD');
+
+  const soldListingIds = publicListings
+    .filter((listing) => listing.status === 'SOLD')
+    .map((listing) => listing.id);
+  const { data: soldEvents } = soldListingIds.length
+    ? await supabase
+      .from('listing_lifecycle_events')
+      .select('listing_id, created_at')
+      .eq('event_type', 'SOLD')
+      .in('listing_id', soldListingIds)
+    : { data: [] as Array<{ listing_id: string; created_at: string }> };
+  const soldAtByListingId = new Map(
+    (soldEvents || []).map((event) => [event.listing_id, event.created_at]),
+  );
+
+  const listingRoutes = publicListings
+    .map((listing) => {
+      const lastModified = getListingSearchLastModified(
+        listing,
+        soldAtByListingId.get(listing.id),
+      );
+      return {
+        url: `${siteUrl}/catalog/${listing.id}`,
+        ...(lastModified ? { lastModified } : {}),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+        images: (listing.images || [])
+          .map((image) => image.url)
+          .filter((url) => typeof url === 'string' && /^https?:\/\//.test(url)),
+      };
+    });
 
   const publicCategories = Array.from(new Set(
-    (listings || [])
-      .filter((listing) => isListingPubliclyIndexable(listing))
+    activeListings
       .map((listing) => getCatalogCategory(listing.category)?.slug)
       .filter((category): category is string => Boolean(category))
   ));
@@ -67,7 +93,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const publicManufacturerRoutes = getCatalogManufacturersWithInventory(
-    (listings || []).filter((listing) => isListingPubliclyIndexable(listing)),
+    activeListings,
     minimumManufacturerInventoryForIndexing,
   ).map((manufacturer) => ({
     url: `${siteUrl}${getCatalogManufacturerPath(manufacturer.slug)}`,
@@ -76,7 +102,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const publicCountryRoutes = getCatalogCountriesWithInventory(
-    (listings || []).filter((listing) => isListingPubliclyIndexable(listing)),
+    activeListings,
     minimumCountryInventoryForIndexing,
   ).map((country) => ({
     url: `${siteUrl}${getCatalogCountryPath(country.slug)}`,

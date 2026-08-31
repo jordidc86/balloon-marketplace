@@ -6,6 +6,7 @@ import {
   buildBuyerAcquisitionCollectionJsonLd,
   buildMarketplaceIdentityJsonLd,
   buildNewBalloonServiceJsonLd,
+  getListingSearchLastModified,
   getPublicListingSeoData,
   isListingPubliclyIndexable,
   serializeJsonLd,
@@ -34,6 +35,21 @@ test('only public listings and matured Premium listings are indexable', () => {
   assert.equal(isListingPubliclyIndexable({ ...listing, status: 'PENDING_PAYMENT' }, now), false)
   assert.equal(isListingPubliclyIndexable({ ...listing, status: 'ACTIVE_PREMIUM', public_at: '2026-08-29T11:00:00.000Z' }, now), false)
   assert.equal(isListingPubliclyIndexable({ ...listing, status: 'ACTIVE_PREMIUM', public_at: '2026-08-29T09:00:00.000Z' }, now), true)
+})
+
+test('search freshness uses the latest truthful listing or lifecycle timestamp', () => {
+  assert.equal(
+    getListingSearchLastModified(
+      { updated_at: '2026-07-29T18:55:05.360Z' },
+      '2026-08-31T15:52:00.000Z',
+    ).toISOString(),
+    '2026-08-31T15:52:00.000Z',
+  )
+  assert.equal(
+    getListingSearchLastModified({ updated_at: '2026-08-31T16:00:00.000Z' }, 'invalid').toISOString(),
+    '2026-08-31T16:00:00.000Z',
+  )
+  assert.equal(getListingSearchLastModified({}, null), null)
 })
 
 test('public listing SEO excludes private lifecycle states', () => {

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_search_discovery_and_freshness_audit",
+  "completedAt": "2026-08-31T16:33:01Z",
+  "containsPii": false,
+  "productionMutated": false,
+  "releaseId": "2026-08-31-acquisition-routing-and-indexing",
+  "productionEvidence": {
+    "robotsStatus": 200,
+    "sitemapStatus": 200,
+    "loginRobots": "noindex, follow",
+    "commercialLandingStatuses": {
+      "usedHotAirBalloons": 200,
+      "spanishUsedBalloons": 200
+    },
+    "sitemapBeforeCandidate": {
+      "soldListingIncluded": false,
+      "commercialRoutesPresent": true
+    },
+    "searchObservation": {
+      "engine": "web search index",
+      "query": "site:aerotrade.app",
+      "observedExamples": [
+        "https://aerotrade.app/",
+        "https://aerotrade.app/login",
+        "https://aerotrade.app/catalog/4e2be39d-6390-409a-8304-ae16b1239fc1"
+      ],
+      "soldListingSnippetWasStale": true,
+      "interpretation": "The public crawl surface is valid, but discovery is incomplete and the sold listing had no refreshed sitemap signal. Search result counts were not treated as exhaustive analytics."
+    }
+  },
+  "candidateEvidence": {
+    "soldListingIncludedInSitemap": true,
+    "soldListingLastModifiedFromImmutableLifecycle": "2026-08-31T09:48:51.715Z",
+    "soldInventoryCreatesFacets": false,
+    "footerCommercialLandingLinksVerified": 5,
+    "indexNowIncludesPublicSoldRecoveryPages": true,
+    "futureListingMutationsRefreshUpdatedAt": true,
+    "tests": {
+      "unitPassed": 208,
+      "unitFailed": 0,
+      "operationalContractsPassed": 221,
+      "lintPassed": true,
+      "typecheckPassed": true,
+      "productionBuildPassed": true
+    },
+    "databaseRecoveryRehearsal": {
+      "productionAccessed": false,
+      "productionMutated": false,
+      "latestMigration": "20260831710000",
+      "migrationsVerified": 73,
+      "forwardMigrationsApplied": 24,
+      "aerotradeLintErrors": 0
+    }
+  },
+  "remainingExternalProof": {
+    "googleRecrawlObserved": false,
+    "qualifiedBuyerTrafficObserved": false,
+    "reason": "Both require the reviewed candidate to be promoted and then observed in production."
+  }
+}

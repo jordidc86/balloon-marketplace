@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const { data: listings, error: listingError } = await supabase
     .from('listings')
     .select('id,title,details,category,location_country,status,public_at')
-    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
+    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM', 'SOLD'])
   if (listingError) return NextResponse.json({ error: 'Public inventory could not be loaded' }, { status: 500 })
 
   const urls = buildPublicIndexingUrls({ origin: siteUrl, listings: listings || [] })

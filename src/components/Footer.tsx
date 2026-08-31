@@ -6,7 +6,7 @@ export default function Footer() {
   return (
     <footer className="bg-slate-900 border-t border-slate-800 text-slate-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
           
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 text-white mb-4">
@@ -27,6 +27,17 @@ export default function Footer() {
               <li><Link href={getCatalogCategoryPath('burners')} className="hover:text-primary transition-colors">Burners</Link></li>
               <li><Link href={getCatalogCategoryPath('cylinders')} className="hover:text-primary transition-colors">Cylinders</Link></li>
               <li><Link href={getCatalogCategoryPath('other-equipment')} className="hover:text-primary transition-colors">Other Equipment</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-white mb-4">Buy in Europe</h3>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/used-hot-air-balloons-for-sale" className="hover:text-primary transition-colors">Used Balloons in Europe</Link></li>
+              <li><Link href="/de/gebrauchte-heissluftballons" className="hover:text-primary transition-colors">Gebrauchte Ballone</Link></li>
+              <li><Link href="/fr/montgolfieres-occasion" className="hover:text-primary transition-colors">Montgolfières d’occasion</Link></li>
+              <li><Link href="/es/globos-aerostaticos-segunda-mano" className="hover:text-primary transition-colors">Globos de segunda mano</Link></li>
+              <li><Link href="/new-balloon?source=footer" className="hover:text-primary transition-colors">Price a New Balloon</Link></li>
             </ul>
           </div>
 

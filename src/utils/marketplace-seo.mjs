@@ -43,6 +43,15 @@ export const isListingPubliclyIndexable = (listing, now = new Date()) => {
   return Number.isFinite(publicAt.getTime()) && publicAt <= now
 }
 
+export const getListingSearchLastModified = (listing, lifecycleCreatedAt = null) => {
+  const timestamps = [listing?.updated_at, lifecycleCreatedAt]
+    .map((value) => value ? new Date(value) : null)
+    .filter((value) => value && Number.isFinite(value.getTime()))
+
+  if (!timestamps.length) return null
+  return new Date(Math.max(...timestamps.map((value) => value.getTime())))
+}
+
 export const getPublicListingSeoData = (listing, siteUrl, now = new Date()) => {
   if (!isListingPubliclyIndexable(listing, now)) return null
 
