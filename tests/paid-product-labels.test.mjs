@@ -24,6 +24,9 @@ test('seller promotion checkout is durably linked and fulfillment fails closed',
 
   assert.match(checkoutSource, /payment_intent_data:\s*\{ metadata \}/)
   assert.match(checkoutSource, /register_listing_checkout_intent/)
+  assert.match(checkoutSource, /currentSession\.status === 'open' && currentSession\.url/)
+  assert.match(checkoutSource, /expireOpenStripeListingSessions/)
+  assert.match(checkoutSource, /retireListingCheckoutBeforeFreePublication/)
   assert.match(checkoutSource, /checkout\.sessions\.expire\(session\.id\)/)
   assert.match(migration, /listing_checkout_intents_one_live_per_listing/)
   assert.match(migration, /v_listing\.seller_id <> p_user_id/)
@@ -31,4 +34,12 @@ test('seller promotion checkout is durably linked and fulfillment fails closed',
   assert.match(webhookSource, /Seller Launch Promotion confirmation was not accepted/)
   assert.match(webhookSource, /Paid Premium alert is not fully fulfilled/)
   assert.doesNotMatch(webhookSource, /Failed to send premium listing alert after listing payment/)
+})
+
+test('idempotent listing checkout registration returns the same live Stripe session binding', () => {
+  const migration = fs.readFileSync(new URL('../supabase/migrations/20260831630000_idempotent_listing_checkout_registration.sql', import.meta.url), 'utf8')
+  assert.match(migration, /for update/)
+  assert.match(migration, /where stripe_session_id = p_stripe_session_id/)
+  assert.match(migration, /return v_intent/)
+  assert.match(migration, /v_intent\.status <> 'STARTED'/)
 })

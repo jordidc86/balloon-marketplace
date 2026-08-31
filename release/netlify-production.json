@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "releaseId": "2026-08-31-paid-product-fulfillment-traceability",
-  "productionBaseCommit": "7466e1317b1ce8721dd6a874b8a754b1b5843cb8",
+  "releaseId": "2026-08-31-idempotent-seller-checkout",
+  "productionBaseCommit": "3acd279711f538f86cb5424b176cf06738c97711",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true
 }

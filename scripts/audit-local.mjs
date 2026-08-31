@@ -91,7 +91,12 @@ const checks = [
   {
     name: 'Seller promotion checkout preserves entity metadata and expires if audit registration fails',
     file: 'src/utils/listing-checkout.ts',
-    required: ['payment_intent_data: { metadata }', 'client_reference_id: listingId', 'register_listing_checkout_intent', 'checkout.sessions.expire(session.id)', 'Seller Launch Promotion checkout could not be audited'],
+    required: ['payment_intent_data: { metadata }', 'client_reference_id: listingId', 'register_listing_checkout_intent', 'checkout.sessions.expire(session.id)', 'Seller Launch Promotion checkout could not be audited', "currentSession.status === 'open'", 'expireOpenStripeListingSessions', 'retireListingCheckoutBeforeFreePublication'],
+  },
+  {
+    name: 'Concurrent listing checkout registration reuses the exact live provider session',
+    file: 'supabase/migrations/20260831630000_idempotent_listing_checkout_registration.sql',
+    required: ['for update', 'where stripe_session_id = p_stripe_session_id', "v_intent.status <> 'STARTED'", 'return v_intent', 'grant execute'],
   },
   {
     name: 'Paid seller fulfillment verifies lifecycle, delivery and durable completion',

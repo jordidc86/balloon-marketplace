@@ -12,7 +12,7 @@ import { escapeHtml } from '@/utils/html'
 import { commercialEventKey, commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 import type { BrowserCommercialContext } from '@/utils/browser-attribution'
 import { assertStoredListingRequiredFields, parseListingSubmission } from '@/utils/listing-submission.mjs'
-import { createPremiumListingCheckout } from '@/utils/listing-checkout'
+import { createPremiumListingCheckout, retireListingCheckoutBeforeFreePublication } from '@/utils/listing-checkout'
 import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeListingCommercialIntentStage } from '@/utils/listing-commercial-intent.mjs'
@@ -571,6 +571,7 @@ export async function publishListingFree(listingId: string) {
     throw new Error('Use the repair workflow to preserve the original listing plan')
   }
   await assertListingHasReachableImage(admin, listing.id)
+  await retireListingCheckoutBeforeFreePublication(listing.id, user.id)
 
   const details = {
     ...((listing.details || {}) as Record<string, unknown>),
