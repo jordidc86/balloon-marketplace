@@ -22,7 +22,7 @@ This scorecard is based on the production snapshots in `marketplace-audit-2026-0
 | 9 | Automation, communications and follow-up | 92 | 70 | 85 | 21/22 commercial notifications and four social publications were accepted. Newsletter has three successful live runs, but only one current active marketing consent. |
 | 10 | Analytics, Control Tower and commercial evidence | 97 | 60 | 86 | Named PII-free production queries, journey keys, receipts and unit-economics boundaries are live. Recent traffic is too young to yield conversion rates, and the pre-migration Premium payment has no retroactive receipt. |
 | 11 | Security, privacy and transactional integrity | 98 | 90 | 96 | Account recovery is one-time, scanner-safe, receipt-bound and passed a disposable production rehearsal including replay rejection and cleanup. Commercial writes fail closed and private ledgers remain non-public. |
-| 12 | Deployment, production reliability and operability | 96 | 85 | 93 | 165 tests and 180 local operational contracts pass, production uses explicit release markers, and runtime deployments have rehearsed gates. The remaining warning is Next.js Edge Runtime deprecation, not a current outage. |
+| 12 | Deployment, production reliability and operability | 96 | 85 | 93 | 166 tests and 181 local operational contracts pass, production uses explicit release markers, and runtime deployments have rehearsed gates. The remaining warning is Next.js Edge Runtime deprecation, not a current outage. |
 
 ## Current aggregate
 

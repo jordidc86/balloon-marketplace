@@ -796,6 +796,11 @@ const checks = [
     required: ['allowedEquipmentTypes', 'unsafeDemandPattern', 'privacy_consent', 'normalizeNewBalloonDemandContext', 'newBalloonQuoteSubmissionKey', "createHmac('sha256'"],
   },
   {
+    name: 'Sold-listing demand reaches the existing new-balloon ledger without free-form attribution',
+    file: 'supabase/migrations/20260831610000_sold_listing_new_balloon_source.sql',
+    required: ['quote_requests_source_context_check', "'sold-listing'", 'contains no URL, listing identifier or personal data'],
+  },
+  {
     name: 'New-balloon request integrity is private and stores no raw network identifiers',
     file: 'supabase/migrations/20260829260000_new_balloon_quote_integrity.sql',
     required: ['privacy_consent_at', 'submission_key text', 'quote_requests_submission_rate_idx', 'revoke all on public.quote_requests from anon, authenticated', 'never stores an IP address'],
