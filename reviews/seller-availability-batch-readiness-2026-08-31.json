@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_seller_availability_digest_readiness",
+  "completedAt": "2026-08-31T13:23:38Z",
+  "containsPii": false,
+  "productionReadOnly": true,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "economicActionsPerformed": 0,
+  "scope": {
+    "activeListings": 12,
+    "freshListings": 1,
+    "dueListings": 11,
+    "dueSellers": 5,
+    "readyGroupedRequests": 5,
+    "blockedGroupedRequests": 0,
+    "listingDistributionByRequest": [1, 2, 5, 1, 2]
+  },
+  "preflight": {
+    "sellerContactsReady": 5,
+    "sellerContactsMissing": 0,
+    "coolingDownRequests": 0,
+    "existingDigestReceipts": 0,
+    "providerAcceptancesAlreadyRecorded": 0,
+    "requestsWithPriorDeliveryAttempts": 0,
+    "duplicateRequestsPlanned": 0
+  },
+  "safety": {
+    "oneRequestPerSeller": true,
+    "requestScopeBoundToCurrentDueListings": true,
+    "capabilityExpiresAfter14Days": true,
+    "openingLinkDoesNotConfirmAvailability": true,
+    "sellerMustSubmitExplicitConfirmation": true,
+    "pricePublicationOwnershipAndPaymentRemainUnchanged": true,
+    "acceptedProviderReceiptRequired": true,
+    "automaticFirstSendDisabled": true
+  },
+  "authorization": {
+    "requiredBeforeExternalSend": true,
+    "granted": false,
+    "exactRequestedText": "Autorizo enviar ahora cinco solicitudes agrupadas de confirmación de disponibilidad, una por vendedor, cubriendo once anuncios activos. Verifica la aceptación del proveedor y no repitas ningún correo aceptado."
+  }
+}
