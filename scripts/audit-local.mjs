@@ -630,6 +630,18 @@ const checks = [
     forbidden: ["'/login'", "'/signup'"],
   },
   {
+    name: 'The reusable inventory feed exposes only active public stock and no seller contact data',
+    file: 'src/utils/marketplace-feed.mjs',
+    required: ["['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM']", 'isListingPubliclyIndexable', 'emailPattern', 'phonePattern', 'buildMarketplaceInventoryFeed', 'Currently available used hot air balloons and equipment on AeroTrade.'],
+    forbidden: ['seller_id', 'description ||', 'images', "status === 'SOLD'"],
+  },
+  {
+    name: 'The inventory feed route queries no seller identity and fails closed',
+    file: 'src/app/feed.xml/route.ts',
+    required: [".in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])", "'Content-Type': 'application/rss+xml; charset=utf-8'", "status: 503", "'Cache-Control': 'no-store'"],
+    forbidden: ['seller_id', 'email', 'phone', "['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM', 'SOLD']"],
+  },
+  {
     name: 'Every listing mutation refreshes search and operational freshness evidence',
     file: 'supabase/migrations/20260831710000_listing_updated_at_integrity.sql',
     required: ['create trigger set_listings_updated_at', 'before update on public.listings', 'public.set_updated_at()', "event_type = 'SOLD'", 'greatest(listing.updated_at, lifecycle.created_at)'],

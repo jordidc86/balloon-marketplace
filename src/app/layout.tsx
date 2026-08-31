@@ -27,6 +27,11 @@ export const metadata: Metadata = {
     description: 'Buy and sell used hot air balloons, envelopes, baskets, burners and accessories across Europe and worldwide.',
     url: siteUrl,
   },
+  alternates: {
+    types: {
+      'application/rss+xml': `${siteUrl}/feed.xml`,
+    },
+  },
 };
 
 export default function RootLayout({

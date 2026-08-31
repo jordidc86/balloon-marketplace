@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_inventory_feed_candidate_verification",
+  "verifiedAt": "2026-08-31T18:17:20Z",
+  "containsPii": false,
+  "candidateOnly": true,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "productionReadback": {
+    "queriedListings": 13,
+    "activePublicFeedItems": 12,
+    "soldListingsObserved": 1,
+    "soldListingLeaked": false,
+    "contactDataDetected": false,
+    "xmlWellFormed": true,
+    "feedBytes": 7709
+  },
+  "releaseGates": {
+    "automatedTestsPassed": 215,
+    "operationalContractsPassed": 233,
+    "eslintPassed": true,
+    "typescriptPassed": true,
+    "optimizedBuildPassed": true,
+    "feedRoutePresentInBuild": true
+  },
+  "limitations": {
+    "deployed": false,
+    "partnerSyndicationProven": false,
+    "commercialDemandProven": false
+  }
+}

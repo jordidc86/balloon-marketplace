@@ -6,9 +6,9 @@ Status: `Production is technically mature; the principal constraints are real ma
 ## Authoritative production state
 
 - Production: `https://aerotrade.app`, served from commit `e9630bda8507e7c609adad3148ab4c05df8bffd2` by ready Netlify deploy `6a95a2b7d784cef925c11da3` on the protected `production` branch.
-- Candidate validation: 212 automated tests, 231 operational contracts, ESLint, TypeScript, the optimized Next.js production build and a complete 75-migration disposable database recovery plus marketplace and new-balloon transaction rehearsals pass. Candidate capability is not counted as live production.
-- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v13.json`.
-- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v14.md` — mean technical readiness 97%, production/commercial proof 44%, evidence-weighted maturity 81%.
+- Candidate validation: 215 automated tests, 233 operational contracts, ESLint, TypeScript, the optimized Next.js production build and a complete 75-migration disposable database recovery plus marketplace and new-balloon transaction rehearsals pass. Candidate capability is not counted as live production.
+- Latest PII-free audit: `reviews/marketplace-audit-2026-08-31-v14.json`.
+- Current category scorecard: `reviews/aerotrade-category-scorecard-2026-08-31-v15.md` — mean technical readiness 97%, production/commercial proof 44%, evidence-weighted maturity 82%.
 - Supply: 12 active listings from 6 sellers; all 84 active image files are reachable; one additional listing remains pending payment.
 - Trust: 1/12 active listings has current owner availability evidence; 11 remain unconfirmed and no listing has document-verification evidence.
 - Demand and closing: no comparable stored marketplace enquiry, negotiation, new-balloon request or closed marketplace transaction exists yet.
@@ -17,6 +17,7 @@ Status: `Production is technically mature; the principal constraints are real ma
 - Deployment isolation: a measured shared-credit outage was traced to 83 production deploys. Netlify now publishes AeroTrade only from `production`, manual non-Git production deploys are blocked, and two subsequent `main` pushes created no Netlify deploy. Production and the sold-listing readback return HTTP 200. Evidence: `reviews/netlify-production-guard-verification-2026-08-31.json`.
 - Transaction integrity: one fully synthetic, disposable-database path now covers enquiry, seller counteroffer, buyer response, owner-authorized closure, atomic WON outcome and complete unit economics. It found and corrected an ordering ambiguity caused by tied transaction timestamps and random UUIDs; freshness now uses a monotonic database sequence. No production system or external recipient was touched. Evidence: `reviews/marketplace-transaction-rehearsal-2026-08-31.json`.
 - New-balloon integrity: a second fully synthetic path now covers stored request, operator proposal, provider-accepted delivery, immutable buyer interest, administrator-only commercial outcome and complete intermediation economics. Premature and unauthorized transitions fail closed, repeated delivery and buyer responses are idempotent, and no external message was sent. Evidence: `reviews/new-balloon-transaction-rehearsal-2026-08-31.json`.
+- Inventory syndication: the candidate exposes one standards-based RSS feed using the same public-visibility boundary as the catalogue. A read-only production-data rehearsal generated 12 active items, excluded the one sold listing, detected no seller contact data and produced well-formed XML. The feed is not live and no distribution outcome is claimed. Evidence: `reviews/inventory-feed-verification-2026-08-31.json`.
 
 ## Newly live acquisition capability
 
