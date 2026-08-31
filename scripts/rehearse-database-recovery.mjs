@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { rehearseMarketplaceTransaction } from './lib/marketplace-transaction-rehearsal.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const recoveryDir = join(root, 'supabase', 'recovery')
@@ -43,6 +44,7 @@ function run(command, args, options = {}) {
     cwd: options.cwd || root,
     env: localEnv,
     encoding: 'utf8',
+    input: options.input,
     maxBuffer: 64 * 1024 * 1024,
   })
   if (result.status !== 0 && !options.allowFailure) {
@@ -50,6 +52,13 @@ function run(command, args, options = {}) {
     throw new Error(`${command} ${args.join(' ')} failed${detail ? `:\n${detail}` : ''}`)
   }
   return result
+}
+
+function runDatabaseSql(containerName, sql) {
+  return run('docker', [
+    'exec', '-i', containerName,
+    'psql', '-U', 'postgres', '-d', 'postgres', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1',
+  ], { input: sql })
 }
 
 function migrationVersion(file) {
@@ -171,6 +180,10 @@ try {
   assert.ok(integrityResult.public_functions >= 25)
   assert.ok(integrityResult.rls_tables >= 20)
 
+  const transactionRehearsal = rehearseMarketplaceTransaction(
+    (sql) => runDatabaseSql(containerName, sql),
+  )
+
   const lintRun = run('npx', [
     '--yes', `supabase@${cliVersion}`, 'db', 'lint',
     '--local', '--level', 'error', '--workdir', tempRoot,
@@ -197,6 +210,7 @@ try {
     publicTables: integrityResult.public_tables,
     publicFunctions: integrityResult.public_functions,
     rlsTables: integrityResult.rls_tables,
+    transactionRehearsal,
     aerotradeLintErrors: 0,
     knownSharedVoyagerLintErrors: lintIssues.length,
   }, null, 2))

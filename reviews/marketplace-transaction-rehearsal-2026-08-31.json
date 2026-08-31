@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "aerotrade_marketplace_transaction_rehearsal",
+  "capturedAt": "2026-08-31",
+  "containsPii": false,
+  "syntheticOnly": true,
+  "productionAccessed": false,
+  "productionMutated": false,
+  "externalMessagesSent": 0,
+  "databaseRecovery": {
+    "snapshotSha256": "185e3894973527e9d944e150c0c1005511d48d861e39e9db3606ea07ead02b5d",
+    "baselineMigration": "20260829480000",
+    "latestMigration": "20260831730000",
+    "migrationsVerified": 75,
+    "forwardMigrationsApplied": 26,
+    "publicTables": 68,
+    "publicFunctions": 34,
+    "rlsTables": 56,
+    "aerotradeLintErrors": 0
+  },
+  "transaction": {
+    "listingStatus": "SOLD",
+    "inquiryStatus": "WON",
+    "offerEvents": 3,
+    "sellerCounterEvents": 1,
+    "buyerResponseEvents": 1,
+    "lifecycleEvents": 1,
+    "saleChannel": "AEROTRADE",
+    "outcomeEvents": 1,
+    "unitEconomicsEvents": 1,
+    "grossAmountMinor": 4800000,
+    "aerotradeRevenueMinor": 240000,
+    "contributionMarginMinor": 161000,
+    "authorizationGate": "passed",
+    "idempotencyGate": "passed",
+    "evidenceDowngradeGate": "passed",
+    "economicsBasisGate": "passed"
+  },
+  "finding": {
+    "detected": "Transaction-stable timestamps and random UUIDs could disagree about the latest negotiation event when multiple actions shared one transaction.",
+    "correction": "Negotiation freshness now uses a database-assigned monotonic event sequence.",
+    "commercialProof": false
+  }
+}
