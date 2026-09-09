@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildSocialPublicationKey,
+  buildSocialAlertIdempotencyKey,
   getAttributedSocialUrl,
   getSocialAcquisitionMode,
   getNextSocialPublicationAttemptAt,
@@ -14,6 +15,13 @@ test('social publication keys are stable and placement specific', () => {
   assert.equal(buildSocialPublicationKey(input), 'social:v1:2026-08-29:listing:4e2be39d-6390-409a-8304-ae16b1239fc1:facebook:post')
   assert.notEqual(buildSocialPublicationKey(input), buildSocialPublicationKey({ ...input, placement: 'story' }))
   assert.throws(() => buildSocialPublicationKey({ ...input, contentId: '../../unsafe' }), /invalid/)
+})
+
+test('social operational alerts are idempotent per day and severity', () => {
+  assert.equal(buildSocialAlertIdempotencyKey('2026-09-09', 'failure'), 'aerotrade-social-failure-2026-09-09')
+  assert.equal(buildSocialAlertIdempotencyKey('2026-09-09', 'warning'), 'aerotrade-social-warning-2026-09-09')
+  assert.throws(() => buildSocialAlertIdempotencyKey('09-09-2026', 'failure'), /Run date is invalid/)
+  assert.throws(() => buildSocialAlertIdempotencyKey('2026-09-09', 'unknown'), /Alert kind is invalid/)
 })
 
 test('social placements separate provider acceptance from acquisition transport', () => {

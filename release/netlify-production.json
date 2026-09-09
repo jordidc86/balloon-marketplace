@@ -1,21 +1,17 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-08-31-acquisition-and-supply-activation",
-  "productionBaseCommit": "e9630bda8507e7c609adad3148ab4c05df8bffd2",
+  "releaseId": "2026-09-10-quote-spam-containment",
+  "productionBaseCommit": "3ef4889f497d0944401d06f6fd50cc69d4f6179a",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
     "provider": "supabase",
     "applyBeforeApplication": true,
     "requiresExactConfirmation": true,
-    "migrationCount": 5,
+    "migrationCount": 1,
     "migrationVersions": [
-      "20260831710000",
-      "20260831720000",
-      "20260831730000",
-      "20260831740000",
-      "20260831750000"
+      "20260909160000"
     ],
-    "migrationManifestSha256": "5a9f5e82b57d34cf1906b5030bc8e238381fd6413bb049bbbcf01935e7345797"
+    "migrationManifestSha256": "d662f2a681a35188124f3a071abbec4934df52cf052839214199065253fc6ebd"
   }
 }

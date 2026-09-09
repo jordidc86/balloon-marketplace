@@ -22,7 +22,7 @@ import {
   publishInstagramReel,
 } from '@/utils/meta-social';
 import { classifyMetaError } from '@/utils/delivery-safety.mjs';
-import { getAttributedSocialUrl } from '@/utils/social-publication.mjs';
+import { buildSocialAlertIdempotencyKey, getAttributedSocialUrl } from '@/utils/social-publication.mjs';
 import { publishSocialPlacement } from '@/utils/social-publication-receipt';
 import { escapeHtml } from '@/utils/html';
 import { siteUrl } from '@/utils/site';
@@ -790,7 +790,8 @@ export async function GET(request: Request) {
           const alertResult = await sendEmail(
             adminEmail,
             'AeroTrade social publishing failed',
-            generateFailureHtml(failures)
+            generateFailureHtml(failures),
+            { idempotencyKey: buildSocialAlertIdempotencyKey(runDate, 'failure') },
           );
           if (!alertResult.success) {
             recordAlertEmailFailure(brandPublication.id, alertResult.error);
@@ -804,7 +805,8 @@ export async function GET(request: Request) {
           const alertResult = await sendEmail(
             adminEmail,
             'AeroTrade Meta access expires soon',
-            generateWarningHtml(warnings)
+            generateWarningHtml(warnings),
+            { idempotencyKey: buildSocialAlertIdempotencyKey(runDate, 'warning') },
           );
           if (!alertResult.success) {
             recordAlertEmailFailure(brandPublication.id, alertResult.error);
@@ -1024,7 +1026,8 @@ export async function GET(request: Request) {
         const alertResult = await sendEmail(
           adminEmail,
           'AeroTrade social publishing failed',
-          generateFailureHtml(failures)
+          generateFailureHtml(failures),
+          { idempotencyKey: buildSocialAlertIdempotencyKey(runDate, 'failure') },
         );
         if (!alertResult.success) {
           recordAlertEmailFailure('social-run', alertResult.error);
@@ -1038,7 +1041,8 @@ export async function GET(request: Request) {
         const alertResult = await sendEmail(
           adminEmail,
           'AeroTrade Meta access expires soon',
-          generateWarningHtml(warnings)
+          generateWarningHtml(warnings),
+          { idempotencyKey: buildSocialAlertIdempotencyKey(runDate, 'warning') },
         );
         if (!alertResult.success) {
           recordAlertEmailFailure('social-run', alertResult.error);

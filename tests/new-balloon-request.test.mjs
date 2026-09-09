@@ -2,8 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   equipmentTypeForCategory,
+  isKnownNewBalloonQuoteAbuse,
   newBalloonQuoteSubmissionKey,
+  newBalloonQuoteAbuseLimits,
   normalizeNewBalloonDemandContext,
+  normalizeNewBalloonQuoteIdentity,
   parseNewBalloonQuoteRequest,
 } from '../src/utils/new-balloon-request.mjs'
 import { normalizeNewBalloonManufacturerPreference } from '../src/utils/new-balloon-manufacturers.mjs'
@@ -47,6 +50,30 @@ test('new-balloon requests reject browser bypasses, bots and missing consent', (
   const noConsent = appendValidFields(validForm())
   noConsent.delete('privacy_consent')
   assert.throws(() => parseNewBalloonQuoteRequest(noConsent), /confirm that AeroTrade may respond/)
+
+  const unsafeName = appendValidFields(validForm())
+  unsafeName.set('name', 'Buyer_100%')
+  assert.throws(() => parseNewBalloonQuoteRequest(unsafeName), /valid name/)
+})
+
+test('confirmed quote spam is rejected independently of rotating contact details', () => {
+  assert.equal(normalizeNewBalloonQuoteIdentity('  ROBERTAgifs  '), 'robertagifs')
+  assert.equal(isKnownNewBalloonQuoteAbuse({ name: 'RobertAgifs' }), true)
+  assert.equal(isKnownNewBalloonQuoteAbuse({
+    name: 'Different Name',
+    notes: 'Hæ, ég vildi vita verð þitt.',
+  }), true)
+  assert.equal(isKnownNewBalloonQuoteAbuse({ name: 'Robert Aguilar', notes: 'Commercial rides in Spain' }), false)
+  assert.deepEqual(newBalloonQuoteAbuseLimits, {
+    identityWindowMs: 86_400_000,
+    identityMax: 2,
+    globalWindowMs: 900_000,
+    globalMax: 5,
+    dailyWindowMs: 86_400_000,
+    dailyMax: 12,
+    submissionWindowMs: 3_600_000,
+    submissionMax: 5,
+  })
 })
 
 test('catalog demand context drops contact details and unknown categories', () => {

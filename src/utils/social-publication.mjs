@@ -4,6 +4,7 @@ export const socialPublicationRetryDelayMs = 30 * 60 * 1000
 const allowedContentKinds = new Set(['listing', 'brand'])
 const allowedNetworks = new Set(['instagram', 'facebook'])
 const allowedPlacements = new Set(['post', 'story', 'carousel', 'reel', 'video'])
+const allowedAlertKinds = new Set(['failure', 'warning'])
 const safePartPattern = /^[a-z0-9][a-z0-9-]{0,95}$/
 const runDatePattern = /^\d{4}-\d{2}-\d{2}$/
 
@@ -23,6 +24,13 @@ export function buildSocialPublicationKey({ runDate, contentKind, contentId, net
   const normalizedNetwork = requiredPart(network, 'Network', allowedNetworks)
   const normalizedPlacement = requiredPart(placement, 'Placement', allowedPlacements)
   return `social:v1:${normalizedRunDate}:${normalizedContentKind}:${normalizedContentId}:${normalizedNetwork}:${normalizedPlacement}`
+}
+
+export function buildSocialAlertIdempotencyKey(runDate, kind) {
+  const normalizedRunDate = String(runDate || '').trim()
+  if (!runDatePattern.test(normalizedRunDate)) throw new Error('Run date is invalid')
+  const normalizedKind = requiredPart(kind, 'Alert kind', allowedAlertKinds)
+  return `aerotrade-social-${normalizedKind}-${normalizedRunDate}`
 }
 
 export function getAttributedSocialUrl(rawUrl, { network, placement, contentKind }) {

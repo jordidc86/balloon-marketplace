@@ -3,7 +3,12 @@
 import { createAdminClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
-import { newBalloonQuoteSubmissionKey, parseNewBalloonQuoteRequest } from '@/utils/new-balloon-request.mjs'
+import {
+  isKnownNewBalloonQuoteAbuse,
+  newBalloonQuoteAbuseLimits,
+  newBalloonQuoteSubmissionKey,
+  parseNewBalloonQuoteRequest,
+} from '@/utils/new-balloon-request.mjs'
 import { commercialJourneyKey, normalizeCommercialContext } from '@/utils/commercial-attribution.mjs'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { siteUrl } from '@/utils/site'
@@ -26,6 +31,11 @@ export async function submitNewBalloonQuote(formData: FormData) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to submit this request.'
     redirect('/new-balloon?error=' + encodeURIComponent(message))
+  }
+
+  // Sinkhole confirmed campaigns before touching storage or email providers.
+  if (isKnownNewBalloonQuoteAbuse(request)) {
+    redirect('/new-balloon?success=true')
   }
 
   const requestHeaders = await headers()
@@ -51,6 +61,28 @@ export async function submitNewBalloonQuote(formData: FormData) {
   const storageResult = await (async () => {
     try {
       const supabase = await createAdminClient()
+      const globalCutoff = new Date(Date.now() - newBalloonQuoteAbuseLimits.globalWindowMs).toISOString()
+      const { count: globalCount, error: globalError } = await supabase
+        .from('quote_requests')
+        .select('id', { count: 'exact', head: true })
+        .neq('status', 'LOST')
+        .gte('created_at', globalCutoff)
+      if (globalError) throw globalError
+      if ((globalCount || 0) >= newBalloonQuoteAbuseLimits.globalMax) {
+        return { kind: 'rate_limited' as const }
+      }
+
+      const dailyCutoff = new Date(Date.now() - newBalloonQuoteAbuseLimits.dailyWindowMs).toISOString()
+      const { count: dailyCount, error: dailyError } = await supabase
+        .from('quote_requests')
+        .select('id', { count: 'exact', head: true })
+        .neq('status', 'LOST')
+        .gte('created_at', dailyCutoff)
+      if (dailyError) throw dailyError
+      if ((dailyCount || 0) >= newBalloonQuoteAbuseLimits.dailyMax) {
+        return { kind: 'rate_limited' as const }
+      }
+
       const duplicateCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
       const { data: duplicate, error: duplicateError } = await supabase
         .from('quote_requests')
@@ -65,14 +97,26 @@ export async function submitNewBalloonQuote(formData: FormData) {
       if (duplicateError) throw duplicateError
       if (duplicate?.id) return { kind: 'duplicate' as const }
 
-      const rateCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+      const identityCutoff = new Date(Date.now() - newBalloonQuoteAbuseLimits.identityWindowMs).toISOString()
+      const { count: identityCount, error: identityError } = await supabase
+        .from('quote_requests')
+        .select('id', { count: 'exact', head: true })
+        .ilike('name', request.name)
+        .neq('status', 'LOST')
+        .gte('created_at', identityCutoff)
+      if (identityError) throw identityError
+      if ((identityCount || 0) >= newBalloonQuoteAbuseLimits.identityMax) {
+        return { kind: 'rate_limited' as const }
+      }
+
+      const rateCutoff = new Date(Date.now() - newBalloonQuoteAbuseLimits.submissionWindowMs).toISOString()
       const { count, error: rateError } = await supabase
         .from('quote_requests')
         .select('id', { count: 'exact', head: true })
         .eq('submission_key', submissionKey)
         .gte('created_at', rateCutoff)
       if (rateError) throw rateError
-      if ((count || 0) >= 5) return { kind: 'rate_limited' as const }
+      if ((count || 0) >= newBalloonQuoteAbuseLimits.submissionMax) return { kind: 'rate_limited' as const }
 
       const { data, error } = await supabase
         .from('quote_requests')

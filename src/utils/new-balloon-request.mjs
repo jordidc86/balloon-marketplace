@@ -8,7 +8,20 @@ const allowedUses = ['private', 'commercial-rides', 'advertising', 'competition'
 const allowedBudgets = ['not-specified', 'under-50k', '50k-100k', '100k-150k', '150k-plus']
 const allowedTimelines = ['exploring', '0-3-months', '3-6-months', '6-12-months']
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const namePattern = /^[\p{L}\p{M}][\p{L}\p{M}\s.'-]{1,119}$/u
 const unsafeDemandPattern = /(?:https?:\/\/|www\.|[^\s@]+@[^\s@]+\.[^\s@]+|(?:\+?\d[\d\s().-]{6,}\d))/i
+const blockedQuoteNames = new Set(['robertagifs'])
+
+export const newBalloonQuoteAbuseLimits = Object.freeze({
+  identityWindowMs: 24 * 60 * 60 * 1000,
+  identityMax: 2,
+  globalWindowMs: 15 * 60 * 1000,
+  globalMax: 5,
+  dailyWindowMs: 24 * 60 * 60 * 1000,
+  dailyMax: 12,
+  submissionWindowMs: 60 * 60 * 1000,
+  submissionMax: 5,
+})
 
 const text = (formData, key, max) => {
   const raw = formData.get(key)
@@ -21,6 +34,24 @@ const multiline = (formData, key, max) => {
 }
 
 const oneOf = (value, allowed, fallback) => allowed.includes(value) ? value : fallback
+
+export const normalizeNewBalloonQuoteIdentity = (value) => String(value || '')
+  .normalize('NFKC')
+  .trim()
+  .replace(/\s+/g, ' ')
+  .toLocaleLowerCase('en')
+
+export const isKnownNewBalloonQuoteAbuse = (request) => {
+  const name = normalizeNewBalloonQuoteIdentity(request?.name)
+  const repeatedText = normalizeNewBalloonQuoteIdentity([
+    request?.volume_or_capacity,
+    request?.colors_or_branding,
+    request?.notes,
+  ].filter(Boolean).join(' '))
+
+  return blockedQuoteNames.has(name)
+    || repeatedText.includes('hæ, ég vildi vita verð þitt')
+}
 
 const safeDemandText = (value, max = 160) => {
   if (typeof value !== 'string') return ''
@@ -55,6 +86,7 @@ export const parseNewBalloonQuoteRequest = (formData) => {
   const email = text(formData, 'email', 320).toLowerCase()
   const equipmentType = oneOf(text(formData, 'equipment_type', 40), allowedEquipmentTypes, '')
   if (name.length < 2) throw new Error('Please enter your name.')
+  if (!namePattern.test(name)) throw new Error('Please enter a valid name.')
   if (!emailPattern.test(email)) throw new Error('Please enter a valid email address.')
   if (!equipmentType) throw new Error('Please select the equipment you need.')
   if (formData.get('privacy_consent') !== 'on') throw new Error('Please confirm that AeroTrade may respond to this request.')
