@@ -1,17 +1,15 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-09-10-quote-spam-containment",
-  "productionBaseCommit": "3ef4889f497d0944401d06f6fd50cc69d4f6179a",
+  "releaseId": "2026-09-10-social-skip-alert-noise",
+  "productionBaseCommit": "d3b5e558db9d6b3ee43bfd77a995ba8556637d16",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
     "provider": "supabase",
     "applyBeforeApplication": true,
     "requiresExactConfirmation": true,
-    "migrationCount": 1,
-    "migrationVersions": [
-      "20260909160000"
-    ],
-    "migrationManifestSha256": "d662f2a681a35188124f3a071abbec4934df52cf052839214199065253fc6ebd"
+    "migrationCount": 0,
+    "migrationVersions": [],
+    "migrationManifestSha256": "b1fe4a034c718d982c284f04e82d842de814ffc5ce5ae04897b3f38f6dad50c5"
   }
 }

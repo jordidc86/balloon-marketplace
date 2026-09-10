@@ -78,6 +78,13 @@ type SocialWarning = {
   action: string
 }
 
+type SocialSkip = {
+  id: string
+  network: string
+  reason: string
+  action: string
+}
+
 type JimpImage = Awaited<ReturnType<typeof Jimp.read>>
 
 const getListingUrl = (listing: ListingForInstagram) => `${siteUrl}/catalog/${listing.id}`
@@ -461,6 +468,7 @@ export async function GET(request: Request) {
     const adminEmail = getAdminEmail();
     const failures: SocialFailure[] = [];
     const warnings: SocialWarning[] = [];
+    const skips: SocialSkip[] = [];
     const planned: {
       id: string
       title: string
@@ -498,6 +506,17 @@ export async function GET(request: Request) {
       console.error(`Failed to send the operational alert for ${id}:`, err);
     };
 
+    const recordSkip = (id: string, network: string, reason: string | null) => {
+      const normalizedReason = reason || 'receipt_guard';
+      skips.push({
+        id,
+        network,
+        reason: normalizedReason,
+        action: 'Skipped safely because an existing publication receipt already controls this placement.',
+      });
+      console.warn(`Skipped ${id} on ${network}: ${normalizedReason}`);
+    };
+
     const publishTracked = async (
       input: {
         contentKind: 'listing' | 'brand'
@@ -512,7 +531,7 @@ export async function GET(request: Request) {
       const result = await publishSocialPlacement(supabase, { runDate, ...input }, operation);
       if (result.duplicate) duplicatePublicationCount++;
       if (result.skipped) {
-        throw new Error(`Social publication receipt blocked the provider call (${result.reason || 'unknown'}); reconcile the existing receipt instead of creating a duplicate.`);
+        recordSkip(input.contentId, `${input.network} ${input.placement}`, result.reason);
       }
       return result;
     };
@@ -594,6 +613,7 @@ export async function GET(request: Request) {
           planned,
           failures,
           warnings,
+          skips,
           providerHealth: metaCredentialHealth,
         }, { status: failures.length > 0 ? 502 : 200 });
       }
@@ -835,6 +855,7 @@ export async function GET(request: Request) {
         socialRotationColumn: hasSocialLastPostedAtColumn,
         skippedLocked: skippedLockedCount,
         duplicatePlacements: duplicatePublicationCount,
+        skippedPlacements: skips,
         planned,
         failures,
         warnings,
@@ -862,6 +883,7 @@ export async function GET(request: Request) {
         message: 'No active listings require social publication at this time.',
         failures,
         warnings,
+        skips,
         providerHealth: metaCredentialHealth,
       }, { status: failures.length > 0 ? 502 : 200 });
     }
@@ -875,6 +897,7 @@ export async function GET(request: Request) {
         message: 'No promoted listings require social publication at this time.',
         failures,
         warnings,
+        skips,
         providerHealth: metaCredentialHealth,
       }, { status: failures.length > 0 ? 502 : 200 });
     }
@@ -1071,6 +1094,7 @@ export async function GET(request: Request) {
       planned,
       failures,
       warnings,
+      skips,
       providerHealth: metaCredentialHealth,
       message: shouldPublishToInstagram || shouldPublishToFacebook
         ? `Published ${instagramCount} Instagram posts, ${instagramStoryCount} Instagram stories, ${facebookCount} Facebook posts, and ${facebookStoryCount} Facebook stories.`
