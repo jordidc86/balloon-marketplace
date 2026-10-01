@@ -1289,10 +1289,16 @@ const checks = [
     forbidden: ['providerId:', 'accessToken:', 'caption: providerText', 'message: providerText'],
   },
   {
-    name: 'Future social creatives expose AeroTrade itself as the buyer destination',
-    file: 'src/app/api/social-brand-card/[slug]/route.tsx',
-    required: ['getBrandSocialSourceImagePath', 'Browse current balloon equipment', 'aerotrade.app', 'Cache-Control'],
+    name: 'Published brand social JPEGs expose AeroTrade itself as the buyer destination',
+    file: 'scripts/generate-brand-social-assets.mjs',
+    required: ['sharp', 'Browse current balloon equipment', 'aerotrade.app', 'jpeg({ quality: 90'],
     forbidden: ['@balloonconsulting'],
+  },
+  {
+    name: 'Published brand social URLs use distinct static JPEG paths',
+    file: 'src/utils/social-brand-content.ts',
+    required: ['aerotrade-orange-v2', '/post/', '/story/', '/carousel/', '01-hook.jpg', '02-context.jpg', '03-action.jpg'],
+    forbidden: ['?format=post', '?format=story', '?format=carousel'],
   },
   {
     name: 'Listing social cards direct buyers to the marketplace domain',

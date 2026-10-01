@@ -13,6 +13,7 @@ export type SocialPublishingSlot = {
 }
 
 const assetBasePath = '/social/aerotrade-orange-v1'
+const publishAssetBasePath = '/social/aerotrade-orange-v2'
 
 const brandConcepts: BrandConcept[] = [
   {
@@ -107,20 +108,20 @@ export const getSocialPublishingSlot = (
 }
 
 export const getBrandPostImageUrl = (siteUrl: string, slug: string) => (
-  `${normalizeSiteUrl(siteUrl)}/api/social-brand-card/${requireBrandConceptSlug(slug)}?format=post`
+  `${normalizeSiteUrl(siteUrl)}${publishAssetBasePath}/post/${requireBrandConceptSlug(slug)}.jpg`
 )
 
 export const getBrandStoryImageUrl = (siteUrl: string, slug: string) => (
-  `${normalizeSiteUrl(siteUrl)}/api/social-brand-card/${requireBrandConceptSlug(slug)}?format=story`
+  `${normalizeSiteUrl(siteUrl)}${publishAssetBasePath}/story/${requireBrandConceptSlug(slug)}.jpg`
 )
 
 export const getBrandCarouselImageUrls = (siteUrl: string, slug: string) => {
-  const baseUrl = `${normalizeSiteUrl(siteUrl)}/api/social-brand-card/${requireBrandConceptSlug(slug)}?format=carousel`
+  const baseUrl = `${normalizeSiteUrl(siteUrl)}${publishAssetBasePath}/carousel/${requireBrandConceptSlug(slug)}`
 
   return [
-    `${baseUrl}&slide=1`,
-    `${baseUrl}&slide=2`,
-    `${baseUrl}&slide=3`,
+    `${baseUrl}/01-hook.jpg`,
+    `${baseUrl}/02-context.jpg`,
+    `${baseUrl}/03-action.jpg`,
   ]
 }
 
