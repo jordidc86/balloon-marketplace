@@ -51,6 +51,7 @@ test('accepts one explicitly marked fast-forward production release', () => {
     databaseMigrationCount: 1,
     databaseMigrationVersions: ['20260831000000'],
     databaseMigrationManifestSha256: migrationManifest.migrationManifestSha256,
+    databaseExternalAppliedVersions: [],
   })
 })
 

@@ -167,6 +167,7 @@ const migrationStateBefore = assessProductionMigrationState({
   ledgerRows: listProductionMigrations(),
   repositoryVersions: repositoryMigrationVersions,
   requiredVersions: migrationManifest.migrationVersions,
+  externalAppliedVersions: marker.database.externalAppliedVersions,
 })
 assertProductionMigrationStateIsSafe(migrationStateBefore, { allowRequiredPending: true })
 
@@ -212,6 +213,7 @@ const migrationStateAfter = assessProductionMigrationState({
   ledgerRows: listProductionMigrations(),
   repositoryVersions: repositoryMigrationVersions,
   requiredVersions: migrationManifest.migrationVersions,
+  externalAppliedVersions: marker.database.externalAppliedVersions,
 })
 assertProductionMigrationStateIsSafe(migrationStateAfter, { allowRequiredPending: false })
 databaseMutationVerified = true

@@ -64,7 +64,23 @@ test('validates the exact release marker against migration contents', () => {
     databaseMigrationCount: 2,
     databaseMigrationVersions: ['20260831000000', '20260831010000'],
     databaseMigrationManifestSha256: manifest.migrationManifestSha256,
+    databaseExternalAppliedVersions: [],
   })
+})
+
+test('requires an exact, unique external migration declaration', () => {
+  const manifest = createProductionMigrationManifest([])
+  const database = {
+    provider: 'supabase',
+    applyBeforeApplication: true,
+    requiresExactConfirmation: true,
+    migrationCount: 0,
+    migrationVersions: [],
+    migrationManifestSha256: manifest.migrationManifestSha256,
+    externalAppliedVersions: ['20260925160000'],
+  }
+  assert.deepEqual(validateProductionMigrationMarker(database, manifest).databaseExternalAppliedVersions, ['20260925160000'])
+  assert.throws(() => validateProductionMigrationMarker({ ...database, externalAppliedVersions: ['20260925160000', '20260925160000'] }, manifest), /unique and sorted/)
 })
 
 test('parses the linked Supabase migration ledger', () => {
@@ -119,6 +135,36 @@ test('blocks remote-only drift and undeclared pending history', () => {
     () => assertProductionMigrationStateIsSafe(undeclaredPending, { allowRequiredPending: true }),
     /outside the declared release manifest/,
   )
+})
+
+test('permits only a declared, already applied external migration', () => {
+  const input = {
+    ledgerRows: [
+      { local: '20260831000000', remote: '20260831000000' },
+      { local: '', remote: '20260925160000' },
+    ],
+    repositoryVersions: ['20260831000000'],
+    requiredVersions: [],
+    externalAppliedVersions: ['20260925160000'],
+  }
+  const state = assessProductionMigrationState(input)
+  assert.equal(state.schemaReady, true)
+  assert.doesNotThrow(() => assertProductionMigrationStateIsSafe(state, { allowRequiredPending: false }))
+
+  const additionalDrift = assessProductionMigrationState({
+    ...input,
+    ledgerRows: [...input.ledgerRows, { local: '', remote: '20260926160000' }],
+  })
+  assert.throws(() => assertProductionMigrationStateIsSafe(additionalDrift, { allowRequiredPending: true }), /absent from the candidate repository/)
+
+  const missingExternal = assessProductionMigrationState({ ...input, ledgerRows: input.ledgerRows.slice(0, 1) })
+  assert.throws(() => assertProductionMigrationStateIsSafe(missingExternal, { allowRequiredPending: true }), /absent from the remote ledger/)
+
+  const conflictingExternal = assessProductionMigrationState({
+    ...input,
+    repositoryVersions: ['20260831000000', '20260925160000'],
+  })
+  assert.throws(() => assertProductionMigrationStateIsSafe(conflictingExternal, { allowRequiredPending: true }), /conflicts with the candidate repository/)
 })
 
 test('blocks a missing migration inserted behind the latest production version', () => {

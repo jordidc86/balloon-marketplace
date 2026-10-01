@@ -64,6 +64,14 @@ export function validateProductionMigrationMarker(database, manifest) {
     manifest.migrationManifestSha256,
     'Release marker migration manifest SHA-256 does not match candidate contents',
   )
+  const externalAppliedVersions = database.externalAppliedVersions ?? []
+  assert.ok(Array.isArray(externalAppliedVersions), 'External applied migration versions must be an array')
+  for (const version of externalAppliedVersions) assert.match(version, /^[0-9]{14}$/)
+  assert.deepEqual(externalAppliedVersions, [...new Set(externalAppliedVersions)].toSorted(), 'External applied migration versions must be unique and sorted')
+  assert.ok(
+    externalAppliedVersions.every((version) => !manifest.migrationVersions.includes(version)),
+    'External applied migrations cannot also be declared by this release',
+  )
 
   return Object.freeze({
     databaseProvider: database.provider,
@@ -71,6 +79,7 @@ export function validateProductionMigrationMarker(database, manifest) {
     databaseMigrationCount: manifest.migrationCount,
     databaseMigrationVersions: manifest.migrationVersions,
     databaseMigrationManifestSha256: manifest.migrationManifestSha256,
+    databaseExternalAppliedVersions: Object.freeze(externalAppliedVersions),
   })
 }
 
@@ -91,18 +100,23 @@ export function parseSupabaseMigrationList(output) {
   })
 }
 
-export function assessProductionMigrationState({ ledgerRows, repositoryVersions, requiredVersions }) {
+export function assessProductionMigrationState({ ledgerRows, repositoryVersions, requiredVersions, externalAppliedVersions = [] }) {
   assert.ok(Array.isArray(ledgerRows), 'Migration ledger rows are required')
   assert.ok(Array.isArray(repositoryVersions), 'Repository migration versions are required')
   assert.ok(Array.isArray(requiredVersions), 'Required migration versions are required')
+  assert.ok(Array.isArray(externalAppliedVersions), 'External applied migration versions are required')
 
-  for (const version of [...repositoryVersions, ...requiredVersions]) assert.match(version, /^[0-9]{14}$/)
+  for (const version of [...repositoryVersions, ...requiredVersions, ...externalAppliedVersions]) assert.match(version, /^[0-9]{14}$/)
   assert.equal(new Set(repositoryVersions).size, repositoryVersions.length, 'Repository migration versions must be unique')
   assert.equal(new Set(requiredVersions).size, requiredVersions.length, 'Required migration versions must be unique')
+  assert.equal(new Set(externalAppliedVersions).size, externalAppliedVersions.length, 'External applied migration versions must be unique')
 
   const repository = new Set(repositoryVersions)
   const remote = new Set(ledgerRows.map((row) => row.remote).filter(Boolean))
-  const remoteOnlyVersions = [...remote].filter((version) => !repository.has(version)).toSorted()
+  const external = new Set(externalAppliedVersions)
+  const remoteOnlyVersions = [...remote].filter((version) => !repository.has(version) && !external.has(version)).toSorted()
+  const missingExternalVersions = externalAppliedVersions.filter((version) => !remote.has(version))
+  const conflictingExternalVersions = externalAppliedVersions.filter((version) => repository.has(version) || requiredVersions.includes(version))
   const repositoryPendingVersions = repositoryVersions.filter((version) => !remote.has(version))
   const requiredPendingVersions = requiredVersions.filter((version) => !remote.has(version))
   const unexpectedPendingVersions = repositoryPendingVersions.filter((version) => !requiredVersions.includes(version))
@@ -115,11 +129,15 @@ export function assessProductionMigrationState({ ledgerRows, repositoryVersions,
     remoteAppliedCount: remote.size,
     remoteLatestVersion,
     remoteOnlyVersions: Object.freeze(remoteOnlyVersions),
+    missingExternalVersions: Object.freeze(missingExternalVersions),
+    conflictingExternalVersions: Object.freeze(conflictingExternalVersions),
     repositoryPendingVersions: Object.freeze(repositoryPendingVersions),
     requiredPendingVersions: Object.freeze(requiredPendingVersions),
     unexpectedPendingVersions: Object.freeze(unexpectedPendingVersions),
     outOfOrderPendingVersions: Object.freeze(outOfOrderPendingVersions),
     schemaReady: remoteOnlyVersions.length === 0
+      && missingExternalVersions.length === 0
+      && conflictingExternalVersions.length === 0
       && repositoryPendingVersions.length === 0
       && requiredPendingVersions.length === 0,
   })
@@ -127,6 +145,8 @@ export function assessProductionMigrationState({ ledgerRows, repositoryVersions,
 
 export function assertProductionMigrationStateIsSafe(state, { allowRequiredPending }) {
   assert.deepEqual(state.remoteOnlyVersions, [], 'Remote migration ledger contains versions absent from the candidate repository')
+  assert.deepEqual(state.missingExternalVersions, [], 'Declared external migration is absent from the remote ledger')
+  assert.deepEqual(state.conflictingExternalVersions, [], 'Declared external migration conflicts with the candidate repository')
   assert.deepEqual(state.unexpectedPendingVersions, [], 'Production is missing migrations outside the declared release manifest')
   assert.deepEqual(state.outOfOrderPendingVersions, [], 'A pending release migration is not newer than the latest remote migration')
   if (!allowRequiredPending) {

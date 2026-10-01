@@ -10,6 +10,7 @@
     "requiresExactConfirmation": true,
     "migrationCount": 0,
     "migrationVersions": [],
+    "externalAppliedVersions": ["20260925160000"],
     "migrationManifestSha256": "b1fe4a034c718d982c284f04e82d842de814ffc5ce5ae04897b3f38f6dad50c5"
   }
 }

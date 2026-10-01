@@ -46,7 +46,7 @@ const checks = [
   {
     name: 'Production migration manifest is content-bound and remote-ledger verified',
     file: 'scripts/lib/production-migrations.mjs',
-    required: ['createHash', 'migrationManifestSha256', 'applyBeforeApplication', 'requiresExactConfirmation', 'validateAppendOnlyMigrationChanges', 'parseSupabaseMigrationList', 'remoteOnlyVersions', 'unexpectedPendingVersions', 'outOfOrderPendingVersions', 'schemaReady'],
+    required: ['createHash', 'migrationManifestSha256', 'applyBeforeApplication', 'requiresExactConfirmation', 'validateAppendOnlyMigrationChanges', 'parseSupabaseMigrationList', 'remoteOnlyVersions', 'missingExternalVersions', 'conflictingExternalVersions', 'unexpectedPendingVersions', 'outOfOrderPendingVersions', 'schemaReady'],
   },
   {
     name: 'Production schema-first release proves backward compatibility against live closed vocabularies',
