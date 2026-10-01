@@ -46,7 +46,15 @@ function run() {
     console.log('Netlify build gate: diff unavailable; building safely.')
     process.exit(1)
   }
-  const files = comparison.stdout.split(/\r?\n/).map((file) => file.trim()).filter(Boolean)
+  let files = comparison.stdout.split(/\r?\n/).map((file) => file.trim()).filter(Boolean)
+  if (files.length === 0 && cachedCommit === currentCommit) {
+    const lastCommit = spawnSync('git', ['diff', '--name-only', `${currentCommit}^`, currentCommit], { encoding: 'utf8' })
+    if (lastCommit.status !== 0) {
+      console.log('Netlify build gate: release commit diff unavailable; building safely.')
+      process.exit(1)
+    }
+    files = lastCommit.stdout.split(/\r?\n/).map((file) => file.trim()).filter(Boolean)
+  }
   const runtimeFiles = files.filter(isNetlifyRuntimeChange)
   if (!shouldRunNetlifyBuild(files)) {
     console.log(`Netlify build gate: staging ${runtimeFiles.length} runtime-relevant change(s); production release marker is unchanged.`)

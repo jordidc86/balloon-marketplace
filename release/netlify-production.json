@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-10-01-social-brand-jpeg-assets",
-  "productionBaseCommit": "2420b08ee484141cd305a320f6bbd88949a8af88",
+  "releaseId": "2026-10-01-social-brand-jpeg-assets-retry",
+  "productionBaseCommit": "4abd70cd265ee76d8cedbb1c5f67f9f46f579119",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
