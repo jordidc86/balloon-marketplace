@@ -1,0 +1,51 @@
+{
+  "kind": "aerotrade_inquiry_save_release_evidence",
+  "containsPii": false,
+  "releaseId": "2026-10-03-inquiry-save-feedback",
+  "runtimeCommit": "de2dc0b7decd9a6b7337ffadf8f2d5956d93b676",
+  "productionBaseCommit": "c8559daff4db5499691bad6ec2c134b08ce3a8fb",
+  "netlifyDeployId": "6ac0bb1093bad200086a50c5",
+  "publishedAt": "2026-10-03T08:22:16.363Z",
+  "canonicalOrigin": "https://aerotrade.app",
+  "result": "production_release_verified",
+  "netlifyDeploysRequested": 1,
+  "databaseMutated": false,
+  "databaseMigrationsApplied": [],
+  "remoteLatestMigration": "20260925160000",
+  "liveCompatibilityRowsChecked": 374,
+  "immutableEndpointChecks": 5,
+  "canonicalEndpointChecks": 5,
+  "localChecks": {
+    "testsPassed": 256,
+    "focusedStatusTestsPassed": 9,
+    "operationalContractsPassed": 245,
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "diffCheck": "passed"
+  },
+  "postDeployBrowserChecks": {
+    "realSaves": 3,
+    "desktopSaves": 2,
+    "mobileSaves": 1,
+    "mobileViewport": { "width": 390, "height": 844 },
+    "pendingFeedbackObserved": true,
+    "savedFeedbackObserved": true,
+    "reloadPersistenceVerifiedEachTime": true,
+    "mobileFormWidth": 274,
+    "mobileFormScrollWidth": 274,
+    "mobileButtonWidth": 96,
+    "mobileButtonScrollWidth": 96,
+    "statusSaved": "CONTACTED"
+  },
+  "externalEmailsDispatchedByThisTask": 0,
+  "buyerResponseActionsInvoked": 0,
+  "economicActionsPerformed": 0,
+  "previousReadyDeployId": "6abe74e905ab8c00096ba666",
+  "rollback": "Restore previous ready deployment only with approval; no schema rollback needed",
+  "residualRisks": [
+    "Existing Edge Runtime build warnings remain outside this change",
+    "Existing dependency audit advisories remain outside this change",
+    "Only the reported inquiry was saved in production; other statuses and errors were exercised with local mocks"
+  ]
+}
