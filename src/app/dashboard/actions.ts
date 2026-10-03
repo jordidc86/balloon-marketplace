@@ -4,7 +4,8 @@ import { createAdminClient, createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { getApplicationOrigin } from '@/utils/navigation.mjs'
 import { siteUrl } from '@/utils/site'
-import { isClosedInquiryStatus, normalizeInquiryStatus, parseSellerInquiryResponse } from '@/utils/inquiry-safety.mjs'
+import { parseSellerInquiryResponse } from '@/utils/inquiry-safety.mjs'
+import { storeSellerInquiryStatus } from '@/utils/inquiry-status.mjs'
 import { revalidatePath } from 'next/cache'
 import { getStoredListingPlan } from '@/utils/listing-plans'
 import { createPremiumListingCheckout } from '@/utils/listing-checkout'
@@ -335,28 +336,9 @@ export async function updateSellerInquiryStatus(inquiryId: string, formData: For
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const requestedStatus = normalizeInquiryStatus(formData.get('status'))
-  if (!requestedStatus || !['CONTACTED', 'QUALIFIED', 'NEGOTIATING', 'LOST', 'SPAM'].includes(requestedStatus)) {
-    throw new Error('Invalid enquiry status')
-  }
-
-  const now = new Date().toISOString()
-  const { data, error } = await supabase
-    .from('marketplace_inquiries')
-    .update({
-      status: requestedStatus,
-      last_activity_at: now,
-      closed_at: isClosedInquiryStatus(requestedStatus) ? now : null,
-    })
-    .eq('id', inquiryId)
-    .select('id')
-    .single()
-
-  if (error || !data?.id) {
-    throw new Error('Could not update this enquiry')
-  }
-
+  const result = await storeSellerInquiryStatus(supabase, inquiryId, formData.get('status'))
   revalidatePath('/dashboard')
+  return result
 }
 
 export async function respondToBuyerInquiry(inquiryId: string, formData: FormData) {
