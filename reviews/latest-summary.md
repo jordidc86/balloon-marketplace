@@ -1,5 +1,7 @@
 # AeroTrade Latest Summary
 
+Current local handoff: [27 October 2026 readiness](../docs/mac-mini-readiness-2026-10-27.md). The summary below is preserved as historical evidence from August; its deployment, credentials, counts and percentages are not a statement about production today.
+
 Date: 2026-08-31
 Status: `Production is technically mature; the principal constraints are real marketplace liquidity, fresh seller participation and a currently expired Meta credential.`
 

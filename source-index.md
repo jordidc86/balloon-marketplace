@@ -1,7 +1,9 @@
 # AeroTrade Source Index
 
-Status: Production routing index.
-Last updated: 2026-08-31.
+Status: Source routing index; historical production evidence is dated.
+Last updated: 2026-10-27.
+
+Start with [Mac Mini readiness](docs/mac-mini-readiness-2026-10-27.md). The August reports below are historical, not current production proof.
 
 ## Primary Orientation Files
 

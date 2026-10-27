@@ -3,6 +3,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { readAllRows, readMatchingRows, readOnlyFetch } from './lib/read-only-audit.mjs'
 import { createClient } from '@supabase/supabase-js'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
@@ -13,39 +14,37 @@ const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!url || !key) throw new Error('Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.')
 
-const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
-const since = new Date(Date.now() - 30 * 86_400_000).toISOString()
+const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: readOnlyFetch } })
+const capturedAt = new Date()
+const until = capturedAt.toISOString()
+const since = new Date(capturedAt.getTime() - 30 * 86_400_000).toISOString()
 
 async function exactCount(table, configure = (query) => query) {
   const { count, error } = await configure(supabase.from(table).select('*', { count: 'exact', head: true }))
   if (error) throw new Error(`${table}: ${error.message}`)
-  return Number(count || 0)
+  if (!Number.isSafeInteger(count)) throw new Error(`${table}: exact count unavailable`)
+  return count
 }
 
-async function selectedRows(table, columns, configure = (query) => query) {
-  const { data, error } = await configure(supabase.from(table).select(columns))
-  if (error) throw new Error(`${table}: ${error.message}`)
-  return data || []
-}
 
-const [users, premiumUsers, stripePremiumUsers, adminPremiumUsers, legacyPremiumUsers, activeListings, views30d, contactReveals30d, quoteRequests30d, wonQuoteRequests, succeededCharges30d, paymentReceipts30d] = await Promise.all([
+const [users, premiumUsers, stripePremiumUsers, adminPremiumUsers, legacyPremiumUsers, activeListings, views30d, contactReveals30d, quoteRequests30d, wonQuoteRequests, chargeEvents30d] = await Promise.all([
   exactCount('users'),
   exactCount('users', (query) => query.eq('is_premium', true)),
   exactCount('users', (query) => query.eq('is_premium', true).eq('premium_source', 'stripe')),
   exactCount('users', (query) => query.eq('is_premium', true).eq('premium_source', 'admin')),
   exactCount('users', (query) => query.eq('is_premium', true).eq('premium_source', 'legacy')),
   exactCount('listings', (query) => query.in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])),
-  exactCount('listing_events', (query) => query.eq('event_type', 'VIEW').gte('created_at', since)),
-  exactCount('listing_events', (query) => query.eq('event_type', 'CONTACT_REVEAL').gte('created_at', since)),
-  exactCount('quote_requests', (query) => query.gte('created_at', since)),
+  exactCount('listing_events', (query) => query.eq('event_type', 'VIEW').gte('created_at', since).lt('created_at', until)),
+  exactCount('listing_events', (query) => query.eq('event_type', 'CONTACT_REVEAL').gte('created_at', since).lt('created_at', until)),
+  exactCount('quote_requests', (query) => query.gte('created_at', since).lt('created_at', until)),
   exactCount('quote_requests', (query) => query.eq('status', 'WON')),
-  exactCount('stripe_webhook_events', (query) => query.eq('event_type', 'charge.succeeded').gte('stripe_created_at', since)),
-  selectedRows(
-    'payment_notification_receipts',
-    'amount_minor,currency,payment_type,livemode,accepted_at',
-    (query) => query.gte('accepted_at', since),
-  ),
+  readAllRows(() => supabase.from('stripe_webhook_events').select('event_id,stripe_created_at', { count: 'exact' }).eq('event_type', 'charge.succeeded').gte('stripe_created_at', since).lt('stripe_created_at', until).order('event_id')),
 ])
+
+const succeededCharges30d = chargeEvents30d.length
+const paymentReceipts30d = await readMatchingRows(supabase, 'payment_notification_receipts', 'charge_id,stripe_event_id,amount_minor,currency,payment_type,livemode,accepted_at', 'stripe_event_id', chargeEvents30d.map((event) => event.event_id), 'charge_id')
+const coveredEventIds = new Set(paymentReceipts30d.filter((receipt) => receipt.accepted_at).map((receipt) => receipt.stripe_event_id))
+const unmatchedEvents = chargeEvents30d.filter((event) => !coveredEventIds.has(event.event_id)).length
 
 const livePaymentReceipts30d = paymentReceipts30d.filter((receipt) => receipt.livemode === true)
 const testPaymentReceipts30d = paymentReceipts30d.filter((receipt) => receipt.livemode !== true)
@@ -64,8 +63,8 @@ const payload = {
   version: 1,
   projectId: 'aerotrade',
   readOnly: true,
-  capturedAt: new Date().toISOString(),
-  period: { rollingDays: 30, since },
+  capturedAt: until,
+  period: { rollingDays: 30, since, until },
   stages: {
     acquisition: {
       status: 'verified',
@@ -99,22 +98,24 @@ const payload = {
       caveat: 'Un contacto revelado o una solicitud no demuestra una venta; WON depende del registro manual del estado.',
     },
     revenue: {
-      status: succeededCharges30d === paymentReceipts30d.length ? 'verified' : 'attention_required',
+      status: unmatchedEvents ? 'attention_required' : 'unverified',
+      reconciliationBasis: 'stripe_event_id; charge-level verification requires audit:stripe-commercial',
+      paginationComplete: true,
       label: 'Cobros aceptados y notificación verificable en 30 días',
       metrics: [
         { name: 'eventos charge.succeeded', value: succeededCharges30d },
         { name: 'recibos de notificación persistidos', value: paymentReceipts30d.length },
         { name: 'recibos live', value: livePaymentReceipts30d.length },
         { name: 'recibos test', value: testPaymentReceipts30d.length },
-        { name: 'cobertura pendiente', value: Math.max(0, succeededCharges30d - paymentReceipts30d.length) },
+        { name: 'cobertura pendiente', value: unmatchedEvents },
         { name: 'importe bruto live por moneda (minor units)', value: grossAcceptedByCurrency },
         { name: 'recibos por tipo', value: receiptsByType },
       ],
-      caveat: 'Importe bruto cobrado: no descuenta comisiones, reembolsos, disputas ni impuestos y no debe interpretarse como ingreso neto.',
+      caveat: 'Los recibos se relacionan por stripe_event_id con eventos del mismo periodo, incluso si la notificación llegó después. El registro de eventos no conserva charge_id ni modo; esta observación no verifica cobertura por cargo. Importe bruto notificado: no descuenta comisiones, reembolsos, disputas ni impuestos y no debe interpretarse como ingreso neto.',
     },
   },
   integrity: {
-    queryProfile: crypto.createHash('sha256').update('aerotrade-commercial-baseline-v2-read-only').digest('hex'),
+    queryProfile: crypto.createHash('sha256').update('aerotrade-commercial-baseline-v3-read-only-event-window').digest('hex'),
   },
 }
 

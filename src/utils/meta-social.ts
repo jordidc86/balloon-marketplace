@@ -1,4 +1,4 @@
-import https from 'node:https'
+import { boundedHttps, assertSocialBudget } from '@/utils/social-request.mjs'
 import {
   assessMetaTokenData,
   classifyMetaError,
@@ -179,44 +179,15 @@ const postToMeta = async <T>(
   body: Record<string, string>
 ): Promise<T> => {
   const requestBody = new URLSearchParams(body).toString()
-  const json = await new Promise<MetaApiResponse<T>>((resolve, reject) => {
-    const request = https.request(`${graphApiBaseUrl}/${path}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(requestBody),
-      },
-    }, (response) => {
-      const chunks: Buffer[] = []
-      response.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
-      response.on('end', () => {
-        const responseBody = Buffer.concat(chunks).toString('utf8')
-
-        try {
-          const parsed = JSON.parse(responseBody) as MetaApiResponse<T>
-
-          if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300 || parsed.error) {
-            const errorMessage = parsed.error?.message || `Meta API request failed with ${response.statusCode}`
-            reject(new MetaApiError(errorMessage, parsed.error?.code, parsed.error?.error_subcode))
-            return
-          }
-
-          resolve(parsed)
-        } catch (error) {
-          reject(error)
-        }
-      })
-    })
-
-    request.on('error', reject)
-    request.write(requestBody)
-    request.end()
-  })
-
-  if (json.error) {
-    const errorMessage = json.error?.message || 'Meta API request failed'
-    throw new Error(errorMessage)
+  const response = await boundedHttps(`${graphApiBaseUrl}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  }, requestBody)
+  const json = JSON.parse(response.body.toString('utf8')) as MetaApiResponse<T>
+  if (response.status < 200 || response.status >= 300 || json.error) {
+    throw new MetaApiError(json.error?.message || `Meta API request failed with ${response.status}`, json.error?.code, json.error?.error_subcode)
   }
+
 
   return json
 }
@@ -228,32 +199,12 @@ const getFromMetaOnce = async <T>(
   const separator = path.includes('?') ? '&' : '?'
   const url = `${graphApiBaseUrl}/${path}${separator}access_token=${encodeURIComponent(accessToken)}`
 
-  return new Promise<MetaApiResponse<T>>((resolve, reject) => {
-    const request = https.request(url, { method: 'GET' }, (response) => {
-      const chunks: Buffer[] = []
-      response.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
-      response.on('end', () => {
-        const responseBody = Buffer.concat(chunks).toString('utf8')
-
-        try {
-          const parsed = JSON.parse(responseBody) as MetaApiResponse<T>
-
-          if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300 || parsed.error) {
-            const errorMessage = parsed.error?.message || `Meta API request failed with ${response.statusCode}`
-            reject(new MetaApiError(errorMessage, parsed.error?.code, parsed.error?.error_subcode))
-            return
-          }
-
-          resolve(parsed)
-        } catch (error) {
-          reject(error)
-        }
-      })
-    })
-
-    request.on('error', reject)
-    request.end()
-  })
+  const response = await boundedHttps(url, { method: 'GET' })
+  const parsed = JSON.parse(response.body.toString('utf8')) as MetaApiResponse<T>
+  if (response.status < 200 || response.status >= 300 || parsed.error) {
+    throw new MetaApiError(parsed.error?.message || `Meta API request failed with ${response.status}`, parsed.error?.code, parsed.error?.error_subcode)
+  }
+  return parsed
 }
 
 const getFromMeta = async <T>(path: string, accessToken: string): Promise<T> =>
@@ -278,6 +229,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const waitForInstagramContainer = async (creationId: string, accessToken: string) => {
   for (let attempt = 1; attempt <= instagramContainerPollAttempts; attempt++) {
+    assertSocialBudget()
     const status = await getFromMeta<InstagramContainerStatus>(
       `${creationId}?fields=status_code,status`,
       accessToken

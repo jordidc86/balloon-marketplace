@@ -3,37 +3,31 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { readAllRows, readOnlyFetch } from './lib/read-only-audit.mjs'
 import { createClient } from '@supabase/supabase-js'
 
 if (process.env.CONFIRM_READ_ONLY_PRODUCTION !== '1') {
   throw new Error('Set CONFIRM_READ_ONLY_PRODUCTION=1 only for an approved read-only production audit.')
 }
 
+if (process.env.CONFIRM_PRODUCTION_CRON_SIMULATION !== '1') throw new Error('Explicit cron simulation approval requires CONFIRM_PRODUCTION_CRON_SIMULATION=1; use audit:production-automations for observation only.')
+if (!process.env.EXPECTED_PRODUCTION_COMMIT) throw new Error('Record the verified production commit before simulation.')
+
 const origin = String(process.env.AEROTRADE_PRODUCTION_URL || 'https://aerotrade.app').replace(/\/+$/, '')
+if (origin !== 'https://aerotrade.app') throw new Error('Simulation origin must be the canonical AeroTrade origin.')
 const cronSecret = process.env.CRON_SECRET
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!cronSecret || !supabaseUrl || !serviceRoleKey) throw new Error('Production automation audit configuration is incomplete.')
 
-const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } })
+const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: readOnlyFetch } })
 const fingerprint = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 
-const stateSpecs = {
-  listings: ['listings', 'id,status,public_at,updated_at'],
-  listingQuality: ['listing_quality_state', 'listing_id,status,consecutive_failures,last_checked_at,notification_status'],
-  commercialNotifications: ['commercial_notification_receipts', 'id,status,delivery_attempts,next_attempt_at,attempted_at,accepted_at'],
-  indexingReceipts: ['indexing_submission_receipts', 'id,status,attempts,attempted_at,accepted_at'],
-  listingWatchDispatches: ['listing_watch_dispatches', 'id,status,attempted_at,accepted_at,updated_at'],
-  wantedMatchDispatches: ['wanted_match_dispatches', 'id,status,attempted_at,accepted_at,updated_at'],
-  newsletterRuns: ['newsletter_runs', 'id,status,started_at,completed_at,provider_dispatch_started_at'],
-  newsletterRecipients: ['newsletter_recipients', 'run_id,status,resend_id'],
-  socialPublicationReceipts: ['social_publication_receipts', 'id,status,attempt_count,claimed_at,next_attempt_at,accepted_at,updated_at'],
-}
+import { stateSpecs } from './lib/automation-state-specs.mjs'
 
 async function captureState() {
   return Object.fromEntries(await Promise.all(Object.entries(stateSpecs).map(async ([name, [table, columns]]) => {
-    const { data, error } = await supabase.from(table).select(columns).order(columns.split(',')[0])
-    if (error) throw new Error(`Could not fingerprint ${name}.`)
+    const data = await readAllRows(() => supabase.from(table).select(columns, { count: 'exact' }).order(columns.split(',')[0]))
     return [name, { rows: data?.length || 0, fingerprint: fingerprint(data || []) }]
   })))
 }
@@ -106,12 +100,15 @@ const result = {
   capturedAt: new Date().toISOString(),
   containsPii: false,
   readOnlyRequested: true,
-  productionMutated: changedDatasets.length > 0,
-  externalMessagesSent: 0,
+  observedStateChanged: changedDatasets.length > 0,
+  changeAttribution: 'unknown: scheduled jobs may run concurrently',
+  externalMessagesSent: null,
+  providerDeliveryVerified: false,
+  expectedProductionCommit: process.env.EXPECTED_PRODUCTION_COMMIT,
   endpoints,
   newsletter: {
     executed: false,
-    reason: 'The deployed newsletter dry-run persists audit rows. The release candidate removes that mutation; live simulation waits for the explicit consolidated release.',
+    reason: 'Newsletter dispatch is excluded from this simulation; no provider delivery inference is made.',
   },
   stateChanges,
   changedDatasets,
@@ -126,8 +123,8 @@ console.log(JSON.stringify({
   output,
   endpointsOk: Object.values(endpoints).filter((endpoint) => endpoint.ok).length,
   endpointsTotal: Object.keys(endpoints).length,
-  productionMutated: result.productionMutated,
+  observedStateChanged: result.observedStateChanged,
   changedDatasets,
 }, null, 2))
 
-if (result.productionMutated) process.exitCode = 2
+if (result.observedStateChanged) process.exitCode = 2

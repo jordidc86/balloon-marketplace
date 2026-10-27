@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 test('receipt-guarded social placements are reported as skips, not failures', () => {
-  const route = readFileSync(resolve(root, 'src/app/api/cron/instagram/route.ts'), 'utf8')
+  const route = readFileSync(resolve(root, 'src/utils/social-workflow.ts'), 'utf8')
 
   assert.match(route, /type SocialSkip/)
   assert.match(route, /const skips: SocialSkip\[\] = \[\]/)

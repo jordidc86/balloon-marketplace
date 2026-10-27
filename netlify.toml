@@ -2,4 +2,6 @@
 ignore = "node scripts/netlify-ignore-build.mjs"
 
 [functions]
-included_files = ["node_modules/@jimp/plugin-print/dist/fonts/**"]
+node_bundler = "esbuild"
+external_node_modules = ["sharp"]
+included_files = ["src/app/fonts/Geist-Regular.ttf", "src/app/fonts/LICENSE.txt", "src/app/fonts/fonts.conf"]

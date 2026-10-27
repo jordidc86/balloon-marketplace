@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import "./globals.css";
 import { siteUrl } from '@/utils/site'
 import { buildMarketplaceIdentityJsonLd, serializeJsonLd } from '@/utils/marketplace-seo.mjs'
 
-const geistSans = Geist({
+const geistSans = localFont({
+  src: "./fonts/Geist-Variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {

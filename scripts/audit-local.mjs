@@ -20,7 +20,7 @@ const checks = [
   {
     name: 'Runtime dependencies are pinned to the audited release line',
     file: 'package.json',
-    required: ['"next": "16.3.3"', '"eslint-config-next": "16.3.3"', '"resend": "6.25.0"'],
+    required: ['"next": "16.4.3"', '"eslint-config-next": "16.4.3"', '"resend": "6.25.0"'],
   },
   {
     name: 'Netlify production builds require one explicit release marker',
@@ -1110,9 +1110,9 @@ const checks = [
     forbidden: ["dry_run: true, status: 'running'"],
   },
   {
-    name: 'Production automation audit fingerprints state before and after every safe dry-run',
+    name: 'Cron simulation requires separate approval and reports observations without claiming delivery',
     file: 'scripts/capture-production-automation-dry-run.mjs',
-    required: ['CONFIRM_READ_ONLY_PRODUCTION', 'captureState()', 'AbortSignal.timeout', 'stateChanges', 'changedDatasets', 'productionMutated', 'externalMessagesSent: 0', 'deployed newsletter dry-run persists audit rows'],
+    required: ['CONFIRM_READ_ONLY_PRODUCTION', 'captureState()', 'AbortSignal.timeout', 'stateChanges', 'changedDatasets', 'CONFIRM_PRODUCTION_CRON_SIMULATION', 'observedStateChanged', 'externalMessagesSent: null', 'providerDeliveryVerified: false'],
     forbidden: ['commit=1', 'dryRun=false', 'SEND_ONE_TIME_CONSENT_INVITATIONS'],
   },
   {
@@ -1254,11 +1254,11 @@ const checks = [
   {
     name: 'Social scheduler uses the protected unified endpoint',
     file: 'netlify/functions/social-scheduled.mjs',
-    required: ['CRON_SECRET', '/api/cron/social?limit=1'],
+    required: ['CRON_SECRET', '/.netlify/functions/social-publish-background', 'AbortSignal.timeout', "schedule: '0 7 * * *'"],
   },
   {
     name: 'Social publishing classifies provider failures and exposes credential preflight',
-    file: 'src/app/api/cron/instagram/route.ts',
+    file: 'src/utils/social-workflow.ts',
     required: ['classifyMetaError', 'getMetaCredentialHealth', 'providerCheck', 'status: failures.length > 0 ? 502 : 200'],
   },
   {
@@ -1270,11 +1270,11 @@ const checks = [
   {
     name: 'Each social placement is claimed before publishing and accepted by provider ID',
     file: 'src/utils/social-publication-receipt.ts',
-    required: ['buildSocialPublicationKey', 'getSocialPublicationDecision', "status: 'pending'", 'attempt_count: attemptNumber', 'const providerId', "status: 'accepted'", 'do not retry automatically', 'isSocialPublicationRetrySafe'],
+    required: ['buildSocialPublicationKey', 'getSocialPublicationDecision', "status: 'pending'", 'attempt_count: attemptNumber', 'let providerId', "status: 'accepted'", 'do not retry automatically', 'isSocialPublicationRetrySafe'],
   },
   {
     name: 'Scheduled social acquisition uses attributable links and durable per-placement receipts',
-    file: 'src/app/api/cron/instagram/route.ts',
+    file: 'src/utils/social-workflow.ts',
     required: ['getAttributedSocialUrl', 'publishSocialPlacement', 'publishTracked', "contentKind: 'listing'", "contentKind: 'brand'", "network: 'instagram'", "network: 'facebook'"],
   },
   {

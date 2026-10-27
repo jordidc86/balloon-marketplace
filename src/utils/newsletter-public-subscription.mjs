@@ -1,3 +1,4 @@
+import { normalizeDeliverableNewsletterEmail } from './newsletter-deliverable-email.mjs'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { normalizeNewsletterEmail } from './newsletter-consent.mjs'
 
@@ -13,7 +14,7 @@ export function normalizePublicNewsletterSourceContext(value) {
 
 export function parsePublicNewsletterOptIn(formData) {
   if (text(formData, 'website')) throw new Error('Unable to request marketplace updates.')
-  const email = normalizeNewsletterEmail(text(formData, 'email'))
+  const email = normalizeDeliverableNewsletterEmail(text(formData, 'email'))
   if (!email) throw new Error('Please enter a valid email address.')
   if (formData.get('privacy_consent') !== 'yes') throw new Error('Please accept the privacy notice.')
   return { email, source_context: normalizePublicNewsletterSourceContext(text(formData, 'source_context')) }

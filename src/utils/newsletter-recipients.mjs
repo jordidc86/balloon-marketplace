@@ -1,4 +1,5 @@
-import { isActiveNewsletterConsent, normalizeNewsletterEmail } from './newsletter-consent.mjs'
+import { normalizeDeliverableNewsletterEmail } from './newsletter-deliverable-email.mjs'
+import { isActiveNewsletterConsent } from './newsletter-consent.mjs'
 
 export function isActivePublicNewsletterConsent(subscription) {
   return subscription?.status === 'ACTIVE'
@@ -14,7 +15,7 @@ export function isActivePublicNewsletterConsent(subscription) {
  * }} input
  */
 export function buildNewsletterRecipients({ users = [], publicSubscriptions = [], testEmail = null }) {
-  const normalizedTestEmail = normalizeNewsletterEmail(testEmail)
+  const normalizedTestEmail = normalizeDeliverableNewsletterEmail(testEmail)
   if (testEmail !== null) {
     return {
       recipients: normalizedTestEmail ? [{ id: null, email: normalizedTestEmail, kind: 'test' }] : [],
@@ -30,7 +31,7 @@ export function buildNewsletterRecipients({ users = [], publicSubscriptions = []
   // Account consent remains authoritative when the same person also completed
   // the public flow. This preserves the existing preference and stop link.
   for (const user of users) {
-    const email = normalizeNewsletterEmail(user?.email)
+    const email = normalizeDeliverableNewsletterEmail(user?.email)
     if (!email || !isActiveNewsletterConsent(user) || !user?.id) {
       invalidRecipients += 1
       continue
@@ -43,7 +44,7 @@ export function buildNewsletterRecipients({ users = [], publicSubscriptions = []
   }
 
   for (const subscription of publicSubscriptions) {
-    const email = normalizeNewsletterEmail(subscription?.email)
+    const email = normalizeDeliverableNewsletterEmail(subscription?.email)
     if (!email || !isActivePublicNewsletterConsent(subscription) || !subscription?.id) {
       invalidRecipients += 1
       continue

@@ -2,10 +2,13 @@
 
 AeroTrade is a Next.js marketplace for used hot-air-balloon equipment. The app is deployed on Netlify and uses Supabase, Stripe, Resend, GitHub Actions, and Netlify scheduled functions for operational flows.
 
+Estado del traspaso y candidato local: [mejoras del 27/10/2026](docs/mac-mini-readiness-2026-10-27.md). Los resúmenes de agosto son históricos.
+
 ## Local Development
 
 ```bash
-npm install
+# Node 24.11.1 / npm 11.6.2 (see .nvmrc)
+npm ci
 npm run dev
 ```
 
@@ -60,11 +63,11 @@ The bi-weekly newsletter is triggered by `.github/workflows/newsletter.yml` agai
 
 ## Social Publishing
 
-The scheduled social endpoint is `/api/cron/social`. The older `/api/cron/instagram` endpoint remains compatible and runs the same workflow.
+The single existing social schedule queues `social-publish-background`. Queue acceptance (HTTP 202) is separate from provider acceptance; inspect worker logs and per-placement receipts. The `/api/cron/social` and `/api/cron/instagram` routes remain compatible and share the worker logic.
 
 It promotes eligible active listings, avoiding sold, archived, draft, pending payment, and flagged listings. Use `/api/cron/social?dryRun=1` to inspect planned posts without changing listing status, sending reminders, or calling Meta. An approved provider preflight can use `/api/cron/social?dryRun=1&providerCheck=1`; it validates Meta credentials without creating or publishing media.
 
-Live social runs classify token, permission, timeout, rate-limit and configuration failures. Provider failures return a non-2xx response so the scheduler cannot report a false success. Meta read-only status checks use bounded retries; publication POST requests are not automatically repeated.
+Live social runs classify token, permission, timeout, rate-limit and configuration failures. Direct-route provider failures return a non-2xx response. The background worker records workflow status separately from queue admission; controlled failures require receipt review before retrying. Meta read-only status checks use bounded retries; publication POST requests are not automatically repeated.
 
 Successful Stripe charges send one idempotent administrative email to `ADMIN_EMAIL`. Idempotency is bound to the Stripe charge, not merely to one delivery of the webhook event. The Stripe event is marked processed only after Resend returns a provider acceptance identifier and a private, non-PII receipt is persisted and read back from `payment_notification_receipts`. Failed delivery or failed persistence remains retryable through Stripe without counting an unverifiable notice as complete.
 
@@ -95,3 +98,12 @@ Required runtime variables are configured in the hosting environment, not in thi
 - `ADMIN_EMAIL`
 
 The Stripe endpoint must explicitly subscribe to `charge.succeeded` before payment notices can be considered operational. Enabling that live event and applying database migrations require separate production approval.
+
+## Observation versus cron simulation
+
+`audit:production-automations` reads database state only and never calls cron.
+It requires `CONFIRM_READ_ONLY_PRODUCTION=1` and existing, explicitly supplied
+configuration. `simulate:production-automations` calls cron endpoints and also
+requires `CONFIRM_PRODUCTION_CRON_SIMULATION=1` and `EXPECTED_PRODUCTION_COMMIT`.
+Read-only audit approval does not authorize simulation. Neither command proves
+provider delivery; concurrent state changes are observations, not causal proof.

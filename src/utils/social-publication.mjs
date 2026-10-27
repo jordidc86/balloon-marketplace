@@ -58,6 +58,7 @@ export function getSocialAcquisitionMode({ network, placement }) {
 
 export function getSocialPublicationDecision(receipt, now = new Date(), maxAttempts = socialPublicationMaxAttempts) {
   if (receipt?.status === 'accepted' && receipt?.provider_id) return 'duplicate'
+  if (receipt?.provider_id) return 'manual_review'
   if (receipt?.status === 'pending' && Number(receipt?.attempt_count || 0) > 0) return 'unverified'
   const attempts = Number(receipt?.attempt_count || 0)
   if (attempts >= maxAttempts) return 'exhausted'

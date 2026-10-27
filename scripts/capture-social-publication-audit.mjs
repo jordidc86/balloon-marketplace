@@ -2,6 +2,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { readAllRows, readOnlyFetch } from './lib/read-only-audit.mjs'
 import { createClient } from '@supabase/supabase-js'
 
 if (process.env.CONFIRM_READ_ONLY_META !== '1') {
@@ -18,7 +19,7 @@ const graphBaseUrl = `https://graph.facebook.com/${graphVersion}`
 const capturedAt = new Date()
 const rollingDays = 30
 const since = new Date(capturedAt.getTime() - rollingDays * 86_400_000).toISOString()
-const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
+const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: readOnlyFetch } })
 
 const unique = (values) => [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))]
 const countBy = (items, key) => items.reduce((counts, item) => {
@@ -41,7 +42,7 @@ const graphGet = async (resource, token, fields) => {
   const url = new URL(`${graphBaseUrl}/${resource}`)
   if (fields) url.searchParams.set('fields', fields)
   url.searchParams.set('access_token', token)
-  const response = await fetch(url, { method: 'GET', cache: 'no-store' })
+  const response = await readOnlyFetch(url, { method: 'GET', cache: 'no-store' })
   const body = await response.json().catch(() => ({}))
   if (!response.ok || body?.error) {
     const error = new Error('Meta read failed')
@@ -72,46 +73,36 @@ const metaFailureCategory = (error) => {
   return 'provider_read_failed'
 }
 
-const { data: receipts, error: receiptError } = await supabase
-  .from('social_publication_receipts')
-  .select('network,placement,content_kind,destination_url,status,provider_id,accepted_at,created_at')
-  .gte('created_at', since)
-  .order('created_at', { ascending: true })
-if (receiptError) throw new Error(`Social receipt audit failed: ${receiptError.message}`)
+const receipts = await readAllRows(() => supabase.from('social_publication_receipts')
+  .select('id,network,placement,content_kind,destination_url,status,provider_id,accepted_at,created_at', { count: 'exact' })
+  .gte('created_at', since).lt('created_at', capturedAt.toISOString()).order('id'))
 
 const acceptedReceipts = (receipts || []).filter((receipt) => receipt.status === 'accepted' && receipt.provider_id)
 const pageTokens = [...directPageTokens]
 const instagramAccountIds = unique([process.env.INSTAGRAM_USER_ID])
 let pageDiscovery = { attempted: false, succeeded: false, pages: 0, instagramAccounts: 0, failure: null }
 
-if (metaTokens.length > 0) {
+const expectedDestinations = { instagramUsername: 'balloonconsulting', facebookSlug: 'balloonpilotshop' }
+const destinationIdentity = { instagram: null, facebook: null }
+// Read only the configured AeroTrade Page, never enumerate unrelated Pages.
+if (process.env.FACEBOOK_PAGE_ID && [...metaTokens, ...directPageTokens].length > 0) {
   pageDiscovery.attempted = true
   try {
-    const accounts = await graphGetWithFallback(
-      'me/accounts',
-      metaTokens,
-      'id,access_token,instagram_business_account{id}',
-    )
-    for (const page of accounts.data || []) {
-      if (page.access_token) pageTokens.push(page.access_token)
-      if (page.instagram_business_account?.id) instagramAccountIds.push(page.instagram_business_account.id)
-    }
-    pageDiscovery = {
-      attempted: true,
-      succeeded: true,
-      pages: (accounts.data || []).length,
-      instagramAccounts: unique(instagramAccountIds).length,
-      failure: null,
-    }
-  } catch (error) {
-    pageDiscovery.failure = metaFailureCategory(error)
-  }
+    const page = await graphGetWithFallback(process.env.FACEBOOK_PAGE_ID, [...directPageTokens, ...metaTokens], 'id,link,access_token,instagram_business_account{id}')
+    if (String(page.id) !== process.env.FACEBOOK_PAGE_ID) throw new Error('Configured Page identity mismatch')
+    const pageLink = new URL(page.link)
+    destinationIdentity.facebook = ['facebook.com', 'www.facebook.com'].includes(pageLink.hostname)
+      && pageLink.pathname.replace(/\/+$/, '').toLowerCase() === `/${expectedDestinations.facebookSlug}`
+    if (destinationIdentity.facebook && page.access_token) pageTokens.push(page.access_token)
+    pageDiscovery = { attempted: true, succeeded: true, pages: 1, instagramAccounts: page.instagram_business_account ? 1 : 0, failure: null }
+  } catch (error) { pageDiscovery.failure = metaFailureCategory(error) }
 }
 
 const profileWebsiteEvidence = []
 for (const accountId of unique(instagramAccountIds)) {
   try {
-    const profile = await graphGetWithFallback(accountId, metaTokens, 'website')
+    const profile = await graphGetWithFallback(accountId, metaTokens, 'website,username')
+    destinationIdentity.instagram = String(profile.username || '').toLowerCase() === expectedDestinations.instagramUsername
     const website = String(profile.website || '').trim()
     profileWebsiteEvidence.push({
       readable: true,
@@ -180,15 +171,12 @@ const attributionTables = [
 const attributedActivity = []
 for (const [table, selection] of attributionTables) {
   const dateColumn = selection.split(',')[1]
-  const { data, error } = await supabase
-    .from(table)
-    .select(selection)
-    .in('utm_source', ['instagram', 'facebook'])
-    .gte(dateColumn, since)
-  if (error) {
-    attributedActivity.push({ table, available: false, total: null, byNetwork: {}, failure: 'schema_or_read_unavailable' })
-  } else {
-    attributedActivity.push({ table, available: true, total: (data || []).length, byNetwork: countBy(data || [], (row) => row.utm_source), failure: null })
+  try {
+    const data = await readAllRows(() => supabase.from(table).select(`id,${selection}`, { count: 'exact' })
+      .in('utm_source', ['instagram', 'facebook']).gte(dateColumn, since).lt(dateColumn, capturedAt.toISOString()).order('id'))
+    attributedActivity.push({ table, available: true, total: data.length, byNetwork: countBy(data, (row) => row.utm_source), failure: null })
+  } catch {
+    attributedActivity.push({ table, available: false, total: null, byNetwork: {}, failure: 'schema_read_or_completeness_unavailable' })
   }
 }
 
@@ -214,6 +202,7 @@ const report = {
   },
   providerEvidence: {
     pageDiscovery,
+    destinationIdentity,
     readable: providerChecks.filter((check) => check.readable).length,
     unreadable: providerChecks.filter((check) => !check.readable).length,
     expectedExpiredStories: providerChecks.filter((check) => check.expectedExpiredStory).length,
@@ -237,7 +226,7 @@ const report = {
   },
   conclusion: attributedActions > 0
     ? 'At least one attributable AeroTrade action followed accepted social publication evidence.'
-    : 'Meta acceptance is proven, but no attributable AeroTrade action was observed. Story receipts are image-only awareness placements; they do not transport the stored destination URL.',
+    : 'No attributable action was established by the available reads. Provider acceptance and destination identity must be assessed from their separate counters; image-only stories do not transport the stored destination URL.',
   caveat: 'Provider acceptance proves that Meta returned an identifier, not reach, impressions or clicks. Expired stories may no longer be readable after their display window. No provider identifier, token, caption, account name or personal data is stored in this report.',
 }
 

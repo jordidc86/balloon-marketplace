@@ -120,8 +120,9 @@ export async function publishSocialPlacement(
     return { accepted: false, duplicate: false, skipped: true, reason: 'claim_conflict', providerId: null }
   }
 
+  let providerId: string | null = null
   try {
-    const providerId = String(await publish() || '').trim()
+    providerId = String(await publish() || '').trim()
     if (!providerId) throw new Error('Meta did not return a publication identifier')
     const { data: accepted, error: acceptedError } = await supabase
       .from('social_publication_receipts')
@@ -146,16 +147,16 @@ export async function publishSocialPlacement(
     return { accepted: true, duplicate: false, skipped: false, reason: null, providerId }
   } catch (error) {
     const classified = classifyMetaError(error)
-    const retryable = isSocialPublicationRetrySafe(classified.category) && attemptNumber < 2
+    const retryable = !providerId && isSocialPublicationRetrySafe(classified.category) && attemptNumber < 2
     const failureAt = new Date()
     const { error: failureError } = await supabase
       .from('social_publication_receipts')
       .update({
         status: 'failed',
         retryable,
-        provider_id: null,
+        provider_id: providerId,
         error_category: classified.category,
-        error_detail: `Meta ${classified.category} failure; inspect restricted provider logs before any manual retry.`,
+        error_detail: providerId ? 'Meta returned a publication identifier but receipt verification failed; reconcile this identifier before any retry.' : `Meta ${classified.category} failure; inspect restricted provider logs before any manual retry.`,
         next_attempt_at: retryable ? getNextSocialPublicationAttemptAt(attemptNumber, failureAt) : null,
         accepted_at: null,
         updated_at: failureAt.toISOString(),

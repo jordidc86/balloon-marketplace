@@ -1,3 +1,4 @@
+import { normalizeDeliverableNewsletterEmail } from './newsletter-deliverable-email.mjs'
 import { publicNewsletterConfirmationIdempotencyKey, publicNewsletterConfirmationLifetimeMs, signPublicNewsletterConfirmation } from './newsletter-public-subscription.mjs'
 
 const escapeHtml = (value) => String(value)
@@ -15,6 +16,7 @@ export function buildPublicNewsletterConfirmation({
   baseUrl,
   now = Date.now(),
 }) {
+  if (!normalizeDeliverableNewsletterEmail(email)) return null
   const idempotencyKey = publicNewsletterConfirmationIdempotencyKey(subscriptionId, confirmationCycle)
   const expiresAt = Number(now) + publicNewsletterConfirmationLifetimeMs
   const token = signPublicNewsletterConfirmation({

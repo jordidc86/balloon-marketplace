@@ -20,24 +20,24 @@
     "audit:marketplace": "node scripts/capture-marketplace-audit.mjs",
     "audit:stripe-commercial": "node scripts/capture-stripe-commercial-audit.mjs",
     "audit:social-publications": "node scripts/capture-social-publication-audit.mjs",
-    "audit:production-automations": "node scripts/capture-production-automation-dry-run.mjs",
+    "audit:production-automations": "node scripts/capture-production-automation-observation.mjs",
     "diagnose:seller": "node scripts/diagnose-seller-account.mjs",
     "repair:listing-images": "node scripts/repair-listing-images.mjs",
     "test:stripe-premium-checkout": "node scripts/test-premium-checkout-stripe.mjs",
-    "test:commercial-instrumentation": "node tests/commercial-instrumentation.test.mjs"
+    "test:commercial-instrumentation": "node tests/commercial-instrumentation.test.mjs",
+    "simulate:production-automations": "node scripts/capture-production-automation-dry-run.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.1",
     "date-fns": "^4.1.0",
     "html-to-image": "^1.11.11",
-    "jimp": "^1.6.1",
     "lucide-react": "^0.577.0",
-    "next": "16.3.3",
+    "next": "16.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "resend": "6.25.0",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "stripe": "^20.4.1"
   },
   "devDependencies": {
@@ -46,8 +46,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.3",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "engines": {
+    "node": "24.11.x",
+    "npm": "11.6.x"
+  },
+  "packageManager": "npm@11.6.2"
 }
