@@ -6,7 +6,7 @@ import { confirmNewsletterConsent, type NewsletterConsentState } from './actions
 
 const initialState: NewsletterConsentState = { success: false, message: '' }
 
-export default function NewsletterConsentForm({ id, expires, token }: { id: string; expires: string; token: string }) {
+export default function NewsletterConsentForm({ id, expires, token, campaign = '' }: { id: string; expires: string; token: string; campaign?: string }) {
   const [state, action, pending] = useActionState(confirmNewsletterConsent, initialState)
   return (
     <div className="rounded-2xl border bg-background p-8 shadow-sm">
@@ -23,6 +23,7 @@ export default function NewsletterConsentForm({ id, expires, token }: { id: stri
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="expires" value={expires} />
           <input type="hidden" name="token" value={token} />
+          <input type="hidden" name="campaign" value={campaign} />
           <p className="text-xs text-muted-foreground">By confirming, you ask AeroTrade to send this optional newsletter. You can stop it immediately from every newsletter or from your account.</p>
           <button disabled={pending} className="w-full rounded-lg bg-primary px-4 py-2.5 font-semibold text-primary-foreground disabled:opacity-50">
             {pending ? 'Confirming…' : 'Yes, send me AeroTrade updates'}

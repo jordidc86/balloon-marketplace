@@ -68,3 +68,11 @@ Start with [Mac Mini readiness](docs/mac-mini-readiness-2026-10-27.md). The Augu
 | `.netlify/` | Netlify local build/deploy output; ignored and disposable. |
 | `social-previews/` | Local creative previews; ignored and disposable unless explicitly promoted into `public/social/`. |
 | `node_modules/`, `*.tsbuildinfo`, `next-env.d.ts` | Local dependency/type cache output; ignored and disposable. |
+
+## Mobile navigation and consent renewal (2026-10-28)
+
+- `src/components/MobileNavigation.tsx`: mobile disclosure navigation, Escape/focus handling and account links.
+- `src/utils/newsletter-confirmation-link.mjs`: direct, incomplete and expired confirmation-link presentation.
+- `src/utils/newsletter-renewal.mjs`: exact renewal eligibility and English invitation content.
+- `scripts/renew-newsletter-consent.ts`: explicitly approved one-time campaign, private recipient plan and receipt readback; never scheduled.
+- `docs/newsletter-consent-renewal.md`: operating constraints and recovery guidance.

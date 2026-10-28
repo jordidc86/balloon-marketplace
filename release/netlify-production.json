@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-10-28-technical-reliability",
-  "productionBaseCommit": "de2dc0b7decd9a6b7337ffadf8f2d5956d93b676",
+  "releaseId": "2026-10-28-mobile-newsletter-consent",
+  "productionBaseCommit": "d3c58243b2a207681957f009d6a9be1d3f2b0939",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {

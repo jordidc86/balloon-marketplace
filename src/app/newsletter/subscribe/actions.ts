@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/utils/supabase/server'
-import { verifyNewsletterConsentInvitationCapability } from '@/utils/newsletter-consent.mjs'
+import { verifyNewsletterConsentInvitationCapability, newsletterConsentInvitationReceiptKey } from '@/utils/newsletter-consent.mjs'
 import {
   publicNewsletterConfirmationIdempotencyKey,
   verifyPublicNewsletterConfirmation,
@@ -22,6 +22,9 @@ export async function confirmNewsletterConsent(
   const userId = value(formData, 'id')
   const expiresAt = value(formData, 'expires')
   const token = value(formData, 'token')
+  const campaign = value(formData, 'campaign')
+  const receiptKey = newsletterConsentInvitationReceiptKey(userId, campaign)
+  if (!receiptKey) return { success: false, message: 'This preference invitation is invalid or has expired.' }
   const admin = await createAdminClient()
   const [{ data: profile, error: profileError }, { data: receipt, error: receiptError }] = await Promise.all([
     admin
@@ -35,7 +38,7 @@ export async function confirmNewsletterConsent(
       .eq('notification_type', 'newsletter_consent_invitation')
       .eq('entity_type', 'user')
       .eq('entity_id', userId)
-      .eq('idempotency_key', `newsletter-consent-invitation-v1-${userId}`)
+      .eq('idempotency_key', receiptKey)
       .maybeSingle(),
   ])
 
@@ -47,6 +50,7 @@ export async function confirmNewsletterConsent(
       expiresAt,
       token,
       secret: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      campaign,
     }))
   if (!authorized || !profile) return { success: false, message: 'This preference invitation is invalid or has expired.' }
 

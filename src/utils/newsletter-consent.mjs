@@ -32,22 +32,31 @@ export function verifyNewsletterUnsubscribeCapability({ userId, email, token, se
   return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(supplied, 'hex'))
 }
 
-export function signNewsletterConsentInvitationCapability({ userId, email, expiresAt, secret }) {
+export function newsletterConsentInvitationReceiptKey(userId, campaign = '') {
+  if (!uuidPattern.test(String(userId || ''))) return null
+  if (!campaign) return `newsletter-consent-invitation-v1-${userId}`
+  return /^\d{4}-\d{2}-\d{2}$/.test(campaign) ? `newsletter-consent-renewal-v1-${campaign}-${userId}` : null
+}
+
+export function signNewsletterConsentInvitationCapability({ userId, email, expiresAt, secret, campaign = '' }) {
   const normalizedEmail = normalizeNewsletterEmail(email)
   const expiry = Number(expiresAt)
   if (!uuidPattern.test(String(userId || '')) || !normalizedEmail) return null
   if (!Number.isSafeInteger(expiry) || expiry <= 0) return null
   if (typeof secret !== 'string' || secret.length < 20) return null
+  if (!newsletterConsentInvitationReceiptKey(userId, campaign)) return null
   return createHmac('sha256', secret)
-    .update(`newsletter-consent-invitation|v1|${userId}|${normalizedEmail}|${expiry}`)
+    .update(campaign
+      ? `newsletter-consent-invitation|v2|${campaign}|${userId}|${normalizedEmail}|${expiry}`
+      : `newsletter-consent-invitation|v1|${userId}|${normalizedEmail}|${expiry}`)
     .digest('hex')
 }
 
-export function verifyNewsletterConsentInvitationCapability({ userId, email, expiresAt, token, secret, now = Date.now() }) {
+export function verifyNewsletterConsentInvitationCapability({ userId, email, expiresAt, token, secret, campaign = '', now = Date.now() }) {
   const expiry = Number(expiresAt)
   if (!Number.isSafeInteger(expiry) || expiry < now) return false
   if (expiry - now > newsletterConsentInvitationLifetimeMs) return false
-  const expected = signNewsletterConsentInvitationCapability({ userId, email, expiresAt: expiry, secret })
+  const expected = signNewsletterConsentInvitationCapability({ userId, email, expiresAt: expiry, secret, campaign })
   const supplied = typeof token === 'string' ? token.trim().toLowerCase() : ''
   if (!expected || !/^[0-9a-f]{64}$/.test(supplied)) return false
   return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(supplied, 'hex'))

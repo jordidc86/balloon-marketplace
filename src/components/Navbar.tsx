@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/utils/supabase/server'
 import { signout } from '@/app/login/actions'
 import { Plane, Plus } from 'lucide-react'
+import MobileNavigation from './MobileNavigation'
 
 export default async function Navbar() {
   const supabase = await createClient()
@@ -40,7 +41,7 @@ export default async function Navbar() {
             <Link href="/new-balloon?source=navigation" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">Buy New</Link>
           </div>
 
-          <div className="flex items-center space-x-2 sm:space-x-4">
+          <div className="hidden items-center space-x-2 lg:flex sm:space-x-4">
             {user ? (
               <>
                 {isPremium && (
@@ -80,6 +81,7 @@ export default async function Navbar() {
               </div>
             )}
           </div>
+          <MobileNavigation signedIn={Boolean(user)} isAdmin={isAdmin} />
         </div>
       </div>
     </nav>
