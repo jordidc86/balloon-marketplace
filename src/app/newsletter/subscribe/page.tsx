@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import NewsletterConsentForm from './NewsletterConsentForm'
 import PublicNewsletterConsentForm from './PublicNewsletterConsentForm'
+import PublicNewsletterSignup from '@/components/PublicNewsletterSignup'
+import { newsletterConfirmationLinkKind } from '@/utils/newsletter-confirmation-link.mjs'
 
 export const metadata: Metadata = {
   title: 'Choose marketplace updates | AeroTrade',
@@ -16,7 +18,14 @@ export default async function NewsletterSubscribePage({
   searchParams: Promise<{ id?: string; subscription?: string; cycle?: string; expires?: string; token?: string }>
 }) {
   const params = await searchParams
-  return <main className="mx-auto max-w-xl px-4 py-16">{params.subscription
-    ? <PublicNewsletterConsentForm subscription={params.subscription} cycle={params.cycle || ''} expires={params.expires || ''} token={params.token || ''} />
-    : <NewsletterConsentForm id={params.id || ''} expires={params.expires || ''} token={params.token || ''} />}</main>
+  const kind = newsletterConfirmationLinkKind(params)
+  return <main className="mx-auto max-w-xl px-4 py-16">{kind === 'public'
+    ? <PublicNewsletterConsentForm subscription={params.subscription || ''} cycle={params.cycle || ''} expires={params.expires || ''} token={params.token || ''} />
+    : kind === 'account'
+      ? <NewsletterConsentForm id={params.id || ''} expires={params.expires || ''} token={params.token || ''} />
+      : <>
+        <h1 className="mb-4 text-2xl font-bold">Subscribe to AeroTrade updates</h1>
+        {kind === 'invalid' ? <p className="mb-6 rounded-lg border bg-secondary p-4 text-sm">This confirmation link is incomplete or has expired. Request a new confirmation below. Your subscription has not been changed.</p> : null}
+        <PublicNewsletterSignup sourceContext="unknown" />
+      </>}</main>
 }

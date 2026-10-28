@@ -8,7 +8,7 @@ import CommercialAttributionFields from '@/components/CommercialAttributionField
 
 const initialState: PublicNewsletterRequestState = { success: false, message: '' }
 
-export default function PublicNewsletterSignup({ compact = false, sourceContext }: { compact?: boolean; sourceContext: 'home' | 'catalog' }) {
+export default function PublicNewsletterSignup({ compact = false, sourceContext }: { compact?: boolean; sourceContext: 'home' | 'catalog' | 'unknown' }) {
   const [state, action, pending] = useActionState(requestPublicNewsletterOptIn, initialState)
   return (
     <section className={`rounded-2xl border border-primary/20 bg-primary/5 ${compact ? 'p-5' : 'p-6 sm:p-8'}`}>
