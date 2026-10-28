@@ -82,6 +82,23 @@ const socialPublishingCycle: SocialPublishingType[] = [
 ]
 
 const normalizeSiteUrl = (siteUrl: string) => siteUrl.replace(/\/$/, '')
+
+// Count publishing opportunities, not calendar days: listings only run every
+// other day, so dayIndex % an even inventory size permanently skips half of it.
+export const getListingRotationIndex = (dayIndex: number, listingCount: number) => {
+  if (!Number.isInteger(listingCount) || listingCount < 1) throw new Error('Invalid listing count')
+  const cycle = Math.floor(dayIndex / socialPublishingCycle.length)
+  const position = dayIndex % socialPublishingCycle.length
+  const perCycle = socialPublishingCycle.filter((type) => type === 'listing').length
+  const before = socialPublishingCycle.slice(0, position).filter((type) => type === 'listing').length
+  return (cycle * perCycle + before) % listingCount
+}
+
+export const formatSocialListingPrice = (price: number, currency: string) => (
+  Number.isFinite(price) && price > 0
+    ? `${price.toLocaleString('en-US')} ${currency}`
+    : 'Price on request'
+)
 const brandConceptSlugs = new Set(brandConcepts.map((concept) => concept.slug))
 
 const requireBrandConceptSlug = (slug: string) => {
@@ -103,7 +120,12 @@ export const getSocialPublishingSlot = (
     return { type }
   }
 
-  const concept = brandConcepts[dayIndex % brandConcepts.length]
+  const cycle = Math.floor(dayIndex / socialPublishingCycle.length)
+  const position = dayIndex % socialPublishingCycle.length
+  const brandOrdinal = socialPublishingCycle.slice(0, position).filter((slot) => slot !== 'listing').length
+  // Shift the four concepts each cycle so posts, stories and carousels all
+  // receive every concept instead of locking each format to one message.
+  const concept = brandConcepts[(brandOrdinal + cycle) % brandConcepts.length]
   return { type, concept }
 }
 

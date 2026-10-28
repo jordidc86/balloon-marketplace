@@ -10,7 +10,45 @@ import {
   getBrandSocialSourceImagePath,
   getBrandStoryImageUrl,
   getSocialPublishingSlot,
+  getListingRotationIndex,
+  formatSocialListingPrice,
 } from '../src/utils/social-brand-content.ts'
+
+test('scheduled listing opportunities visit every eligible listing, including even inventories', () => {
+  for (const count of [1, 2, 3, 4, 8, 10, 99, 100]) {
+    const days = Array.from({ length: count * 2 + 8 }, (_, offset) => 20754 + offset)
+      .filter((day) => getSocialPublishingSlot(day).type === 'listing').slice(0, count)
+    const indices = days.map((day) => getListingRotationIndex(day, count))
+    assert.equal(new Set(indices).size, count)
+    assert.deepEqual(indices, days.map((day) => getListingRotationIndex(day, count)), 'retries stay deterministic')
+  }
+  assert.throws(() => getListingRotationIndex(20754, 0), /Invalid/)
+})
+
+test('all four brand concepts appear in each cycle and across each scheduled format', () => {
+  const byFormat = new Map()
+  for (let cycle = 2594; cycle < 2598; cycle++) {
+    const concepts = new Set()
+    for (let offset = 0; offset < 8; offset++) {
+      const slot = getSocialPublishingSlot(cycle * 8 + offset)
+      if (!slot.concept) continue
+      concepts.add(slot.concept.slug)
+      if (!byFormat.has(slot.type)) byFormat.set(slot.type, new Set())
+      byFormat.get(slot.type).add(slot.concept.slug)
+    }
+    assert.equal(concepts.size, 4)
+  }
+  for (const concepts of byFormat.values()) assert.equal(concepts.size, 4)
+  assert.equal(getSocialPublishingSlot(20754, 'brand-story').type, 'brand-story')
+  assert.equal(getSocialPublishingSlot(20755, 'listing').type, 'listing')
+})
+
+test('social captions show inquiry prices consistently with listing cards', () => {
+  assert.equal(formatSocialListingPrice(0, 'EUR'), 'Price on request')
+  assert.equal(formatSocialListingPrice(-1, 'EUR'), 'Price on request')
+  assert.equal(formatSocialListingPrice(NaN, 'EUR'), 'Price on request')
+  assert.equal(formatSocialListingPrice(19900, 'EUR'), '19,900 EUR')
+})
 
 test('future brand images use a marketplace-owned destination overlay', () => {
   assert.equal(

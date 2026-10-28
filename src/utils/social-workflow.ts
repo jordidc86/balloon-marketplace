@@ -30,6 +30,8 @@ import {
   getBrandSocialLinkUrl,
   getBrandStoryImageUrl,
   getSocialPublishingSlot,
+  getListingRotationIndex,
+  formatSocialListingPrice,
 } from '@/utils/social-brand-content';
 
 type ListingForInstagram = {
@@ -153,7 +155,7 @@ const getPublicJpegSocialImageUrl = async (
 const formatCaption = (listing: ListingForInstagram, destinationUrl = getListingUrl(listing)) => {
   const details = listing.details || {}
   const facts = [
-    `${listing.price.toLocaleString()} ${listing.currency}`,
+    formatSocialListingPrice(listing.price, listing.currency),
     listing.location_country,
     listing.condition,
     details.hours ? `${details.hours} hours` : null,
@@ -718,6 +720,7 @@ export async function runSocialWorkflow(request: Request, scheduledAt = new Date
       .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
       .lte('public_at', now)
       .order('public_at', { ascending: true })
+      .order('id', { ascending: true })
       .limit(100);
 
     if (igError) {
@@ -750,7 +753,7 @@ export async function runSocialWorkflow(request: Request, scheduledAt = new Date
       }, { status: failures.length > 0 ? 502 : 200 });
     }
 
-    const startIndex = dayIndex % promotedListingsForIg.length;
+    const startIndex = getListingRotationIndex(dayIndex, promotedListingsForIg.length);
     const rotatingListings = Array.from(
       { length: Math.min(batchLimit, promotedListingsForIg.length) },
       (_, offset) => promotedListingsForIg[(startIndex + offset) % promotedListingsForIg.length]

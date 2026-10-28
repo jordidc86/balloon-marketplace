@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-10-28-mobile-newsletter-consent",
-  "productionBaseCommit": "d3c58243b2a207681957f009d6a9be1d3f2b0939",
+  "releaseId": "2026-10-28-social-rotation",
+  "productionBaseCommit": "78338e94d6e308ec10f3c902ee4e7a9ee88378e8",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
