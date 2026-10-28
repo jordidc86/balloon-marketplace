@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-10-03-inquiry-save-feedback",
-  "productionBaseCommit": "c8559daff4db5499691bad6ec2c134b08ce3a8fb",
+  "releaseId": "2026-10-28-technical-reliability",
+  "productionBaseCommit": "de2dc0b7decd9a6b7337ffadf8f2d5956d93b676",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
@@ -10,7 +10,9 @@
     "requiresExactConfirmation": true,
     "migrationCount": 0,
     "migrationVersions": [],
-    "externalAppliedVersions": ["20260925160000"],
+    "externalAppliedVersions": [
+      "20260925160000"
+    ],
     "migrationManifestSha256": "b1fe4a034c718d982c284f04e82d842de814ffc5ce5ae04897b3f38f6dad50c5"
   }
 }
