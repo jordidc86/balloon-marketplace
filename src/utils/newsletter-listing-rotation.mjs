@@ -24,26 +24,40 @@ export function selectNewsletterListings({
     ? new Date(nowDate.getTime() - safeDays * 86_400_000).toISOString()
     : null
 
+  // Public availability, not draft creation or paid plan, defines recency.
+  const publishedAt = (listing) => Date.parse(listing.public_at)
+  const recentSince = since ? Date.parse(since) : nowDate.getTime() - 15 * 86_400_000
   const eligible = (Array.isArray(listings) ? listings : [])
     .filter((listing) => {
       if (!listing || typeof listing.id !== 'string' || !listing.id) return false
-      if (typeof listing.created_at !== 'string' || Number.isNaN(new Date(listing.created_at).getTime())) return false
+      if (listing.status !== 'ACTIVE_PUBLIC') return false
+      if (typeof listing.public_at !== 'string' || !Number.isFinite(publishedAt(listing)) || publishedAt(listing) > nowDate.getTime()) return false
       return !since
-        || listing.created_at >= since
+        || publishedAt(listing) >= Date.parse(since)
         || (inclusionCounts.get(listing.id) || 0) === 0
         || Boolean(mixWithLatest)
     })
     .sort((left, right) => {
-      const countDifference = (inclusionCounts.get(left.id) || 0) - (inclusionCounts.get(right.id) || 0)
-      return countDifference || right.created_at.localeCompare(left.created_at)
+      return publishedAt(right) - publishedAt(left) || left.id.localeCompare(right.id)
     })
 
   const selected = eligible.slice(0, safeLimit)
   return {
     selected,
-    recentCount: selected.filter((listing) => !since || listing.created_at >= since).length,
+    recentCount: selected.filter((listing) => publishedAt(listing) >= recentSince).length,
     neverIncludedCount: selected.filter((listing) => (inclusionCounts.get(listing.id) || 0) === 0).length,
     inclusionCounts,
   }
 }
 
+export function getNewsletterCopy(recentCount) {
+  return recentCount > 0
+    ? {
+      subject: 'New arrivals on AeroTrade - Bi-Weekly Update',
+      introduction: 'Explore new arrivals and other available balloons and equipment, with the most recently published listings first.',
+    }
+    : {
+      subject: 'Available balloons and equipment on AeroTrade - Bi-Weekly Update',
+      introduction: 'Browse balloons and equipment currently available on AeroTrade, with the most recently published listings first.',
+    }
+}

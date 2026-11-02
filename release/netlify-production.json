@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-10-28-social-rotation",
-  "productionBaseCommit": "78338e94d6e308ec10f3c902ee4e7a9ee88378e8",
+  "releaseId": "2026-11-02-newsletter-latest-listings",
+  "productionBaseCommit": "b3c1ed364251ac8bf380c877776da6dfb9fa7247",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {

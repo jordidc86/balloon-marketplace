@@ -9,8 +9,7 @@ import {
   shouldReconcileStaleRecoveries,
 } from '@/utils/newsletter-recovery.mjs';
 import { siteUrl } from '@/utils/site';
-import { isPromotedListing } from '@/utils/listing-plans';
-import { selectNewsletterListings } from '@/utils/newsletter-listing-rotation.mjs';
+import { getNewsletterCopy, selectNewsletterListings } from '@/utils/newsletter-listing-rotation.mjs';
 import {
   buildNewsletterCampaign,
   buildNewsletterListingUrl,
@@ -81,7 +80,6 @@ const fallbackImageUrl = 'https://images.unsplash.com/photo-1543326727-cf6c39e8f
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const staleRunMs = 4 * 60 * 60 * 1000;
 const recoveryBodyLimit = 8 * 1024;
-const newsletterSubject = 'New Hot Air Balloons on AeroTrade - Bi-Weekly Update';
 
 const getPrimaryImageUrl = (listing: NewsletterListing) => {
   const primaryImage = listing.images?.find((image) => image.is_primary);
@@ -109,9 +107,6 @@ const normalizeEmail = (email: string | null) => {
   const normalizedEmail = email?.trim().toLowerCase();
   return normalizedEmail && emailPattern.test(normalizedEmail) ? normalizedEmail : null;
 };
-
-const getPromotedNewsletterListings = (listings: NewsletterListing[]) =>
-  listings.filter((listing) => isPromotedListing(listing.details));
 
 const getNewsletterUnsubscribeUrl = (recipient: NewsletterRecipient, secret: string) => {
   if (!recipient.id || recipient.kind === 'test') return `${siteUrl}/dashboard`;
@@ -168,7 +163,7 @@ const isUniqueViolation = (error: { code?: string } | null) => error?.code === '
 const isMissingAuditTable = (error: { code?: string; message?: string } | null) =>
   error?.code === 'PGRST205' || error?.code === '42P01' || Boolean(error?.message?.includes('newsletter_runs'));
 
-const generateNewsletterHtml = (listings: NewsletterListing[], periodKey: string) => {
+const generateNewsletterHtml = (listings: NewsletterListing[], periodKey: string, introduction: string) => {
   const listingsHtml = listings.map(listing => {
     const imageUrl = getPrimaryImageUrl(listing);
     const listingUrl = buildNewsletterListingUrl({
@@ -203,7 +198,7 @@ const generateNewsletterHtml = (listings: NewsletterListing[], periodKey: string
           </div>
 
           <p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 32px;">
-            Here are the latest hot air balloons and equipment currently available on AeroTrade.
+            ${escapeHtml(introduction)}
           </p>
           <p style="font-size: 16px; color: #334155; line-height: 1.6; margin-bottom: 32px;">
             These public listings are ready to view now.
@@ -564,7 +559,8 @@ export async function GET(request: Request) {
       .select('*, images(url, is_primary)')
       .eq('status', 'ACTIVE_PUBLIC')
       .lte('public_at', now)
-      .order('created_at', { ascending: false })
+      .order('public_at', { ascending: false })
+      .order('id', { ascending: true })
       .limit(500);
 
     const [{ data: availableListings, error: listingsError }, { data: priorRuns, error: priorRunsError }] = await Promise.all([
@@ -588,9 +584,8 @@ export async function GET(request: Request) {
       return new NextResponse('Error fetching listings', { status: 500 });
     }
 
-    const promotedListings = getPromotedNewsletterListings((availableListings || []) as NewsletterListing[]);
     const rotation = selectNewsletterListings({
-      listings: promotedListings,
+      listings: availableListings || [],
       priorRuns,
       days,
       mixWithLatest,
@@ -715,7 +710,9 @@ export async function GET(request: Request) {
       });
     }
 
-    const htmlBody = generateNewsletterHtml(recentListings, periodKey);
+    const newsletterCopy = getNewsletterCopy(primaryListingCount);
+    const newsletterSubject = newsletterCopy.subject;
+    const htmlBody = generateNewsletterHtml(recentListings, periodKey, newsletterCopy.introduction);
     await persistNewsletterContentSnapshot(
       supabase,
       activeRun.id,

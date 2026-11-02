@@ -180,9 +180,16 @@ const checks = [
     required: ['premium-alert/${listingId}', 'Premium alert recipient readback failed', 'Premium alert run result did not persist'],
   },
   {
-    name: 'Newsletter gives unfulfilled paid promotions priority and rotates exposure',
+    name: 'Newsletter prioritizes public publication dates and includes free listings',
     file: 'src/utils/newsletter-listing-rotation.mjs',
-    required: ['inclusionCounts', '=== 0', 'countDifference', 'neverIncludedCount'],
+    required: ['inclusionCounts', "listing.status !== 'ACTIVE_PUBLIC'", 'publishedAt(right) - publishedAt(left)', 'neverIncludedCount'],
+    forbidden: ['isPromotedListing', 'countDifference'],
+  },
+  {
+    name: 'Newsletter route selects all public plans newest first and snapshots accurate copy',
+    file: 'src/app/api/cron/newsletter/route.ts',
+    required: [".eq('status', 'ACTIVE_PUBLIC')", ".lte('public_at', now)", ".order('public_at', { ascending: false })", 'listings: availableListings || []', 'getNewsletterCopy(primaryListingCount)', 'newsletterCopy.introduction'],
+    forbidden: ['isPromotedListing', 'getPromotedNewsletterListings'],
   },
   {
     name: 'Stripe commercial audit is read-only and PII-free',
@@ -1124,7 +1131,7 @@ const checks = [
   {
     name: 'Newsletter dispatch uses the canonical campaign period rather than its suffixed audit key',
     file: 'src/app/api/cron/newsletter/route.ts',
-    required: ['const newsletterPeriodKey = periodKey;', 'generateNewsletterHtml(recentListings, periodKey)', 'buildNewsletterListingUrl({', 'utmCampaign: buildNewsletterCampaign(newsletterPeriodKey)'],
+    required: ['const newsletterPeriodKey = periodKey;', 'generateNewsletterHtml(recentListings, periodKey, newsletterCopy.introduction)', 'buildNewsletterListingUrl({', 'utmCampaign: buildNewsletterCampaign(newsletterPeriodKey)'],
     forbidden: ['generateNewsletterHtml(recentListings, activeRun.periodKey)'],
   },
   {
