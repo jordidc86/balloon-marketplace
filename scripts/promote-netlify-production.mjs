@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { validateProductionPromotion } from './lib/production-release.mjs'
+import { withExternalMigrationGuardsSync } from './lib/external-migration-guards.mjs'
 import {
   assessProductionMigrationState,
   assertProductionMigrationStateIsSafe,
@@ -163,15 +164,30 @@ const validation = validateProductionPromotion({
 const backwardCompatibility = verifyBackwardCompatibility()
 assert.equal(backwardCompatibility.baseCommit, productionCommit, 'Backward compatibility proof targets another production commit')
 assert.equal(backwardCompatibility.candidateCommit, candidateCommit, 'Backward compatibility proof targets another candidate commit')
+const ledgerRowsBefore = listProductionMigrations()
 const migrationStateBefore = assessProductionMigrationState({
-  ledgerRows: listProductionMigrations(),
+  ledgerRows: ledgerRowsBefore,
   repositoryVersions: repositoryMigrationVersions,
   requiredVersions: migrationManifest.migrationVersions,
   externalAppliedVersions: marker.database.externalAppliedVersions,
 })
 assertProductionMigrationStateIsSafe(migrationStateBefore, { allowRequiredPending: true })
 
+function pushDeclaredMigrations(dryRun) {
+  return withExternalMigrationGuardsSync(
+    'supabase/migrations',
+    marker.database.externalAppliedVersions || [],
+    ledgerRowsBefore.map(row => row.remote).filter(Boolean),
+    () => run('npx', [
+      '--yes', `supabase@${supabaseCliVersion}`, 'db', 'push', '--linked', '--include-all', '--yes', '--workdir', '.',
+      ...(dryRun ? ['--dry-run'] : []),
+    ]),
+  )
+}
+
 if (!apply) {
+  if (migrationStateBefore.requiredPendingVersions.length > 0) pushDeclaredMigrations(true)
+  assert.equal(git(['status', '--porcelain']), '', 'Migration guard cleanup must leave the worktree clean')
   output({
     mode: 'dry_run',
     result: migrationStateBefore.requiredPendingVersions.length > 0
@@ -205,10 +221,9 @@ assert.equal(
 run('npm', ['run', 'verify:production-release'])
 if (migrationStateBefore.requiredPendingVersions.length > 0) {
   databaseMutationAttempted = true
-  run('npx', [
-    '--yes', `supabase@${supabaseCliVersion}`, 'db', 'push', '--linked', '--include-all', '--yes', '--workdir', '.',
-  ])
+  pushDeclaredMigrations(false)
 }
+assert.equal(git(['status', '--porcelain']), '', 'Migration guard cleanup must leave the worktree clean')
 const migrationStateAfter = assessProductionMigrationState({
   ledgerRows: listProductionMigrations(),
   repositoryVersions: repositoryMigrationVersions,

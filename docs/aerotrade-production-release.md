@@ -33,6 +33,14 @@ The dry run fetches both remote branches and requires the clean checked-out `HEA
 
 ## Publish once
 
+For explicitly declared `externalAppliedVersions`, the CLI push is wrapped in
+temporary recognition files. They are created only after the remote ledger proves
+those versions are already applied. Each contains a `RAISE EXCEPTION`, so if the
+ledger changes and the CLI unexpectedly tries to execute one, the operation fails
+closed. These files contain no historical SQL, never overwrite local files, and are
+removed in `finally` before branch promotion. No ledger repair is performed. The
+dry run also executes the CLI's own `db push --dry-run` under the same guards.
+
 After explicit release approval, use the exact `releaseId` printed by the dry run:
 
 ```bash
