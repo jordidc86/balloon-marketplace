@@ -4,6 +4,16 @@ import { canonicalCountry, getGlobalSearchSource, normalizeSearchText, safeListi
 
 const MAX_AGE = 72 * 60 * 60 * 1000
 
+export function hasCurrentExternalPages(snapshots, now = Date.now()) {
+  return snapshots.some(snapshot => {
+    const source = getGlobalSearchSource(snapshot?.sourceId)
+    return source && (snapshot.pages || []).some(page => {
+      const age = now - Date.parse(page.checkedAt)
+      return source.pages.includes(page.path) && Number.isFinite(age) && age >= -60000 && age <= MAX_AGE
+    })
+  })
+}
+
 // A failed page keeps its own previous timestamp. A successful page replaces
 // only that page; an explicit sold/test marker removes the URL across all pages.
 export function reconcileSnapshot(previous, incoming, source, now = Date.now()) {

@@ -24,7 +24,7 @@ import {
   minimumCountryInventoryForIndexing,
 } from '@/utils/catalog-countries.mjs'
 import { redirect } from 'next/navigation'
-import { matchesCatalogText, searchExternalListings, visibleExternalListings } from '@/utils/global-search/index.mjs'
+import { hasCurrentExternalPages, matchesCatalogText, searchExternalListings, visibleExternalListings } from '@/utils/global-search/index.mjs'
 
 export const metadata: Metadata = {
   title: 'Catalog | AeroTrade Marketplace',
@@ -161,6 +161,7 @@ export async function CatalogExperience({
     ? await supabaseAdmin.from('external_catalog_sources').select('snapshot')
     : { data: [], error: null }
   const externalInventory = visibleExternalListings((externalResult.data || []).map(row => row.snapshot))
+  const externalUnavailable = includeExternal && (externalResult.error || !hasCurrentExternalPages((externalResult.data || []).map(row => row.snapshot)))
   const externalListings = searchExternalListings(
     externalInventory,
     { query: searchQuery, category: categoryFilter || '', country: country?.name || countryFilter, manufacturer, sort },
@@ -242,7 +243,7 @@ export async function CatalogExperience({
       </div>
 
       <p className="mb-4 text-sm text-muted-foreground">{catalogListings.length} on AeroTrade{includeExternal ? ` · ${externalListings.length} on other marketplaces` : ''}</p>
-      {externalResult.error ? <p className="mb-4 text-sm text-muted-foreground">Other marketplaces are temporarily unavailable. AeroTrade results are shown below.</p> : null}
+      {externalUnavailable ? <p className="mb-4 text-sm text-muted-foreground">Other marketplaces are temporarily unavailable. AeroTrade results are shown below.</p> : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {(catalogListings as ListingWithImages[]).map((listing) => {

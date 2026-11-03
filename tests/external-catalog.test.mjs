@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { getGlobalSearchSource, canonicalCountry, GLOBAL_SEARCH_SOURCES, safeThumbnailUrl } from '../src/utils/global-search/sources.mjs'
 import { fetchSourceSnapshot } from '../src/utils/global-search/fetch.mjs'
 import { categoryForPath, parseSourcePageData } from '../src/utils/global-search/parse.mjs'
-import { matchesCatalogText, reconcileSnapshot, visibleExternalListings, searchExternalListings, externalPrice } from '../src/utils/global-search/index.mjs'
+import { hasCurrentExternalPages, matchesCatalogText, reconcileSnapshot, visibleExternalListings, searchExternalListings, externalPrice } from '../src/utils/global-search/index.mjs'
 import { authorizedRefresh, refreshExternalCatalog } from '../src/utils/global-search/refresh.mjs'
 
 const source = getGlobalSearchSource('zebedee')
@@ -66,6 +66,12 @@ test('review 3: failed pages keep data without refreshing the observation timest
   const next = reconcileSnapshot(snapshot([page([advert()], yesterday)]), { status: 'unavailable' }, source, now)
   assert.equal(visibleExternalListings([next], now)[0].checkedAt, yesterday)
   assert.equal(visibleExternalListings([next], now + 3 * 86400000).length, 0)
+})
+
+test('review 1: an unavailable index is distinguished from a fresh but empty catalogue', () => {
+  assert.equal(hasCurrentExternalPages([], now), false)
+  assert.equal(hasCurrentExternalPages([snapshot([page([])])], now), true)
+  assert.equal(hasCurrentExternalPages([snapshot()], now + 4 * 86400000), false)
 })
 
 test('review 3: explicit sold markers remove an advert even from another failed category', () => {
