@@ -1,18 +1,20 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-03-catalog-polish",
-  "productionBaseCommit": "1b429489432399786894a5c2ba721ca1fd09aba9",
+  "releaseId": "2026-11-03-traffic-measurement",
+  "productionBaseCommit": "09f3986696a660a471e9d2ef47f7a653a88fac62",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
     "provider": "supabase",
     "applyBeforeApplication": true,
     "requiresExactConfirmation": true,
-    "migrationCount": 0,
-    "migrationVersions": [],
+    "migrationCount": 1,
+    "migrationVersions": [
+      "20261103150000"
+    ],
     "externalAppliedVersions": [
       "20260925160000"
     ],
-    "migrationManifestSha256": "b1fe4a034c718d982c284f04e82d842de814ffc5ce5ae04897b3f38f6dad50c5"
+    "migrationManifestSha256": "99f4bcc67be564a7f9bc9351c773f96697309672e4a68d2f39a486d3842c7990"
   }
 }

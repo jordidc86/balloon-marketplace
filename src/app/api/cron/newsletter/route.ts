@@ -13,6 +13,7 @@ import { getNewsletterCopy, selectNewsletterListings } from '@/utils/newsletter-
 import {
   buildNewsletterCampaign,
   buildNewsletterListingUrl,
+  buildNewsletterCatalogUrl,
   newsletterAttribution,
 } from '@/utils/newsletter-links.mjs';
 import {
@@ -205,6 +206,7 @@ const generateNewsletterHtml = (listings: NewsletterListing[], periodKey: string
           </p>
 
           ${listingsHtml}
+          <p style="text-align: center; margin-top: 32px;"><a href="${escapeHtml(buildNewsletterCatalogUrl({ baseUrl: siteUrl, periodKey }))}" style="color: #c45b17; font-weight: bold;">Search all available balloons and equipment</a></p>
 
           <div style="text-align: center; margin-top: 48px; padding-top: 32px; border-top: 1px solid #e2e8f0;">
             <p style="color: #94a3b8; font-size: 14px;">

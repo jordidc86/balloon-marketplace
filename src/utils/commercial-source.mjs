@@ -38,7 +38,7 @@ export function mergeCommercialSource({ currentUrl, documentReferrer, siteHostna
   } : { referrerHost: null, utmSource: null, utmMedium: null, utmCampaign: null }
 
   const hasCurrentCampaign = Boolean(current.utmSource || current.utmMedium || current.utmCampaign)
-  if (current.referrerHost) return current
-  if (hasCurrentCampaign) return { ...current, referrerHost: savedSource.referrerHost }
+  if (hasCurrentCampaign) return { ...current, referrerHost: current.referrerHost || savedSource.referrerHost }
+  if (current.referrerHost && current.referrerHost !== savedSource.referrerHost) return current
   return savedSource
 }

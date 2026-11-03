@@ -63,3 +63,8 @@ test('malformed and oversized source values fail safely and are bounded', () => 
   assert.equal(source.referrerHost, null)
   assert.equal(source.utmSource?.length, 120)
 })
+
+test('SPA navigation retains campaign when document referrer stays external', () => {
+  const saved = {referrerHost:'l.facebook.com',utmSource:'facebook',utmMedium:'organic_social',utmCampaign:'integrated_search'}
+  assert.deepEqual(mergeCommercialSource({currentUrl:'https://aerotrade.app/catalog',documentReferrer:'https://l.facebook.com/',siteHostname:'aerotrade.app',saved}),saved)
+})

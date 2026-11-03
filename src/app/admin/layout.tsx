@@ -38,6 +38,7 @@ export default async function AdminLayout({
           <Link href="/admin" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors">
             <LayoutDashboard className="w-4 h-4 text-primary" /> Overview
           </Link>
+          <Link href="/admin/traffic" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-muted"><TrendingUp className="w-4 h-4 text-primary" /> Traffic & contacts</Link>
           <Link href="/admin/users" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors">
             <Users className="w-4 h-4 text-primary" /> Manage Users
           </Link>

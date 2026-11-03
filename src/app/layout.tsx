@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Navbar from "@/components/Navbar";
+import TrafficTracker from '@/components/TrafficTracker';
 import Footer from "@/components/Footer";
 import "./globals.css";
 import { siteUrl } from '@/utils/site'
@@ -50,6 +51,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildMarketplaceIdentityJsonLd(siteUrl)) }}
         />
+        <TrafficTracker />
         <Navbar />
         <main className="flex-1">
           {children}

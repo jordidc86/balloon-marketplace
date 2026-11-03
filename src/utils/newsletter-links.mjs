@@ -26,3 +26,12 @@ export function buildNewsletterListingUrl({ baseUrl, listingId, periodKey }) {
   url.searchParams.set('utm_campaign', buildNewsletterCampaign(periodKey))
   return url.toString()
 }
+
+export function buildNewsletterCatalogUrl({ baseUrl, periodKey }) {
+  const url = new URL('/catalog', baseUrl)
+  url.searchParams.set('utm_source', newsletterAttribution.source)
+  url.searchParams.set('utm_medium', newsletterAttribution.medium)
+  url.searchParams.set('utm_campaign', buildNewsletterCampaign(periodKey))
+  url.searchParams.set('utm_content', 'browse_catalog')
+  return url.toString()
+}
