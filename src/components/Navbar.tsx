@@ -38,7 +38,6 @@ export default async function Navbar() {
             <Link href="/wanted" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Wanted</Link>
             <Link href="/sell?source=navigation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sell Equipment</Link>
             <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Buyer Early Access</Link>
-            <Link href="/new-balloon?source=navigation" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors">Buy New</Link>
           </div>
 
           <div className="hidden items-center space-x-2 lg:flex sm:space-x-4">
@@ -69,9 +68,6 @@ export default async function Navbar() {
               </>
             ) : (
               <div className="flex items-center space-x-2 sm:space-x-4 border-l pl-2 sm:pl-4 ml-1 sm:ml-2">
-                <Link href="/pricing" className="hidden sm:inline text-sm font-medium hover:text-primary transition-colors">
-                  Buyer Early Access
-                </Link>
                 <Link href="/new-balloon?source=navigation" className="inline-flex items-center whitespace-nowrap bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
                   Buy New
                 </Link>

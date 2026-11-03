@@ -1,6 +1,6 @@
 import { canonicalCountry, getGlobalSearchSource, normalizeSearchText, safeListingUrl, safeThumbnailUrl } from './sources.mjs'
 
-/** @typedef {{sourceId:string,title:string,url:string,price:string|null,registration:string|null,category:string|null,country:string|null,thumbnail?:string|null,firstSeenAt?:string,checkedAt?:string,sourceName?:string}} ExternalListing */
+/** @typedef {{sourceId:string,title:string,url:string,price:string|null,registration:string|null,category:string|null,country:string|null,thumbnail?:string|null,firstSeenAt?:string,checkedAt?:string,sourceName?:string,priceConfirmedAt?:string}} ExternalListing */
 
 const MAX_AGE = 72 * 60 * 60 * 1000
 
@@ -47,7 +47,7 @@ export function visibleExternalListings(snapshots, now = Date.now()) {
       }
     }
   }
-  return [...listings.values()]
+  return [...listings.values()].map(applySellerPriceCorrection)
 }
 
 export function matchesCatalogText(item, query) {
@@ -86,4 +86,16 @@ export function searchExternalListings(listings, { query = '', category = '', co
       }
       return (Date.parse(b.firstSeenAt) || 0) - (Date.parse(a.firstSeenAt) || 0) || a.title.localeCompare(b.title)
     })
+}
+
+// Seller-approved correction received 2026-11-03. Exact advert and old price only:
+// a later price supplied by the original portal always takes precedence.
+export function applySellerPriceCorrection(item) {
+  if (item.sourceId === 'zebedee'
+    && item.url === 'https://www.zebedeelist.co.uk/zebedee_list/ultramagic-h31/'
+    && item.registration === 'G-DVCI'
+    && externalPrice(item).currency === 'GBP' && externalPrice(item).amount === 14500) {
+    return { ...item, price: '£13,000', priceConfirmedAt: '3 Nov 2026' }
+  }
+  return item
 }

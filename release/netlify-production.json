@@ -1,20 +1,18 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-03-integrated-catalog",
-  "productionBaseCommit": "aa6c777137eb83d08ad496a24ff3e4e348b8ebd8",
+  "releaseId": "2026-11-03-catalog-polish",
+  "productionBaseCommit": "1b429489432399786894a5c2ba721ca1fd09aba9",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
     "provider": "supabase",
     "applyBeforeApplication": true,
     "requiresExactConfirmation": true,
-    "migrationCount": 1,
-    "migrationVersions": [
-      "20261103080000"
-    ],
+    "migrationCount": 0,
+    "migrationVersions": [],
     "externalAppliedVersions": [
       "20260925160000"
     ],
-    "migrationManifestSha256": "56f286329cdd599624b3a416cfbbedd7e4f8865cd500bd1127827dfa4fe87a18"
+    "migrationManifestSha256": "b1fe4a034c718d982c284f04e82d842de814ffc5ce5ae04897b3f38f6dad50c5"
   }
 }

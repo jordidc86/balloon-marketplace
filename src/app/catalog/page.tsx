@@ -177,8 +177,28 @@ export async function CatalogExperience({
       : '/catalog'
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
       <CatalogSearchTracker search={{ query: searchQuery || manufacturer?.name || '', category: categoryFilter, country: country?.name || countryFilter, sort, resultCount: totalResults }} />
+      <form method="get" action={catalogPath} className="mb-6 grid grid-cols-2 gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1fr_220px_180px_auto]">
+        <label className="relative col-span-2 md:col-span-1">
+          <span className="sr-only">Search equipment</span>
+          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <input name="q" defaultValue={searchQuery} maxLength={100} placeholder="Manufacturer, model, country…" className="w-full rounded-lg border bg-background py-2.5 pl-9 pr-3" />
+        </label>
+        {country ? <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm font-semibold">Located in {country.name}</div> : (
+          <select aria-label="Country" name="country" defaultValue={countryFilter} className="rounded-lg border bg-background px-3 py-2.5">
+            <option value="">All countries</option>
+            {countries.map((countryName) => <option key={countryName} value={countryName}>{countryName.trim()}</option>)}
+          </select>
+        )}
+        <select aria-label="Sort results" name="sort" defaultValue={sort} className="rounded-lg border bg-background px-3 py-2.5">
+          <option value="newest">Newest first</option>
+          <option value="price_asc">Lowest price</option>
+          <option value="price_desc">Highest price</option>
+        </select>
+        <button className="col-span-2 md:col-span-1 rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background">Apply</button>
+      </form>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{country?.heading || manufacturer?.heading || category?.heading || 'Marketplace Catalog'}</h1>
@@ -196,50 +216,6 @@ export async function CatalogExperience({
           <Link href={getCatalogCategoryPath('cylinders')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'cylinders' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Cylinders</Link>
           <Link href={getCatalogCategoryPath('other-equipment')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${categoryFilter === 'other-equipment' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Other Equipment</Link>
         </div>
-      </div>
-
-      {publicManufacturerLinks.length ? (
-        <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-semibold text-muted-foreground">Browse real inventory by manufacturer:</span>
-          {publicManufacturerLinks.map((item) => (
-            <Link key={item.slug} href={getCatalogManufacturerPath(item.slug)} className={`rounded-full border px-3 py-1.5 font-semibold transition-colors ${manufacturer?.slug === item.slug ? 'border-primary bg-primary text-primary-foreground' : 'bg-background text-foreground hover:border-primary hover:text-primary'}`}>{item.name}</Link>
-          ))}
-        </div>
-      ) : null}
-
-      {publicCountryLinks.length ? (
-        <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-semibold text-muted-foreground">Browse real inventory by location:</span>
-          {publicCountryLinks.map((item) => (
-            <Link key={item.slug} href={getCatalogCountryPath(item.slug)} className={`rounded-full border px-3 py-1.5 font-semibold transition-colors ${country?.slug === item.slug ? 'border-primary bg-primary text-primary-foreground' : 'bg-background text-foreground hover:border-primary hover:text-primary'}`}>{item.name}</Link>
-          ))}
-        </div>
-      ) : null}
-
-      <form method="get" action={catalogPath} className="mb-8 grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-[1fr_220px_180px_auto]">
-        <label className="relative">
-          <span className="sr-only">Search equipment</span>
-          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <input name="q" defaultValue={searchQuery} maxLength={100} placeholder="Manufacturer, model, country…" className="w-full rounded-lg border bg-background py-2.5 pl-9 pr-3" />
-        </label>
-        {country ? <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm font-semibold">Located in {country.name}</div> : (
-          <select name="country" defaultValue={countryFilter} className="rounded-lg border bg-background px-3 py-2.5">
-            <option value="">All countries</option>
-            {countries.map((countryName) => <option key={countryName} value={countryName}>{countryName.trim()}</option>)}
-          </select>
-        )}
-        <select name="sort" defaultValue={sort} className="rounded-lg border bg-background px-3 py-2.5">
-          <option value="newest">Newest first</option>
-          <option value="price_asc">Lowest price</option>
-          <option value="price_desc">Highest price</option>
-        </select>
-        <button className="rounded-lg bg-foreground px-5 py-2.5 font-semibold text-background">Apply</button>
-      </form>
-
-      <div className="mb-8 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-        <div><p className="font-bold">Did not find the balloon or equipment you want?</p><p className="mt-1 text-sm text-muted-foreground">Tell AeroTrade what is missing so we can help find it, or request an approximate budget for a factory-new Pasha or Schroeder balloon. New aircraft are available independently of today&apos;s used inventory.</p></div>
-        <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg border border-primary/30 bg-background px-4 py-2 text-center text-sm font-semibold text-primary">Tell us what you need</Link>
-        <Link href={newBalloonHref} className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Get a new-balloon estimate</Link>
       </div>
 
       <p className="mb-4 text-sm text-muted-foreground">{catalogListings.length} on AeroTrade{includeExternal ? ` · ${externalListings.length} on other marketplaces` : ''}</p>
@@ -330,7 +306,8 @@ export async function CatalogExperience({
                 <span className="text-xs font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{listing.sourceName}</span>
               </div>
               <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
-              <p className="text-xl font-extrabold text-foreground mb-4">{listing.price || 'Price on request'}</p>
+              <p className="text-xl font-extrabold text-foreground mb-4">{listing.price || 'See price on original site'}</p>
+              {listing.priceConfirmedAt ? <p className="mb-3 text-xs text-muted-foreground">Price confirmed by seller · {listing.priceConfirmedAt}</p> : null}
               <div className="mt-auto w-full pt-4 border-t flex items-center justify-between gap-2 text-sm text-muted-foreground">
                 <span className="truncate">{listing.country || listing.registration || ''}</span>
                 <span className="shrink-0 font-semibold text-primary">View advert ↗</span>
@@ -352,6 +329,35 @@ export async function CatalogExperience({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="mt-10">
+      {publicManufacturerLinks.length ? (
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-muted-foreground">Browse real inventory by manufacturer:</span>
+          {publicManufacturerLinks.map((item) => (
+            <Link key={item.slug} href={getCatalogManufacturerPath(item.slug)} className={`rounded-full border px-3 py-1.5 font-semibold transition-colors ${manufacturer?.slug === item.slug ? 'border-primary bg-primary text-primary-foreground' : 'bg-background text-foreground hover:border-primary hover:text-primary'}`}>{item.name}</Link>
+          ))}
+        </div>
+      ) : null}
+
+      {publicCountryLinks.length ? (
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-muted-foreground">Browse real inventory by location:</span>
+          {publicCountryLinks.map((item) => (
+            <Link key={item.slug} href={getCatalogCountryPath(item.slug)} className={`rounded-full border px-3 py-1.5 font-semibold transition-colors ${country?.slug === item.slug ? 'border-primary bg-primary text-primary-foreground' : 'bg-background text-foreground hover:border-primary hover:text-primary'}`}>{item.name}</Link>
+          ))}
+        </div>
+      ) : null}
+
+
+
+      <div className="mb-8 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+        <div><p className="font-bold">Did not find the balloon or equipment you want?</p><p className="mt-1 text-sm text-muted-foreground">Tell AeroTrade what is missing so we can help find it, or request an approximate budget for a factory-new Pasha or Schroeder balloon. New aircraft are available independently of today&apos;s used inventory.</p></div>
+        <Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="rounded-lg border border-primary/30 bg-background px-4 py-2 text-center text-sm font-semibold text-primary">Tell us what you need</Link>
+        <Link href={newBalloonHref} className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Get a new-balloon estimate</Link>
+      </div>
+
       </div>
 
       <div className="mt-10">
