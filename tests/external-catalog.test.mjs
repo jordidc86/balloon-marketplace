@@ -18,6 +18,7 @@ test('review 1: the existing catalogue owns the search, cards and mobile navigat
   const catalog = readFileSync(new URL('../src/app/catalog/page.tsx', import.meta.url), 'utf8')
   assert.ok(catalog.indexOf('catalogListings as ListingWithImages[]') < catalog.indexOf('externalListings.map'))
   assert.match(catalog, /totalResults === 0/)
+  assert.match(catalog, /resultCount: totalResults/)
   assert.doesNotMatch(catalog, /href="\/global-search"|Sources and coverage|selected portals|Beta/)
   assert.doesNotMatch(readFileSync(new URL('../src/components/MobileNavigation.tsx', import.meta.url), 'utf8'), /global-search/)
   assert.match(readFileSync(new URL('../src/app/global-search/page.tsx', import.meta.url), 'utf8'), /permanentRedirect/)

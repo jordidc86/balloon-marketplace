@@ -178,7 +178,7 @@ export async function CatalogExperience({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <CatalogSearchTracker search={{ query: searchQuery || manufacturer?.name || '', category: categoryFilter, country: country?.name || countryFilter, sort, resultCount: catalogListings.length }} />
+      <CatalogSearchTracker search={{ query: searchQuery || manufacturer?.name || '', category: categoryFilter, country: country?.name || countryFilter, sort, resultCount: totalResults }} />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{country?.heading || manufacturer?.heading || category?.heading || 'Marketplace Catalog'}</h1>
