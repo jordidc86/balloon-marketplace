@@ -58,6 +58,10 @@ test('sold and fake ads are excluded without confusing â€œcan be sold with ARCâ€
   assert.throws(() => parseSourcePage('<html>Sign in to continue</html>', getGlobalSearchSource('secondhand')), /format/)
 })
 
+test('changed advert links are a parser failure, not a successful empty catalogue', () => {
+  assert.throws(() => parseSourcePage(fixtures.barnstormers.replace('listing_header', 'new_header'), getGlobalSearchSource('barnstormers')), /format/)
+})
+
 test('robots longest matching allow wins, named groups override wildcard and crawl delay is honoured', () => {
   const text = 'User-agent: *\nDisallow: /private/\nAllow: /private/public$\nCrawl-delay: 5'
   assert.deepEqual(robotsPolicy(text, 'https://example.test/last'), { allowed: true, delay: 5 })

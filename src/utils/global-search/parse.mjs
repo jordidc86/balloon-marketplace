@@ -6,6 +6,7 @@ const clean = value => String(value || '').replace(/\s+/g, ' ').trim()
 export function parseSourcePage(html, source) {
   const $ = load(html)
   const listings = []
+  let recognized = 0
   const selectors = {
     balloons4sale: '.article_clickable', zebedee: '.listing-item',
     secondhand: '.shb-archive-ad', swapballoon: '.wc-block-grid__product, li.product:not(.product-category)',
@@ -26,6 +27,7 @@ export function parseSourcePage(html, source) {
     const description = clean(card.find('.cat_content, .excerpt, .shb-archive-excerpt, .body').text())
     const status = clean(card.find('.sold-out-label, .stock, .action_phrase, .shb-status, .shb-badge').text())
     if (!url || !title || /@|https?:\/\//i.test(title)) return
+    recognized++
     if (card.is('.outofstock, .sold, .is-sold') || /\b(?:sold|out of stock)\b/i.test(status) || /^(?:sold\b|test\b)/i.test(title) || /\b(?:ad is not real|test description|this is (?:only )?a test)\b/i.test(description)) return
     let price = clean(card.find('.shb-archive-price, .price').first().text())
     if (!price && source.id === 'zebedee') price = description.match(/[£€$]\s*\d[\d.,]*(?:\s*(?:\+\s*VAT|incl\.?\s*VAT|ono))?/i)?.[0] || ''
@@ -36,6 +38,6 @@ export function parseSourcePage(html, source) {
     listings.push({ sourceId: source.id, title, url, price: price || null, registration })
   })
   const knownEmpty = source.id === 'secondhand' && $('.shb-archive').length > 0 && /no (?:ads|adverts|listings|results)/i.test($('main').text())
-  if (!cards.length && !knownEmpty) throw new Error('Catalogue format unavailable')
+  if ((!cards.length && !knownEmpty) || (cards.length && !recognized)) throw new Error('Catalogue format unavailable')
   return [...new Map(listings.map(listing => [listing.url, listing])).values()]
 }
