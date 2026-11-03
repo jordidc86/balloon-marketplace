@@ -42,7 +42,9 @@ export function parseSourcePageData(html, source, path = '') {
     const thumbnail = safeThumbnailUrl(card.find('img').first().attr('src'), source)
     listings.push({ sourceId: source.id, title, url, price: price || null, registration, category: categoryForPath(path), country, thumbnail })
   })
-  const knownEmpty = source.id === 'secondhand' && $('.shb-archive').length > 0 && /no (?:ads|adverts|listings|results)/i.test($('main').text())
+  const explicitEmpty = /no (?:ads|adverts|listings|products|items|posts)(?: were)? (?:found|available)|no results found/i.test($('main, .entry-content, .woocommerce-info').text())
+  const zeroCategoryCount = source.id === 'balloons4sale' && path && $('a').filter((_, element) => $(element).attr('href') === path).toArray().some(element => /\(0\)\s*$/.test(clean($(element).text())))
+  const knownEmpty = explicitEmpty || zeroCategoryCount || (source.id === 'secondhand' && $('.shb-archive').length > 0 && /no (?:ads|adverts|listings|results)/i.test($('main').text()))
   if ((!cards.length && !knownEmpty) || (cards.length && !recognized)) throw new Error('Catalogue format unavailable')
   return { listings: [...new Map(listings.map(listing => [listing.url, listing])).values()], removedUrls }
 }

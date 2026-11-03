@@ -22,9 +22,11 @@ export function reconcileSnapshot(previous, incoming, source, now = Date.now()) 
   for (const page of incoming.pages || []) {
     pages.set(page.path, { ...page, listings: page.listings.map(item => ({ ...item, firstSeenAt: firstSeen.get(item.url) || page.checkedAt })) })
   }
-  const removed = new Set(incoming.removedUrls || [])
+  // Keep known sold URLs through a partial run. A complete, successful catalogue
+  // can legitimately reintroduce an advert that the seller has relisted.
+  const removed = new Set([...(incoming.status === 'ok' ? [] : previous?.removedUrls || []), ...incoming.removedUrls || []])
   return {
-    sourceId: source.id, status: incoming.status, failedPaths: incoming.failedPaths || [], attemptedAt: new Date(now).toISOString(),
+    sourceId: source.id, status: incoming.status, removedUrls: [...removed], failedPaths: incoming.failedPaths || [], attemptedAt: new Date(now).toISOString(),
     pages: [...pages.values()].filter(page => now - Date.parse(page.checkedAt) <= MAX_AGE).map(page => ({ ...page, listings: page.listings.filter(item => !removed.has(item.url)) })),
   }
 }

@@ -97,6 +97,20 @@ test('review 3: partial success updates only successful pages', () => {
   assert.equal(next.pages[0].checkedAt, date); assert.equal(next.pages[1].checkedAt, yesterday)
 })
 
+test('review 3: an explicit zero category count clears its last saved advert', () => {
+  const parsed = parseSourcePageData('<nav><a href="/burners">Burners(0)</a></nav><main><h1>Burners</h1></main>', getGlobalSearchSource('balloons4sale'), '/burners')
+  assert.deepEqual(parsed.listings, [])
+  assert.throws(() => parseSourcePageData('<nav><a href="/burners">Burners(12)</a></nav>', getGlobalSearchSource('balloons4sale'), '/burners'), /format/)
+})
+
+test('review 3: partial updates cannot resurrect a previously sold advert', () => {
+  const sold = reconcileSnapshot(snapshot(), { status: 'ok', pages: [page([])], removedUrls: [advert().url] }, source, now)
+  const partial = reconcileSnapshot(sold, { status: 'partial', pages: [page()] }, source, now)
+  assert.equal(visibleExternalListings([partial], now).length, 0)
+  const relisted = reconcileSnapshot(partial, { status: 'ok', pages: [page()], removedUrls: [] }, source, now)
+  assert.equal(visibleExternalListings([relisted], now).length, 1)
+})
+
 test('review 4: saved data is revalidated and public output excludes internal fields', () => {
   const rows = visibleExternalListings([snapshot([page([{ ...advert(), email: 'private@example.test' }, { ...advert('evil'), url: 'https://evil.test/' }])]), { sourceId: 'hotair', pages: [page()] }], now)
   assert.equal(rows.length, 1); assert.ok(!JSON.stringify(rows).includes('private@example'))
