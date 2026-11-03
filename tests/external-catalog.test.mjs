@@ -82,6 +82,13 @@ test('review 3: explicit sold markers remove an advert even from another failed 
   assert.deepEqual(parsed.removedUrls, [advert().url]); assert.equal(parsed.listings.length, 0)
 })
 
+test('review 3: sold suffix is removed while a sales urgency phrase is not a sale confirmation', () => {
+  const sold = '<div class="listing-item"><a class="title" href="/zebedee_list/example/">Balloon — SOLD</a></div>'
+  assert.equal(parseSourcePageData(sold, source).listings.length, 0)
+  const forSale = '<div class="classified_single"><a class="listing_header" href="/classified-123-BALLOON.html">Balloon</a><span class="action_phrase">MUST BE SOLD</span></div>'
+  assert.equal(parseSourcePageData(forSale, getGlobalSearchSource('barnstormers')).listings.length, 1)
+})
+
 test('review 3: partial success updates only successful pages', () => {
   const yesterday = new Date(now - 86400000).toISOString()
   const old = snapshot([page([advert()], yesterday), page([advert('other')], yesterday, source.pages[1])])

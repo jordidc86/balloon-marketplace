@@ -26,10 +26,11 @@ export function parseSourcePageData(html, source, path = '') {
     const url = safeListingUrl(link.attr('href'), source)
     const title = clean(source.id === 'swapballoon' ? card.find('.wc-block-grid__product-title, .woocommerce-loop-product__title').first().text() : link.text()).slice(0, 160)
     const description = clean(card.find('.cat_content, .excerpt, .shb-archive-excerpt, .body').text())
-    const status = clean(card.find('.sold-out-label, .stock, .action_phrase, .shb-status, .shb-badge').text())
+    const status = clean(card.find('.sold-out-label, .stock, .shb-status, .shb-badge').text())
     if (!url || !title || /@|https?:\/\//i.test(title)) return
     recognized++
-    if (card.is('.outofstock, .sold, .is-sold') || /\b(?:sold|out of stock)\b/i.test(status) || /^(?:sold\b|test\b)/i.test(title) || /\b(?:ad is not real|test description|this is (?:only )?a test)\b/i.test(description)) { removedUrls.push(url); return }
+    const soldTitle = /^sold\b(?!\s+(?:with|as|by|for|separately))/i.test(title) || (/\bsold\s*[!.)\]]*$/i.test(title) && !/\b(?:must|can|to)\s+be\s+sold/i.test(title))
+    if (card.is('.outofstock, .sold, .is-sold') || /\b(?:sold|out of stock)\b/i.test(status) || soldTitle || /^test\b/i.test(title) || /\b(?:ad is not real|test description|this is (?:only )?a test)\b/i.test(description)) { removedUrls.push(url); return }
     let price = clean(card.find('.shb-archive-price, .price').first().text())
     if (!price && source.id === 'zebedee') price = description.match(/[£€$]\s*\d[\d.,]*(?:\s*(?:\+\s*VAT|incl\.?\s*VAT|ono))?/i)?.[0] || ''
     // Keep the source currency and tax qualifier. Never infer a price from hours,
