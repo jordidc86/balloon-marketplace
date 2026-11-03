@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-02-newsletter-latest-listings",
-  "productionBaseCommit": "b3c1ed364251ac8bf380c877776da6dfb9fa7247",
+  "releaseId": "2026-11-03-global-search",
+  "productionBaseCommit": "7e95352fbc2c8fdb19b65f77ea2103e3b8067a9f",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {

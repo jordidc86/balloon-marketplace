@@ -35,6 +35,7 @@ Start with [Mac Mini readiness](docs/mac-mini-readiness-2026-10-27.md). The Augu
 | Area | Files/Folders | Notes |
 | --- | --- | --- |
 | Public pages | `src/app/page.tsx`, `src/app/catalog/`, `src/app/pricing/`, `src/app/sell/`, `src/app/contact/` | Customer-facing; changes need approval. |
+| External global search | `src/app/global-search/`, `src/app/api/global-search/[source]/`, `src/utils/global-search/`, `docs/global-search.md` | Six selected portals; bounded anonymous catalogue metadata, five automated adapters and one direct link. Separate from AeroTrade listings and messaging. |
 | Admin | `src/app/admin/`, `src/components/admin/` | Operational risk; check role/access assumptions. |
 | Cron endpoints | `src/app/api/cron/newsletter/route.ts`, `src/app/api/cron/social/route.ts`, `src/app/api/cron/instagram/route.ts`, `src/app/api/cron/listing-watch/route.ts`, `.github/workflows/newsletter.yml`, `netlify/functions/social-scheduled.mjs` | Live dispatch risk; default to dry-run/proposal. Listing-watch closure preserves the final provider-accepted update before terminal cleanup. Social publication now has a release-candidate per-network/placement receipt ledger; do not treat it as live before migration `20260829490000` and runtime deployment are verified. |
 | Payments | `src/app/api/webhooks/stripe/`, `src/utils/stripe.ts`, pricing actions | Do not change without exact approval. |

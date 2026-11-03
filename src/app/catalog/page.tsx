@@ -174,6 +174,7 @@ export async function CatalogExperience({
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{country?.heading || manufacturer?.heading || category?.heading || 'Marketplace Catalog'}</h1>
           <p className="text-muted-foreground mt-1">{country?.description || manufacturer?.description || category?.description || 'Browse the latest hot air balloon equipment worldwide.'}</p>
+          <Link href="/global-search" className="mt-3 inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold text-primary hover:bg-primary/5">Search other balloon marketplaces →</Link>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold"><Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="text-primary hover:underline">Cannot find it used? Record what you need →</Link><Link href={newBalloonHref} className="text-primary hover:underline">Prefer factory-new? Buy through AeroTrade →</Link></div>
         </div>
 
