@@ -1,32 +1,16 @@
-import { unstable_cache } from 'next/cache'
 import { NextResponse } from 'next/server'
+import { createAdminClient } from '@/utils/supabase/server'
 import { getGlobalSearchSource } from '@/utils/global-search/sources.mjs'
-import { fetchSourceSnapshot } from '@/utils/global-search/fetch.mjs'
+import { visibleExternalListings } from '@/utils/global-search/index.mjs'
 
-export const runtime = 'nodejs'
-export const maxDuration = 60
-
-// No search term, URL, credentials or user data is sent to external portals.
-// A shared cache bounds requests independently of the number of searches.
-const pending = new Map<string, ReturnType<typeof fetchSourceSnapshot>>()
-const snapshot = unstable_cache(async (id: string) => {
-  const source = getGlobalSearchSource(id)
-  if (!source) throw new Error('Unknown source')
-  const existing = pending.get(id)
-  if (existing) return existing
-  const request = fetchSourceSnapshot(source)
-  pending.set(id, request)
-  try { return await request } finally { pending.delete(id) }
-}, ['global-search-v1'], { revalidate: 3600 })
-
+// Compatibility endpoint: read the saved index only; visits never trigger crawls.
 export async function GET(_request: Request, context: { params: Promise<{ source: string }> }) {
   const { source } = await context.params
   if (!getGlobalSearchSource(source)) return NextResponse.json({ error: 'Unknown source' }, { status: 404 })
-  try {
-    // Session middleware may refresh a cookie. Cache only the anonymous source
-    // snapshot above, never a browser response carrying a user's auth cookies.
-    return NextResponse.json(await snapshot(source), { headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' } })
-  } catch {
-    return NextResponse.json({ error: 'Source temporarily unavailable' }, { status: 503 })
-  }
+  const client = await createAdminClient()
+  const { data, error } = await client.from('external_catalog_sources').select('snapshot').eq('source_id', source).maybeSingle()
+  if (error) return NextResponse.json({ error: 'Index unavailable' }, { status: 503 })
+  return NextResponse.json({ sourceId: source, listings: visibleExternalListings(data ? [data.snapshot] : []) }, {
+    headers: { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' },
+  })
 }

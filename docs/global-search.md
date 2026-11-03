@@ -1,69 +1,94 @@
-# Global search beta — 2026-11-03
+# External listings in the AeroTrade catalogue — 2026-11-03
 
-Jordi selected Balloons4sale.eu, The Zebedee List, SecondHand Balloons,
-SwapBalloon, Hot Air Balloonist and Barnstormers. Cameron France is excluded.
+Jordi requested integration into the existing search, removal of Hot Air Balloonist,
+and a daily server-side catalogue refresh. The standalone global-search UI is retired.
+`/global-search` redirects to `/catalog`, preserving a bounded search query.
 
-`/global-search` searches retrieved titles and aircraft registrations in the
-browser, with a portal filter and links to the original adverts. It is separate
-from AeroTrade listings, seller accounts, Premium, newsletters and social queues.
-External results are never imported into those systems. The catalogue and mobile
-menu link to it. It is marked beta and noindex during the initial coverage review.
+## Customer experience
 
-## Coverage and limitations
+The existing catalogue form, colours and card grid are reused. When a visitor searches
+or selects a category/manufacturer/country, AeroTrade listings appear first, followed
+by matching external adverts. External cards use the original public thumbnail, carry the source name and link to the
+original advert. There is no second search screen, source dashboard or technical status
+panel. The unfiltered landing catalogue continues to show AeroTrade inventory.
 
-| Source | Retrieved pages |
+Search matches model punctuation, registrations, country and manufacturer words.
+External results respect known category/country metadata; unknown values are not
+invented. Prices remain in their source currency; external price sorting groups
+currencies instead of pretending they are directly comparable. External discovery
+order is not represented as the seller's original publication date. Native access
+control and Premium cards retain their existing visibility rules.
+
+## Daily operation
+
+Exactly one new Netlify schedule, `external-catalog-scheduled`, runs at **04:00 UTC
+once a day**. It queues `external-catalog-background`; the initial HTTP 202 means
+queued, not completed. This follows Netlify's documented separation between a
+30-second scheduled dispatcher and a background job with a longer execution window:
+https://docs.netlify.com/build/functions/scheduled-functions/
+https://docs.netlify.com/build/functions/background-functions/
+
+The worker uses the existing CRON_SECRET, Supabase URL and service role. It writes
+only `external_catalog_sources`, a new RLS-protected table, isolated from users,
+AeroTrade listings, newsletters, social queues and payments. Ordinary users cannot
+read or mutate this table directly. Server-rendered catalogue pages and the legacy
+read-only API expose only a whitelist of advert metadata.
+
+A database lease per source prevents concurrent crawls. Completion is keyed by UTC
+date, so duplicate invocations on the same day do not crawl again. A crashed worker's
+lease expires after ten minutes; its obsolete token cannot overwrite a newer worker.
+Each source has a four-minute budget, requests have ten-second timeouts, responses
+are capped at 2 MB, and a transient network/5xx failure gets at most one retry.
+403/access restrictions and parser errors are not retried. Other sources continue
+if one source fails. Source summaries are logged and completion receipts remain in
+`last_attempt_at`, `last_completed_at`, `last_run_key` and snapshot status/failed paths.
+
+## Reconciliation
+
+- A successfully read category replaces its saved page. Missing adverts leave that
+  page's searchable index; disappearance is not labelled as a confirmed sale.
+- Explicit sold/out-of-stock/test markers remove that URL across the source's saved
+  pages, even if a different category failed in the same run.
+- Failed pages retain their prior data **and prior observation timestamps**. Data
+  older than 72 hours is hidden, including when the scheduled job stops running.
+- Discovery timestamps survive updates. Exact original URLs are deduplicated; adverts
+  sharing a registration are not silently merged because the sale packages may differ.
+- Visitors read the saved index only. Searches never crawl sites or forward user
+  queries. There is no hourly visitor-triggered refresh and no Mac automation.
+
+## Sources and scope
+
+| Source | Catalogue pages checked |
 | --- | --- |
-| Balloons4sale.eu | `/last`: latest 50, not the entire inventory |
-| The Zebedee List | First page of 11 balloon/equipment categories |
-| SecondHand Balloons | First page of 10 balloon/equipment categories |
-| SwapBalloon | `/shop/last-added/`: latest additions, not the entire inventory |
-| Hot Air Balloonist | Direct link only; automated access is disabled because of its explicit AI access restrictions |
-| Barnstormers | First Lighter-Than-Air category page |
+| Balloons4sale.eu | 11 balloon/equipment categories, replacing the old latest-50 limit |
+| The Zebedee List | 11 balloon/equipment categories |
+| SecondHand Balloons | 10 balloon/equipment categories |
+| SwapBalloon | Latest additions page |
+| Barnstormers | Lighter-Than-Air category page |
 
-This is not an exhaustive worldwide inventory. No pagination beyond the configured
-pages is followed. Coverage is visible next to each source in the product.
-Successful catalogue retrieval does not establish seller-confirmed availability.
-Prices retain the source currency/qualifiers; unknown prices stay unknown. No
-cross-currency price sorting is offered. Exact URLs are deduplicated within a
-source. Matching registrations are flagged as possible related adverts, never
-silently merged: an envelope and a complete balloon may share a registration.
+Hot Air Balloonist and Cameron France are excluded from both the registry and storage
+constraints. The crawler reads public category pages; it does not assert that every
+ad on every portal is indexed or that a seller has confirmed availability. Pagination
+beyond the configured pages and per-ad detail crawling are not implemented. Sold
+markers are recognised when the source exposes them on these catalogue pages.
 
-## Operation
+Robots checks and crawl delays remain mandatory. Fixed origins/paths, no redirects,
+minimal metadata (no seller contacts or descriptions), protected writes and
+private HTTP responses bound exposure. Thumbnail URLs are restricted to observed source image paths; originals are loaded directly without a search-page referrer and are not copied into AeroTrade storage. Broken images use the existing card fallback. Robots permission is not a content licence.
 
-- Anonymous public metadata only: title, original URL, displayed price, optional
-  registration, source and catalogue-check timestamp. No descriptions, photos,
-  seller names, phone numbers or emails are stored in the snapshot.
-- Fixed HTTPS source/page allowlist; outbound links must match source origin and
-  advert path. Redirects are not followed. Queries are filtered locally and never
-  forwarded to source sites.
-- Source robots.txt is checked before each refresh with a descriptive
-  `AeroTradeSearch/1.0` user agent. Denial, robots fetch failure or malformed robots
-  prevents catalogue retrieval. Crawl delay is respected; long delays fail closed.
-  No credentials, CAPTCHA bypasses or private APIs are used.
-- 5-second request timeout, 2 MB body limit, 35-second source budget, bounded pages
-  and output; one failed source does not block others. Partial retrieval is visible.
-- Next's shared data cache refreshes after an hour when a visitor requests it.
-  No scheduler or cron has been added. An in-process pending map coalesces identical
-  refreshes; there is no global distributed crawl lock across cold instances.
-- Browser responses are private/no-store because existing session middleware can
-  refresh auth cookies. Only the anonymous underlying snapshot is cached.
-- The stored timestamp is preserved on cache hits. The UI hides results older than
-  48 hours if cache revalidation has failed. Source DOM changes produce an unavailable
-  or partial state instead of reporting an empty complete catalogue.
-- Sold/out-of-stock labels and explicit test/fake adverts are filtered where the
-  source exposes them in these pages. Listings without such labels can still be sold.
+## Five review areas
 
-## Initial verification
+1. **Presentation/integration:** one existing form and grid, own adverts first,
+   no extra menu entry, redirect compatibility, desktop/mobile visual review.
+2. **Search relevance:** model variants, multiple words, manufacturers, categories,
+   countries, source exclusion, empty results and currency-aware ordering.
+3. **Daily refresh/reconciliation:** real source retrieval, additions, changed prices,
+   removed/sold adverts, partial failures, stale expiry, retries and duplicate jobs.
+4. **Security/regression:** isolated PostgreSQL migration/RLS/lease tests, URL allowlist,
+   restricted writes, minimal public metadata, all existing tests/audits/lint/build.
+5. **Production:** exact deployment, migration ledger, first background refresh and
+   persisted per-source receipts, real catalogue results and scheduled-function metadata.
 
-Read-only retrieval on 2026-11-03 returned 50 Balloons4sale, 139 Zebedee,
-18 SecondHand, 12 SwapBalloon and 3 Barnstormers adverts (222 total before possible
-cross-portal matches). These are a dated observation, not expected fixed counts.
-Hot Air Balloonist made zero catalogue requests.
-
-Tests cover source selection, URL isolation, private data omission, source layouts,
-exact-link deduplication, fake/sold exclusion, combined filters, registration
-false positives, robots decisions, request bounds and partial failures.
-
-Follow-up: expand bounded coverage/pagination where appropriate, agree access with
-restricted sources, and evaluate a persistent index if traffic warrants it. Do not
-represent robots permission as a content licence or an agreement with the portal.
+The actual dated execution results and any remaining limits are recorded in the release
+review evidence outside the repository. Do not describe an unperformed visual check or
+an unobserved future scheduled run as passed.

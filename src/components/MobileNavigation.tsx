@@ -31,7 +31,6 @@ export default function MobileNavigation({ signedIn, isAdmin }: { signedIn: bool
   }, [open])
   const links = [
     { href: '/catalog', title: 'Marketplace', detail: 'Used balloons and equipment', Icon: Grid2X2 },
-    { href: '/global-search', title: 'Global Search', detail: 'Explore other specialist portals', Icon: Search },
     { href: '/wanted', title: 'Wanted', detail: 'Find the equipment you need', Icon: Search },
     { href: '/new-balloon?source=navigation', title: 'Buy New', detail: 'Explore options and request a quote', Icon: Sparkles },
     { href: '/pricing', title: 'Buyer Early Access', detail: 'Discover promoted listings earlier', Icon: Clock },

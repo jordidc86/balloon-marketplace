@@ -24,6 +24,7 @@ import {
   minimumCountryInventoryForIndexing,
 } from '@/utils/catalog-countries.mjs'
 import { redirect } from 'next/navigation'
+import { matchesCatalogText, searchExternalListings, visibleExternalListings } from '@/utils/global-search/index.mjs'
 
 export const metadata: Metadata = {
   title: 'Catalog | AeroTrade Marketplace',
@@ -71,7 +72,7 @@ export async function CatalogExperience({
   const manufacturer = getCatalogManufacturer(fixedManufacturer || '')
   const country = getCatalogCountry(fixedCountry || '')
   const categoryFilter = category?.slug || null
-  const searchQuery = typeof params.q === 'string' ? params.q.trim() : ''
+  const searchQuery = typeof params.q === 'string' ? params.q.trim().slice(0, 100) : ''
   const countryFilter = country?.name || (typeof params.country === 'string' ? params.country.trim() : '')
   const sort = typeof params.sort === 'string' && ['newest', 'price_asc', 'price_desc'].includes(params.sort) ? params.sort : 'newest'
   const newBalloonParams = new URLSearchParams({ source: searchQuery || categoryFilter || countryFilter ? 'catalog-empty' : 'catalog' })
@@ -99,7 +100,7 @@ export async function CatalogExperience({
       && (!manufacturer || listingMatchesCatalogManufacturer(listing, manufacturer))
       && (!country || listingMatchesCatalogCountry(listing, country))
   ))
-  const countries = Array.from(new Set(scopedInventory.map((row) => row.location_country).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+  const ownCountries = Array.from(new Set(scopedInventory.map((row) => row.location_country).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   const publicManufacturerLinks = getCatalogManufacturersWithInventory(
     (inventoryRows || []).filter((listing) => isListingPubliclyIndexable(listing)),
     minimumManufacturerInventoryForIndexing,
@@ -133,10 +134,6 @@ export async function CatalogExperience({
     query = query.eq('category', categoryFilter)
   }
 
-  if (searchQuery) {
-    const escapedQuery = searchQuery.replace(/[%_]/g, (value) => `\\${value}`)
-    query = query.or(`title.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,location_country.ilike.%${escapedQuery}%`)
-  }
 
   if (country) {
     query = query.in('location_country', country.inventoryValues)
@@ -157,8 +154,19 @@ export async function CatalogExperience({
   }
 
   const catalogListings = (rawListings || []).filter((listing) => (
-    !manufacturer || listingMatchesCatalogManufacturer(listing, manufacturer)
+    (!manufacturer || listingMatchesCatalogManufacturer(listing, manufacturer)) && matchesCatalogText(listing, searchQuery)
   ))
+  const includeExternal = Boolean(searchQuery || categoryFilter || manufacturer || countryFilter)
+  const externalResult = includeExternal
+    ? await supabaseAdmin.from('external_catalog_sources').select('snapshot')
+    : { data: [], error: null }
+  const externalInventory = visibleExternalListings((externalResult.data || []).map(row => row.snapshot))
+  const externalListings = searchExternalListings(
+    externalInventory,
+    { query: searchQuery, category: categoryFilter || '', country: country?.name || countryFilter, manufacturer, sort },
+  )
+  const countries = Array.from(new Set([...ownCountries, ...searchExternalListings(externalInventory, { category: categoryFilter || '', manufacturer }).map(item => item.country).filter((value): value is string => Boolean(value))])).sort((a, b) => a.localeCompare(b))
+  const totalResults = catalogListings.length + externalListings.length
   const catalogPath = country
     ? getCatalogCountryPath(country.slug)
     : manufacturer
@@ -174,7 +182,6 @@ export async function CatalogExperience({
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{country?.heading || manufacturer?.heading || category?.heading || 'Marketplace Catalog'}</h1>
           <p className="text-muted-foreground mt-1">{country?.description || manufacturer?.description || category?.description || 'Browse the latest hot air balloon equipment worldwide.'}</p>
-          <Link href="/global-search" className="mt-3 inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold text-primary hover:bg-primary/5">Search other balloon marketplaces →</Link>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold"><Link href={categoryFilter ? `/wanted?category=${encodeURIComponent(categoryFilter)}` : '/wanted'} className="text-primary hover:underline">Cannot find it used? Record what you need →</Link><Link href={newBalloonHref} className="text-primary hover:underline">Prefer factory-new? Buy through AeroTrade →</Link></div>
         </div>
 
@@ -212,7 +219,7 @@ export async function CatalogExperience({
         <label className="relative">
           <span className="sr-only">Search equipment</span>
           <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <input name="q" defaultValue={searchQuery} placeholder="Manufacturer, model, country…" className="w-full rounded-lg border bg-background py-2.5 pl-9 pr-3" />
+          <input name="q" defaultValue={searchQuery} maxLength={100} placeholder="Manufacturer, model, country…" className="w-full rounded-lg border bg-background py-2.5 pl-9 pr-3" />
         </label>
         {country ? <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm font-semibold">Located in {country.name}</div> : (
           <select name="country" defaultValue={countryFilter} className="rounded-lg border bg-background px-3 py-2.5">
@@ -234,7 +241,8 @@ export async function CatalogExperience({
         <Link href={newBalloonHref} className="rounded-lg bg-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">Get a new-balloon estimate</Link>
       </div>
 
-      <p className="mb-4 text-sm text-muted-foreground">{catalogListings.length} matching listing(s)</p>
+      <p className="mb-4 text-sm text-muted-foreground">{catalogListings.length} on AeroTrade{includeExternal ? ` · ${externalListings.length} on other marketplaces` : ''}</p>
+      {externalResult.error ? <p className="mb-4 text-sm text-muted-foreground">Other marketplaces are temporarily unavailable. AeroTrade results are shown below.</p> : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {(catalogListings as ListingWithImages[]).map((listing) => {
@@ -310,7 +318,27 @@ export async function CatalogExperience({
           )
         })}
 
-        {catalogListings.length === 0 && (
+        {externalListings.map(listing => (
+          <a href={listing.url} key={listing.url} target="_blank" rel="noopener noreferrer" className="rounded-2xl border bg-card overflow-hidden group hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full">
+            <div className="h-48 bg-muted relative overflow-hidden flex items-center justify-center shrink-0">
+              {listing.thumbnail ? <SafeListingImage src={listing.thumbnail} alt={listing.title} external sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-500" /> : <Search aria-hidden="true" className="w-8 h-8 text-muted-foreground/30" />}
+            </div>
+            <div className="p-5 flex-1 flex flex-col">
+              <div className="flex justify-between items-start mb-2 gap-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{getCatalogCategory(listing.category)?.label || 'Equipment'}</span>
+                <span className="text-xs font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{listing.sourceName}</span>
+              </div>
+              <h3 className="font-bold text-lg mb-1 line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3>
+              <p className="text-xl font-extrabold text-foreground mb-4">{listing.price || 'Price on request'}</p>
+              <div className="mt-auto w-full pt-4 border-t flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                <span className="truncate">{listing.country || listing.registration || ''}</span>
+                <span className="shrink-0 font-semibold text-primary">View advert ↗</span>
+              </div>
+            </div>
+          </a>
+        ))}
+
+        {totalResults === 0 && (
           <div className="col-span-full py-20 text-center flex flex-col items-center">
             <Filter className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-medium text-foreground">No suitable used equipment found</h3>

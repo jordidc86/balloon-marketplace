@@ -5,10 +5,10 @@ import { parseSourcePage } from '../src/utils/global-search/parse.mjs'
 import { robotsPolicy } from '../src/utils/global-search/robots.mjs'
 import { fetchSourceSnapshot } from '../src/utils/global-search/fetch.mjs'
 
-test('six selected portals; Cameron France excluded and Hot Air remains manual', () => {
-  assert.equal(GLOBAL_SEARCH_SOURCES.length, 6)
+test('five selected portals; Cameron France and Hot Air excluded', () => {
+  assert.equal(GLOBAL_SEARCH_SOURCES.length, 5)
   assert.equal(getGlobalSearchSource('cameron-france'), undefined)
-  assert.equal(getGlobalSearchSource('hotair').manual, true)
+  assert.equal(getGlobalSearchSource('hotair'), undefined)
 })
 
 test('listing URLs cannot escape the source, become actions, or carry tracking parameters', () => {
@@ -47,7 +47,7 @@ const fixtures = {
 for (const [id, html] of Object.entries(fixtures)) test(`${id}: source layout produces minimal metadata and unique links`, () => {
   const results = parseSourcePage(html + html, getGlobalSearchSource(id))
   assert.equal(results.length, 1)
-  assert.deepEqual(Object.keys(results[0]).sort(), ['price', 'registration', 'sourceId', 'title', 'url'])
+  assert.deepEqual(Object.keys(results[0]).sort(), ['category', 'country', 'price', 'registration', 'sourceId', 'thumbnail', 'title', 'url'])
   assert.doesNotMatch(JSON.stringify(results), /private@example|012345|Private Person/)
 })
 
@@ -71,11 +71,6 @@ test('robots longest matching allow wins, named groups override wildcard and cra
   assert.equal(robotsPolicy('User-agent: *\nAllow: /\nUser-agent: AeroTradeSearch\nDisallow: /', 'https://example.test/').allowed, false)
   assert.equal(robotsPolicy('User-agent: *\nDisallow: /*?*', 'https://example.test/last?q=x').allowed, false)
   assert.equal(robotsPolicy('<html>Challenge</html>', 'https://example.test/').allowed, false)
-})
-
-test('manual sources make zero network requests', async () => {
-  const result = await fetchSourceSnapshot(getGlobalSearchSource('hotair'), { fetcher: () => { throw new Error('Must not fetch') } })
-  assert.equal(result.status, 'manual')
 })
 
 test('robots refusal stops catalogue fetching', async () => {

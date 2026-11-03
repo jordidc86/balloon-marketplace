@@ -11,6 +11,7 @@ export default function SafeListingImage({
   className,
   priority = false,
   compact = false,
+  external = false,
 }: {
   src: string
   alt: string
@@ -18,6 +19,7 @@ export default function SafeListingImage({
   className?: string
   priority?: boolean
   compact?: boolean
+  external?: boolean
 }) {
   const [failed, setFailed] = useState(false)
 
@@ -30,5 +32,5 @@ export default function SafeListingImage({
     )
   }
 
-  return <Image src={src} alt={alt} fill sizes={sizes} className={className} priority={priority} onError={() => setFailed(true)} />
+  return <Image src={src} alt={alt} fill sizes={sizes} className={className} priority={priority} unoptimized={external} referrerPolicy={external ? 'no-referrer' : undefined} onError={() => setFailed(true)} />
 }
