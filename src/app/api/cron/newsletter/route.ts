@@ -206,6 +206,12 @@ const generateNewsletterHtml = (listings: NewsletterListing[], periodKey: string
           </p>
 
           ${listingsHtml}
+          ${periodKey === '2026-11-16' ? `
+          <div style="margin-top: 32px; padding: 24px; border-radius: 12px; background-color: #fff7ed; border: 1px solid #fed7aa;">
+            <h2 style="margin: 0 0 12px; color: #9a3412; font-size: 24px;">More balloons. One search.</h2>
+            <p style="color: #334155; font-size: 16px; line-height: 1.6;">AeroTrade now brings together listings from our marketplace and other specialist second-hand balloon websites. Search by manufacturer, model or equipment, then open the original advert for full details.</p>
+            <a href="${escapeHtml(buildNewsletterCatalogUrl({ baseUrl: siteUrl, periodKey }))}" style="display: inline-block; background-color: #c45b17; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold;">Explore the search &rarr;</a>
+          </div>` : ''}
           <p style="text-align: center; margin-top: 32px;"><a href="${escapeHtml(buildNewsletterCatalogUrl({ baseUrl: siteUrl, periodKey }))}" style="color: #c45b17; font-weight: bold;">Search all available balloons and equipment</a></p>
 
           <div style="text-align: center; margin-top: 48px; padding-top: 32px; border-top: 1px solid #e2e8f0;">
