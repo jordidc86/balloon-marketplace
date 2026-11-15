@@ -1,18 +1,20 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-14-newsletter-search",
-  "productionBaseCommit": "207e2f553fcc8c6d92772d0cfb2faa779f23e91d",
+  "releaseId": "2026-11-15-traffic-history",
+  "productionBaseCommit": "78220033d2af36456d794397a69436cd669616b5",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
     "provider": "supabase",
     "applyBeforeApplication": true,
     "requiresExactConfirmation": true,
-    "migrationCount": 0,
-    "migrationVersions": [],
+    "migrationCount": 1,
+    "migrationVersions": [
+      "20261115110000"
+    ],
     "externalAppliedVersions": [
       "20260925160000"
     ],
-    "migrationManifestSha256": "b1fe4a034c718d982c284f04e82d842de814ffc5ce5ae04897b3f38f6dad50c5"
+    "migrationManifestSha256": "12368d95d9052e3a000dfd6c7e979d721d9300a6d0869ab9d2f5e943e5e051b7"
   }
 }
