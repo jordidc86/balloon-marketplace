@@ -77,3 +77,10 @@ Start with [Mac Mini readiness](docs/mac-mini-readiness-2026-10-27.md). The Augu
 - `src/utils/newsletter-renewal.mjs`: exact renewal eligibility and English invitation content.
 - `scripts/renew-newsletter-consent.ts`: explicitly approved one-time campaign, private recipient plan and receipt readback; never scheduled.
 - `docs/newsletter-consent-renewal.md`: operating constraints and recovery guidance.
+
+## Contact and traffic measurement (15 November 2026)
+
+- `src/utils/contact-links.mjs`, `src/utils/contact-click.ts`: safe seller contact links and non-blocking intent collection.
+- `src/utils/inquiry-submission.mjs`: preserve form data and recover after submission failure.
+- `src/app/admin/traffic/page.tsx`: monthly history, grouped origins, enquiry conversion and distinct direct-contact intent.
+- `docs/traffic-measurement.md`, `scripts/rehearse-contact-clicks.mjs`: attribution definitions, privacy and retention rehearsal.

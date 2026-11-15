@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-15-traffic-history",
-  "productionBaseCommit": "78220033d2af36456d794397a69436cd669616b5",
+  "releaseId": "2026-11-15-contact-clicks",
+  "productionBaseCommit": "e210839995c3102ecd8fc94614d9790dec425d0e",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
@@ -10,11 +10,11 @@
     "requiresExactConfirmation": true,
     "migrationCount": 1,
     "migrationVersions": [
-      "20261115110000"
+      "20261115120000"
     ],
     "externalAppliedVersions": [
       "20260925160000"
     ],
-    "migrationManifestSha256": "c26b0ee2013210b573ca6d063b3b4703dd48aa1039085d7fe51bd1c8f4f92051"
+    "migrationManifestSha256": "b670d9fff5d0078b32027a955ba24202462323f2c5c6c9f040d02dae433dddde"
   }
 }

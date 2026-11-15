@@ -301,7 +301,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
     <p><strong>Message:</strong></p>
     <p>${escapeHtml(inquiry.message).replaceAll('\n', '<br />')}</p>
     <p>This enquiry is also recorded in your AeroTrade dashboard so its outcome can be tracked.</p>`,
-    { idempotencyKey: `aerotrade-inquiry-${stored.id}-seller` },
+    { idempotencyKey: `aerotrade-inquiry-${stored.id}-seller`, replyTo: inquiry.buyer_email },
   )
 
   const notificationUpdate = delivery.success && delivery.resendId

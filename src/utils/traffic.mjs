@@ -36,6 +36,7 @@ export function trafficChannel(value) {
   if (['chatgpt','chatgpt.com'].includes(source)) return 'ChatGPT'
   if (['newsletter'].includes(source)) return 'Newsletter'
   if (['whatsapp','wa','wa.me','web.whatsapp.com'].includes(source)) return 'WhatsApp'
+  if (source === 'unattributed') return 'No matching visit'
   if (!source || source === 'direct') return 'Direct / unknown'
   return 'Other / unrecognised'
 }
@@ -55,12 +56,29 @@ export function trafficMonths(days = []) {
   const months = new Map()
   for (const {day,report} of days) {
     const month = day.slice(0,7)
-    const row = months.get(month) || {month,firstDay:day,lastDay:day,views:0,visitorDays:0,contactVisitors:0,contacts:0,sources:[]}
+    const row = months.get(month) || {month,firstDay:day,lastDay:day,views:0,visitorDays:0,contactVisitors:0,contacts:0,sources:[],clicks:null}
     row.firstDay = day < row.firstDay ? day : row.firstDay
     row.lastDay = day > row.lastDay ? day : row.lastDay
     for (const key of ['views','visitorDays','contactVisitors','contacts']) row[key] += Number(report[key] || 0)
+    if (report.contactClicks) {
+      row.clicks ||= {clicks:0,visitors:0,channels:{},startedAt:report.contactClicks.startedAt}
+      row.clicks.clicks += report.contactClicks.clicks
+      row.clicks.visitors += report.contactClicks.visitors
+      for (const c of report.contactClicks.channels) row.clicks.channels[c.channel] = (row.clicks.channels[c.channel] || 0) + c.clicks
+    }
     row.sources.push(...(report.sources || []))
     months.set(month,row)
   }
   return [...months.values()].sort((a,b)=>b.month.localeCompare(a.month)).map(row=>({...row,channels:trafficChannels(row.sources)}))
+}
+export function trafficClickSources(sources = []) {
+  const groups = new Map()
+  for (const row of sources) {
+    const channel = trafficChannel(row.source)
+    const key = JSON.stringify([channel,row.campaign])
+    const group = groups.get(key) || {channel,campaign:row.campaign,clicks:0}
+    group.clicks += Number(row.clicks)
+    groups.set(key,group)
+  }
+  return [...groups.values()].sort((a,b)=>b.clicks-a.clicks)
 }

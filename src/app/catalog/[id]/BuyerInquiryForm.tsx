@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Send, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { logListingCommercialIntent, submitListingInquiry } from './actions'
+import { completeInquirySubmission } from '@/utils/inquiry-submission.mjs'
 import { getBrowserCommercialContext } from '@/utils/browser-attribution'
 
 export default function BuyerInquiryForm({ listingId, listingCurrency }: { listingId: string; listingCurrency: string }) {
@@ -45,13 +46,13 @@ export default function BuyerInquiryForm({ listingId, listingCurrency }: { listi
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setIsSubmitting(true)
-    setResult(null)
     const form = event.currentTarget
-    const response = await submitListingInquiry(listingId, new FormData(form), getBrowserCommercialContext())
-    setResult({ success: response.success, message: response.message })
-    if (response.success) form.reset()
-    setIsSubmitting(false)
+    await completeInquirySubmission({
+      submit:()=>submitListingInquiry(listingId,new FormData(form),getBrowserCommercialContext()),
+      setSubmitting:setIsSubmitting,
+      setResult,
+      reset:()=>form.reset(),
+    })
   }
 
   if (result?.success) {
@@ -75,13 +76,13 @@ export default function BuyerInquiryForm({ listingId, listingCurrency }: { listi
     <form ref={formRef} id="buyer-enquiry" onFocusCapture={recordStarted} onChangeCapture={recordStarted} onSubmit={handleSubmit} className="scroll-mt-24 space-y-4 rounded-xl border bg-card p-5">
       <div>
         <h3 className="font-bold text-lg">Ask the seller</h3>
-        <p className="text-sm text-muted-foreground mt-1">Your enquiry is recorded by AeroTrade so it cannot be lost.</p>
+        <p className="text-sm text-muted-foreground mt-1">Send your message to the seller. AeroTrade also saves a copy of your enquiry.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <input name="buyer_name" required minLength={2} maxLength={120} placeholder="Your name" className="rounded-lg border bg-background px-3 py-2" />
-        <input name="buyer_email" type="email" required maxLength={320} placeholder="Email" className="rounded-lg border bg-background px-3 py-2" />
+        <input aria-label="Your name" autoComplete="name" name="buyer_name" required minLength={2} maxLength={120} placeholder="Your name" className="min-w-0 w-full rounded-lg border bg-background px-3 py-3 text-base" />
+        <input aria-label="Email" autoComplete="email" name="buyer_email" type="email" required maxLength={320} placeholder="Email" className="min-w-0 w-full rounded-lg border bg-background px-3 py-3 text-base" />
       </div>
-      <input name="buyer_phone" maxLength={60} placeholder="Phone (optional)" className="w-full rounded-lg border bg-background px-3 py-2" />
+      <input aria-label="Phone (optional)" type="tel" autoComplete="tel" name="buyer_phone" maxLength={60} placeholder="Phone (optional)" className="w-full rounded-lg border bg-background px-3 py-3 text-base" />
       <label className="block space-y-1.5 text-sm font-medium">
         Indicative offer (optional)
         <div className="flex rounded-lg border bg-background focus-within:ring-2 focus-within:ring-primary">
@@ -90,16 +91,16 @@ export default function BuyerInquiryForm({ listingId, listingCurrency }: { listi
         </div>
         <span className="block text-xs font-normal text-muted-foreground">A price indication starts a conversation only. It does not reserve the equipment or form a sale contract.</span>
       </label>
-      <textarea name="message" required minLength={20} maxLength={2000} rows={4} placeholder="Ask about availability, documentation, inspection or collection…" className="w-full resize-y rounded-lg border bg-background px-3 py-2" />
+      <textarea aria-label="Your message to the seller" name="message" required minLength={20} maxLength={2000} rows={4} placeholder="Ask about availability, documentation, inspection or collection…" className="text-base w-full resize-y rounded-lg border bg-background px-3 py-2" />
       <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
       <label className="flex items-start gap-2 text-xs text-muted-foreground">
         <input name="privacy_consent" value="yes" type="checkbox" required className="mt-0.5" />
         <span>I agree that AeroTrade stores this enquiry and shares my details with the seller under the <Link href="/privacy" className="underline">privacy notice</Link>.</span>
       </label>
-      {result && !result.success ? <p className="text-sm text-destructive">{result.message}</p> : null}
+      {result && !result.success ? <p role="alert" className="text-sm text-destructive">{result.message}</p> : null}
       <button disabled={isSubmitting} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-70">
         {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-        Send tracked enquiry
+        Send enquiry
       </button>
     </form>
   )
