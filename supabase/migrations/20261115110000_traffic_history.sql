@@ -77,7 +77,7 @@ begin
 end; $$;
 revoke all on function public.record_web_traffic(uuid,text,text,text,text,text) from public,anon,authenticated;
 grant execute on function public.record_web_traffic(uuid,text,text,text,text,text) to service_role;
--- Keep the existing report contract; do not truncate source totals before grouping.
+-- Keep the existing report contract; retain all source totals before grouping.
 create or replace function public.web_traffic_report() returns jsonb
 language sql security definer set search_path=public,pg_temp as $$
  select public.web_traffic_range(now()-interval '30 days',now());
