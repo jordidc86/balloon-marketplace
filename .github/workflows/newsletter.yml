@@ -5,7 +5,8 @@ name: Send Bi-Weekly Newsletter Cron
 # Netlify scheduled function unless the scheduler ownership changes.
 on:
   schedule:
-    - cron: '0 9 1,16 * *'
+    # Avoid the top-of-hour scheduling peak; still one trigger per edition.
+    - cron: '13 9 1,16 * *'
   workflow_dispatch:
     inputs:
       dry_run:

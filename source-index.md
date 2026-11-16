@@ -49,7 +49,7 @@ Start with [Mac Mini readiness](docs/mac-mini-readiness-2026-10-27.md). The Augu
 | Check | Status |
 | --- | --- |
 | Contact email placeholder | `Fixed`: contact uses `support@aerotrade.app` via site config. |
-| Newsletter schedule | `Active`: GitHub Actions runs `/api/cron/newsletter` on days 1 and 16 at 09:00 UTC. |
+| Newsletter schedule | `Active`: GitHub Actions runs `/api/cron/newsletter` on days 1 and 16 at 09:13 UTC (10:13 Madrid in winter, 11:13 in summer). |
 | Social cron schedule | `Active`: Netlify scheduled function runs `/api/cron/social` daily at 07:00 UTC. |
 | SEO canonical | `Fixed`: `robots.txt`, `sitemap.xml`, and listing JSON-LD use `https://aerotrade.app`. |
 | Premium seller/buyer funnel | `Proposed`: needs business review against competitors and listing supply. |

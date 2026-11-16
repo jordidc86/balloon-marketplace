@@ -1107,7 +1107,7 @@ const checks = [
   {
     name: 'Newsletter has one documented bi-weekly production schedule',
     file: '.github/workflows/newsletter.yml',
-    required: ["cron: '0 9 1,16 * *'", 'production-newsletter', 'dry_run', '.failedCount // .run.failed_count // 0', 'automatic retry remains blocked'],
+    required: ["cron: '13 9 1,16 * *'", 'production-newsletter', 'dry_run', '.failedCount // .run.failed_count // 0', 'automatic retry remains blocked'],
     forbidden: ['--retry-all-errors', '--retry 3'],
   },
   {

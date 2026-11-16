@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import { escapeHtml } from '@/utils/html';
+import { newsletterHistoryQuery } from '@/utils/newsletter-history.mjs';
 import { duplicateNewsletterRunResult } from '@/utils/newsletter-safety.mjs';
 import {
   buildNewsletterRecoveryPlan,
@@ -573,15 +574,7 @@ export async function GET(request: Request) {
 
     const [{ data: availableListings, error: listingsError }, { data: priorRuns, error: priorRunsError }] = await Promise.all([
       baseListingsQuery(),
-      supabase
-        .from('newsletter_runs')
-        .select('listing_ids')
-        .eq('dry_run', false)
-        .is('test_email', null)
-        .in('status', ['sent', 'partial'])
-        .neq('id', activeRun.id)
-        .order('created_at', { ascending: false })
-        .limit(100),
+      newsletterHistoryQuery(supabase, activeRun),
     ]);
 
     if (listingsError || priorRunsError) {
