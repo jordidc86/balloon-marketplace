@@ -20,7 +20,7 @@ const checks = [
   {
     name: 'Runtime dependencies are pinned to the audited release line',
     file: 'package.json',
-    required: ['"next": "16.4.3"', '"eslint-config-next": "16.4.3"', '"resend": "6.25.0"'],
+    required: ['"next": "16.4.5"', '"eslint-config-next": "16.4.5"', '"resend": "6.25.0"'],
   },
   {
     name: 'Netlify production builds require one explicit release marker',
