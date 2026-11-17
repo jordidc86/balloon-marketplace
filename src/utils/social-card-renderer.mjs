@@ -1,3 +1,4 @@
+import { formatFlightHours } from './flight-hours.mjs'
 import sharp from 'sharp'
 import path from 'node:path'
 
@@ -42,7 +43,8 @@ export async function renderSocialCardJpeg(imageBuffer, listing, format) {
   const priceY = panelTop + 138 + titleHeight + 26
   await text(price, 166, priceY, 58, '#ffffff', 750, 68)
   let factY = priceY + 90
-  if (listing.details?.hours) { await text(`Hours: ${cleanText(listing.details.hours, 30)}`, 166, factY, 32, '#ffffff', 750, 38); factY += 48 }
+  const hours = formatFlightHours(listing.details?.hours)
+  if (hours) { await text(`Hours: ${hours}`, 166, factY, 32, '#ffffff', 750, 38); factY += 48 }
   await text(`Condition: ${cleanText(listing.condition || 'Used', 60)}`, 166, factY, 32, '#ffffff', 750, 38)
   await text('aerotrade.app', format === 'story' ? 610 : 710, format === 'story' ? 1810 : 1000, 32, '#ffffff', 300, 38)
   return sharp(background).composite(layers).jpeg({ quality: 90 }).toBuffer()

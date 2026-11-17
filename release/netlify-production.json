@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-16-newsletter-schedule-dryrun",
-  "productionBaseCommit": "1c6e67a9bcfa4a95fe49c3d61e60712a24b65eca",
+  "releaseId": "2026-11-17-social-flight-hours",
+  "productionBaseCommit": "cb4c22631c232cc39c80d39f3b48823d6fbd62b4",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {

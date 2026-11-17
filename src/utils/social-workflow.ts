@@ -1,3 +1,4 @@
+import { formatFlightHours } from '@/utils/flight-hours.mjs';
 import { createClient } from '@supabase/supabase-js';
 import type https from 'node:https';
 import { boundedHttps, assertSocialImageUrl, assertSocialBudget, socialFetch } from '@/utils/social-request.mjs';
@@ -158,7 +159,7 @@ const formatCaption = (listing: ListingForInstagram, destinationUrl = getListing
     formatSocialListingPrice(listing.price, listing.currency),
     listing.location_country,
     listing.condition,
-    details.hours ? `${details.hours} hours` : null,
+    formatFlightHours(details.hours),
     details.manufacturer,
     details.year ? `Year ${details.year}` : null,
   ].filter(Boolean)

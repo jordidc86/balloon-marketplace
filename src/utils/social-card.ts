@@ -1,3 +1,4 @@
+import { formatFlightHours } from './flight-hours.mjs'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type SocialCardListing = {
@@ -53,7 +54,7 @@ export const getSocialCardFacts = (listing: SocialCardListing) => {
   const details = listing.details || {}
 
   return {
-    hours: details.hours ? String(details.hours) : null,
+    hours: formatFlightHours(details.hours),
     condition: listing.condition || 'Used',
   }
 }
