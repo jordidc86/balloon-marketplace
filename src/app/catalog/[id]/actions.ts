@@ -1,5 +1,6 @@
 'use server'
 
+import { insertListingEventOnce } from '@/utils/listing-event-write.mjs'
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { getStoredListingPlan } from '@/utils/listing-plans'
@@ -53,7 +54,7 @@ async function recordListingEvent(listingId: string, eventType: string, rawConte
   const principal = user?.id || context.visitorId
   if (!principal) return false
   const eventKey = commercialEventKey({ listingId: listing.id, eventType, principal })
-  const { error } = await supabaseAdmin.from('listing_events').upsert({
+  const { error } = await insertListingEventOnce(supabaseAdmin, {
     listing_id: listing.id,
     user_id: user?.id || null,
     event_type: eventType,
@@ -63,7 +64,7 @@ async function recordListingEvent(listingId: string, eventType: string, rawConte
     utm_medium: context.utm_medium,
     utm_campaign: context.utm_campaign,
     journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
-  }, { onConflict: 'event_key', ignoreDuplicates: true })
+  })
   if (error) {
     console.error('Failed to log listing commercial event:', error)
     return false
@@ -94,7 +95,7 @@ async function recordSoldListingView(listingId: string, rawContext?: BrowserComm
   if (!principal) return false
   const eventType = 'SOLD_VIEW'
   const eventKey = commercialEventKey({ listingId: listing.id, eventType, principal })
-  const { error } = await supabaseAdmin.from('listing_events').upsert({
+  const { error } = await insertListingEventOnce(supabaseAdmin, {
     listing_id: listing.id,
     user_id: user?.id || null,
     event_type: eventType,
@@ -104,7 +105,7 @@ async function recordSoldListingView(listingId: string, rawContext?: BrowserComm
     utm_medium: context.utm_medium,
     utm_campaign: context.utm_campaign,
     journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
-  }, { onConflict: 'event_key', ignoreDuplicates: true })
+  })
   if (error) {
     console.error('Failed to log sold listing view:', error)
     return false
@@ -168,9 +169,7 @@ export async function revealSellerContact(listingId: string, rawContext?: Browse
   const principal = user?.id || context.visitorId
   const eventKey = commercialEventKey({ listingId, eventType: 'CONTACT_REVEAL', principal })
   const shouldMeasureReveal = Boolean(principal && profile?.role !== 'admin' && listing.seller_id !== user?.id)
-  const { error: eventError } = shouldMeasureReveal ? await supabaseAdmin
-    .from('listing_events')
-    .upsert({
+  const { error: eventError } = shouldMeasureReveal ? await insertListingEventOnce(supabaseAdmin, {
       listing_id: listingId,
       user_id: user?.id || null,
       event_type: 'CONTACT_REVEAL',
@@ -180,7 +179,7 @@ export async function revealSellerContact(listingId: string, rawContext?: Browse
       utm_medium: context.utm_medium,
       utm_campaign: context.utm_campaign,
       journey_key: commercialJourneyKey({ principal, secret: process.env.SUPABASE_SERVICE_ROLE_KEY }),
-    }, { onConflict: 'event_key', ignoreDuplicates: true }) : { error: null }
+    }) : { error: null }
 
   if (eventError) {
     console.error('Failed to log contact reveal:', eventError)
