@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-18-internal-table-security",
-  "productionBaseCommit": "9f015a624665858f41579ddfd61611fedc7bacd5",
+  "releaseId": "2026-11-18-function-security",
+  "productionBaseCommit": "dff161d905aa73a096448deabab7d405c147b8a3",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
@@ -10,11 +10,11 @@
     "requiresExactConfirmation": true,
     "migrationCount": 1,
     "migrationVersions": [
-      "20261118110000"
+      "20261118120000"
     ],
     "externalAppliedVersions": [
       "20260925160000"
     ],
-    "migrationManifestSha256": "d912027e1ebb7e9d0f939614c66fc981a1411826800c73be8dd41886acad2eb1"
+    "migrationManifestSha256": "0571f7eef65dfa8dcdf7a826809a3ba1371b506ca069ded39476a85b76716b33"
   }
 }
