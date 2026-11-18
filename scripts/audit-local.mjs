@@ -9,7 +9,7 @@ const checks = [
   {
     name: 'Buyer membership and seller promotion have distinct public product names',
     file: 'src/utils/paid-product-labels.mjs',
-    required: ['AeroTrade Buyer Early Access', 'AeroTrade Seller Launch Promotion', 'premium_subscription', 'listing_fee'],
+    required: ['AeroTrade Premium', 'AeroTrade Seller Launch Promotion', 'premium_subscription', 'listing_fee'],
   },
   {
     name: 'Seller promotion promises only implemented distribution channels',
@@ -222,20 +222,20 @@ const checks = [
     required: ['resumePremiumMembershipCheckout', "session.status === 'open'", "session.status === 'expired'", 'createPremiumMembershipCheckout'],
   },
   {
-    name: 'Buyer Early Access recovery selects only the latest buyer-initiated expired checkout',
+    name: 'AeroTrade Premium recovery selects only the latest buyer-initiated expired checkout',
     file: 'supabase/migrations/20260829520000_buyer_early_access_checkout_recovery.sql',
     required: ['due_buyer_early_access_checkout_recoveries', 'select distinct on (intent.user_id)', "latest.status = 'EXPIRED'", "latest.source in ('signup', 'pricing', 'dashboard')", 'users.is_premium = false', "receipt.status = 'accepted'", 'receipt.delivery_attempts >= 2', 'grant execute on function public.due_buyer_early_access_checkout_recoveries(timestamp with time zone) to service_role', 'no checkout or charge is created'],
   },
   {
-    name: 'Buyer Early Access recovery is dry-run safe, bounded and never creates payment',
+    name: 'AeroTrade Premium recovery is dry-run safe, bounded and never creates payment',
     file: 'src/app/api/cron/opportunity-followup/route.ts',
     required: ["supabase.rpc('due_buyer_early_access_checkout_recoveries'", 'dueBuyerEarlyAccessCheckoutRecoveries', 'if (!commit) return NextResponse.json(result)', "notificationType: 'buyer_early_access_checkout_recovery'", "entityType: 'premium_checkout_intent'", 'This email creates no checkout and makes no charge.', 'You can ignore this message', 'buyer-early-access-checkout-recovery-${intent.intent_id}'],
     forbidden: ['stripe.checkout', 'checkout.sessions.create(', "from('payment_notification_receipts').insert"],
   },
   {
-    name: 'Control Tower exposes Buyer Early Access recovery outcomes without PII',
+    name: 'Control Tower exposes AeroTrade Premium recovery outcomes without PII',
     file: 'src/app/admin/commercial/page.tsx',
-    required: ['buyerEarlyAccessCheckoutRecoveries', 'acceptedBuyerEarlyAccessCheckoutRecoveries', 'failedBuyerEarlyAccessCheckoutRecoveries', 'exhaustedBuyerEarlyAccessCheckoutRecoveries', 'Buyer Early Access checkout recovery:'],
+    required: ['buyerEarlyAccessCheckoutRecoveries', 'acceptedBuyerEarlyAccessCheckoutRecoveries', 'failedBuyerEarlyAccessCheckoutRecoveries', 'exhaustedBuyerEarlyAccessCheckoutRecoveries', 'AeroTrade Premium checkout recovery:'],
   },
   {
     name: 'Control Tower distinguishes current Stripe entitlements from historical receipt coverage',
@@ -261,7 +261,7 @@ const checks = [
   {
     name: 'Seller contact uses active-listing visibility rules',
     file: 'src/app/catalog/[id]/actions.ts',
-    required: ['canRevealSellerContact', 'Buyer Early Access is required to reveal this contact', "event_type: 'CONTACT_REVEAL'", 'user_id: user?.id || null'],
+    required: ['canRevealSellerContact', 'AeroTrade Premium is required to reveal this contact', "event_type: 'CONTACT_REVEAL'", 'user_id: user?.id || null'],
   },
   {
     name: 'Marketplace enquiries are private, durable and seller-manageable',
@@ -589,7 +589,7 @@ const checks = [
   {
     name: 'Listing-watch intake stores consent before confirmation and excludes artificial demand',
     file: 'src/app/catalog/[id]/watch-actions.ts',
-    required: ['parseListingWatchRequest', 'createListingWatchSubmissionKey', 'Owners and marketplace operators do not create buyer watch signals', 'Buyer Early Access is required while this promoted listing is private', "status: 'PENDING_CONFIRMATION'", "from('listing_watchers')", 'listing_watch_confirmation', 'Alerts remain inactive until you do'],
+    required: ['parseListingWatchRequest', 'createListingWatchSubmissionKey', 'Owners and marketplace operators do not create buyer watch signals', 'AeroTrade Premium is required while this promoted listing is private', "status: 'PENDING_CONFIRMATION'", "from('listing_watchers')", 'listing_watch_confirmation', 'Alerts remain inactive until you do'],
   },
   {
     name: 'Listing-watch alerts are material, idempotent, retryable and recheck consent before sending',

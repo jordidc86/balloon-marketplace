@@ -198,11 +198,11 @@ export default async function DashboardPage({
         {params.premium_payment === 'canceled' ? (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
-            <div><p className="font-semibold">Buyer Early Access payment was not completed.</p><p className="text-sm">Your account is active and the annual checkout can be resumed safely from Account Status.</p></div>
+            <div><p className="font-semibold">AeroTrade Premium payment was not completed.</p><p className="text-sm">Your account is active and the annual checkout can be resumed safely from Account Status.</p></div>
           </div>
         ) : null}
         {params.premium_payment === 'processing' || params.upgraded === 'true' ? (
-          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Stripe accepted the checkout. Buyer Early Access will appear here after the signed webhook is verified.</div>
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Stripe accepted the checkout. AeroTrade Premium will appear here after the signed webhook is verified.</div>
         ) : null}
         
         {/* Header / Welcome */}
@@ -221,28 +221,29 @@ export default async function DashboardPage({
           {/* Account Status Card */}
           <div className="bg-background p-6 rounded-2xl border shadow-sm h-fit">
             <h2 className="text-lg font-semibold mb-4">Account Status</h2>
+            <Link href="/dashboard/searches" className="mb-4 flex min-h-11 items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 p-4 font-semibold text-orange-800"><BellRing className="h-5 w-5"/>My search alerts</Link>
             <div className={`p-4 rounded-xl border ${isPremium ? 'bg-accent/10 border-accent/20 text-accent-foreground' : 'bg-muted border-border text-muted-foreground'}`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPremium ? 'bg-accent text-white' : 'bg-secondary text-secondary-foreground'}`}>
                   {isPremium ? <CheckCircle className="h-5 w-5" /> : <Clock className="h-5 w-5" /> }
                 </div>
                 <div>
-                  <p className="font-bold">{isPremium ? 'Buyer Early Access' : 'Standard Member'}</p>
-                  <p className="text-xs opacity-80">{isPremium ? '48h early access active' : '48h delay on new listings'}</p>
+                  <p className="font-bold">{isPremium ? 'AeroTrade Premium' : 'Standard Member'}</p>
+                  <p className="text-xs opacity-80">{isPremium ? 'Listing alerts, saved searches & early access' : 'Public listings available now'}</p>
                 </div>
               </div>
               {!isPremium && (
                 hasRecoverablePremiumIntent ? (
                   <form action={resumePremiumMembershipCheckout}>
-                    <button className="mt-4 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Continue Buyer Early Access checkout</button>
+                    <button className="mt-4 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">Continue AeroTrade Premium checkout</button>
                   </form>
                 ) : (
                   <Link href="/pricing" className="block mt-4 text-center bg-primary text-primary-foreground text-sm font-medium py-2 rounded-lg hover:bg-primary/90 transition-colors">
-                    Get Buyer Early Access
+                    Get AeroTrade Premium
                   </Link>
                 )
               )}
-              {!isPremium && hasRecoverablePremiumIntent ? <p className="mt-2 text-center text-xs text-muted-foreground">Your earlier Buyer Early Access choice was retained; no new account is needed.</p> : null}
+              {!isPremium && hasRecoverablePremiumIntent ? <p className="mt-2 text-center text-xs text-muted-foreground">Your earlier AeroTrade Premium choice was retained; no new account is needed.</p> : null}
               {isPremium && profile?.premium_source === 'stripe' && profile?.stripe_customer_id && (
                 <form action={openBillingPortal}>
                   <button className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-background text-foreground text-sm font-medium py-2 rounded-lg border hover:bg-muted transition-colors">
@@ -253,7 +254,7 @@ export default async function DashboardPage({
               )}
               {isPremium && profile?.premium_source !== 'stripe' && (
                 <p className="mt-4 text-xs text-muted-foreground">
-                  Buyer Early Access is managed by AeroTrade admin.
+                  AeroTrade Premium is managed by AeroTrade admin.
                 </p>
               )}
             </div>

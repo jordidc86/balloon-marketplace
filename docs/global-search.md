@@ -92,3 +92,19 @@ private HTTP responses bound exposure. Thumbnail URLs are restricted to observed
 The actual dated execution results and any remaining limits are recorded in the release
 review evidence outside the repository. Do not describe an unperformed visual check or
 an unobserved future scheduled run as passed.
+
+## Premium saved searches (18 November 2026)
+
+Premium members can explicitly save up to five catalogue searches. Existing matches
+form a baseline; only subsequently detected matches are eligible for a daily email.
+Native free and promoted listings are included. External matches use this same
+whitelisted, fresh saved index; neither subscriptions nor mail delivery crawl a portal
+or forward a user's query. An advert's detection date is never presented as its
+original publication date. Saved-search alerts do not create newsletter consent.
+
+The existing listing-watch scheduler dispatches a background buyer-alert worker;
+there is no additional recurring timer. Each search has a frozen daily digest and
+an atomic send claim. Provider-accepted or uncertain attempts cannot be claimed
+again. Stop links require a confirming POST, can stop only their signed search,
+and do not change other searches, membership or newsletter preferences. Admin
+Overview exposes queued publication alerts and unresolved digest receipts.

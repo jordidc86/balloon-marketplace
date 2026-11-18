@@ -12,7 +12,7 @@ test('Premium checkout configuration is bound to AeroTrade product, price and tr
     cancelPath: '/dashboard?premium_payment=canceled',
   })
   assert.equal(params.line_items[0].price_data.unit_amount, 999)
-  assert.equal(params.line_items[0].price_data.product_data.name, 'AeroTrade Buyer Early Access')
+  assert.equal(params.line_items[0].price_data.product_data.name, 'AeroTrade Premium')
   assert.equal(params.line_items[0].price_data.recurring.interval, 'year')
   assert.equal(params.metadata.type, 'premium_subscription')
   assert.equal(params.metadata.intent_version, '1')

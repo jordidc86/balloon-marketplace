@@ -1363,10 +1363,10 @@ export async function GET(request: Request) {
         recipientRole: 'buyer',
         to: intent.buyer_email,
         subject: `Resume your ${buyerEarlyAccessProduct.publicName} checkout`,
-        html: `<h2>Your Buyer Early Access checkout expired</h2>
-        <p>AeroTrade has no verified Buyer Early Access payment from the checkout you started. Your account remains active.</p>
-        <p>If you still want 48-hour early access and instant listing alerts for 9.99 EUR per year, <a href="${escapeHtml(`${siteUrl}/dashboard`)}">sign in to your dashboard and choose Get Buyer Early Access</a>.</p>
-        <p>This email creates no checkout and makes no charge. A new Stripe checkout is created only after you choose to continue from your dashboard. You can ignore this message if you no longer want Buyer Early Access.</p>
+        html: `<h2>Your AeroTrade Premium checkout expired</h2>
+        <p>AeroTrade has no verified AeroTrade Premium payment from the checkout you started. Your account remains active.</p>
+        <p>If you still want new listing alerts, saved-search matches and early access to promoted listings for 9.99 EUR per year, <a href="${escapeHtml(`${siteUrl}/dashboard`)}">sign in to your dashboard and choose Get AeroTrade Premium</a>.</p>
+        <p>This email creates no checkout and makes no charge. A new Stripe checkout is created only after you choose to continue from your dashboard. You can ignore this message if you no longer want AeroTrade Premium.</p>
         <p>This is the only recovery reminder for this expired checkout.</p>`,
         idempotencyKey: `buyer-early-access-checkout-recovery-${intent.intent_id}`,
       })
@@ -1375,7 +1375,7 @@ export async function GET(request: Request) {
       else if (delivery.skipped) result.retryDeferred += 1
       else result.failed += 1
     } catch (error) {
-      console.error('Buyer Early Access checkout recovery failed:', error)
+      console.error('AeroTrade Premium checkout recovery failed:', error)
       result.failed += 1
     }
   }

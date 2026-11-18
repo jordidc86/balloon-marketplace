@@ -405,8 +405,8 @@ export async function POST(req: Request) {
             <h2>Your Seller Launch Promotion is live!</h2>
             <p>Hi,</p>
             <p>Great news! Your listing "<strong>${escapeHtml(listingData.title)}</strong>" has been published on AeroTrade with Seller Launch Promotion.</p>
-            <p>It is currently in the <strong>48-hour Buyer Early Access window</strong>. It will become visible to the general public on ${escapeHtml(new Date(publicAt).toLocaleString())}.</p>
-            <p>The promotion includes an immediate alert to eligible Buyer Early Access members, the bi-weekly newsletter, rotating social promotion while the listing is active, and matching to eligible opted-in wanted requests.</p>
+            <p>It is currently in the <strong>48-hour AeroTrade Premium window</strong>. It will become visible to the general public on ${escapeHtml(new Date(publicAt).toLocaleString())}.</p>
+            <p>The promotion includes an immediate alert to eligible AeroTrade Premium members, the bi-weekly newsletter, rotating social promotion while the listing is active, and matching to eligible opted-in wanted requests.</p>
             <p>Good luck!</p>
           `;
           const sellerDelivery = await sendEmail(

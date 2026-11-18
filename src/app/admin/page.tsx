@@ -50,6 +50,14 @@ export default async function AdminPage() {
     .order('created_at', { ascending: false })
     .limit(5)
 
+  const [publicationQueue,publicationAttention,searchCount,digestAttention] = await Promise.all([
+    supabase.from('listing_publication_alerts').select('listing_id',{count:'exact',head:true}).eq('status','pending'),
+    supabase.from('listing_publication_alerts').select('listing_id',{count:'exact',head:true}).eq('status','attention'),
+    supabase.from('saved_catalog_searches').select('id',{count:'exact',head:true}).eq('active',true),
+    supabase.from('saved_search_digests').select('id',{count:'exact',head:true}).in('status',['failed','uncertain','sending','prepared']),
+  ])
+  const buyerAlertAuditAvailable = ![publicationQueue,publicationAttention,searchCount,digestAttention].some(row=>row.error)
+
   return (
     <div className="space-y-6">
       <div>
@@ -57,6 +65,7 @@ export default async function AdminPage() {
         <p className="text-muted-foreground mt-1">Metrics and health for AeroTrade Marketplace.</p>
       </div>
 
+      <section className="rounded-2xl border bg-card p-5"><h2 className="font-bold">Premium buyer alerts</h2>{buyerAlertAuditAvailable?<p className="mt-2 text-sm text-muted-foreground">{publicationQueue.count} listing alerts queued · {publicationAttention.count} publication alerts need review · {searchCount.count} active saved searches · {digestAttention.count} search emails pending or requiring receipt review. Uncertain deliveries are never automatically resent.</p>:<p role="alert" className="mt-2 text-sm text-red-700">Buyer alert audit is unavailable. Do not infer successful delivery.</p>}</section>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Users */}
         <div className="bg-card border rounded-2xl p-6 shadow-sm">
@@ -70,7 +79,7 @@ export default async function AdminPage() {
         {/* Premium Users */}
         <div className="bg-card border rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-muted-foreground">Buyer Early Access Members</h3>
+            <h3 className="font-medium text-muted-foreground">AeroTrade Premium Members</h3>
             <div className="bg-accent/10 p-2 rounded-lg"><DollarSign className="w-5 h-5 text-accent" /></div>
           </div>
           <p className="text-3xl font-bold text-accent">{premiumCount || 0}</p>

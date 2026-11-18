@@ -1,5 +1,7 @@
 'use server'
 
+import { deliverPublicationAlert } from '@/utils/publication-alerts'
+
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { escapeHtml } from '@/utils/html'
 import { siteUrl } from '@/utils/site'
@@ -103,12 +105,12 @@ export async function sendPremiumPaymentLink(userId: string) {
   const displayName = user.name || 'there'
   await sendEmail(
     user.email,
-    'Complete your AeroTrade Buyer Early Access subscription',
+    'Complete your AeroTrade Premium subscription',
     `<p>Hi ${escapeHtml(displayName)},</p>
-    <p>Thanks for your interest in AeroTrade Buyer Early Access.</p>
+    <p>Thanks for your interest in AeroTrade Premium.</p>
     <p>You can complete the annual buyer subscription securely through Stripe here:</p>
-    <p><a href="${escapeHtml(checkout.url)}">Complete Buyer Early Access payment</a></p>
-    <p>Buyer Early Access gives you a 48-hour head start on promoted listings and instant alerts for new equipment.</p>
+    <p><a href="${escapeHtml(checkout.url)}">Complete AeroTrade Premium payment</a></p>
+    <p>AeroTrade Premium gives you new listing alerts, up to five saved searches with daily matches, and a 48-hour head start on promoted AeroTrade listings.</p>
     <p>If you did not request this, you can ignore this email.</p>`
   )
 
@@ -273,6 +275,7 @@ export async function forcePublishListing(listingId: string) {
 
   if (error || data?.status !== 'ACTIVE_PUBLIC') throw new Error('Failed to publish listing')
   await markListingQualityResolved(supabase, listingId)
+  await deliverPublicationAlert(supabase, listingId)
 
   revalidatePath('/admin/listings')
 }

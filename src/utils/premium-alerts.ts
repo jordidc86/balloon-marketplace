@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sendEmailBatch } from '@/utils/resend';
-import { escapeHtml } from '@/utils/html';
+import { premiumListingAlertContent } from '@/utils/premium-alert-content.mjs';
 import { siteUrl } from '@/utils/site';
 
 type ListingImage = {
@@ -14,6 +14,9 @@ type PremiumAlertListing = {
   category: string
   price: number
   currency: string
+  status: string
+  public_at: string | null
+  seller_id: string
   images?: ListingImage[]
 }
 
@@ -42,14 +45,6 @@ const normalizeEmail = (email: string | null) => {
   return normalizedEmail && emailPattern.test(normalizedEmail) ? normalizedEmail : null;
 };
 
-const formatPrice = (listing: PremiumAlertListing) =>
-  `${Number(listing.price).toLocaleString('en-US')} ${listing.currency}`;
-
-const getPrimaryImageUrl = (listing: PremiumAlertListing) => {
-  const primaryImage = listing.images?.find((image) => image.is_primary);
-  return primaryImage?.url || listing.images?.[0]?.url || null;
-};
-
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
     return error.message;
@@ -64,45 +59,14 @@ const getErrorMessage = (error: unknown) => {
 
 const isUniqueViolation = (error: { code?: string } | null) => error?.code === '23505';
 
-const generatePremiumAlertHtml = (listing: PremiumAlertListing) => {
-  const imageUrl = getPrimaryImageUrl(listing);
-  const listingUrl = `${siteUrl}/catalog/${listing.id}`;
-
-  return `
-    <html>
-      <body style="margin: 0; padding: 36px 18px; background: #f8fafc; font-family: Arial, sans-serif;">
-        <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 14px; padding: 36px;">
-          <h1 style="margin: 0 0 8px; color: #0f172a; font-size: 30px;">AeroTrade Premium Alert</h1>
-          <p style="margin: 0 0 28px; color: #475569; font-size: 16px; line-height: 1.55;">
-            A new Premium-exclusive listing is available before it becomes public.
-          </p>
-          <div style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-            ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(listing.title)}" style="display: block; width: 100%; height: 240px; object-fit: cover;" />` : ''}
-            <div style="padding: 22px;">
-              <p style="margin: 0 0 8px; color: #2563eb; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;">Premium exclusive</p>
-              <h2 style="margin: 0 0 8px; color: #0f172a; font-size: 22px;">${escapeHtml(listing.title)}</h2>
-              <p style="margin: 0 0 6px; color: #475569; font-size: 14px;">Category: ${escapeHtml(listing.category)}</p>
-              <p style="margin: 0 0 16px; color: #0f172a; font-size: 20px; font-weight: 700;">${escapeHtml(formatPrice(listing))}</p>
-              <a href="${escapeHtml(listingUrl)}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 12px 18px; border-radius: 6px; font-weight: 700;">View early-access listing</a>
-            </div>
-          </div>
-          <p style="margin: 30px 0 0; color: #94a3b8; font-size: 13px; line-height: 1.5;">
-            You received this because you are an AeroTrade Premium member.
-          </p>
-        </div>
-      </body>
-    </html>
-  `;
-};
-
 async function startPremiumAlertRun(supabase: SupabaseClient, listingId: string): Promise<PremiumAlertRun> {
   const staleCutoff = new Date(Date.now() - staleRunMs).toISOString();
   const { error: staleError } = await supabase
     .from('premium_alert_runs')
     .update({
-      status: 'failed',
+      status: 'partial',
       completed_at: new Date().toISOString(),
-      error_message: 'Run marked failed because it was still running after the stale cutoff.',
+      error_message: 'Delivery outcome is uncertain after the stale cutoff; automatic resend is blocked.',
       metadata: { staleCutoff },
     })
     .eq('listing_id', listingId)
@@ -123,7 +87,7 @@ async function startPremiumAlertRun(supabase: SupabaseClient, listingId: string)
     .single();
 
   if (isUniqueViolation(error)) {
-    const { data: existingRun } = await supabase
+    const { data: existingRun, error: existingError } = await supabase
       .from('premium_alert_runs')
       .select('id, status')
       .eq('listing_id', listingId)
@@ -132,8 +96,9 @@ async function startPremiumAlertRun(supabase: SupabaseClient, listingId: string)
       .limit(1)
       .maybeSingle();
 
+    if (existingError || !existingRun?.id) throw new Error('Existing Premium alert receipt could not be verified');
     return {
-      id: existingRun?.id || '',
+      id: existingRun.id,
       status: existingRun?.status,
       duplicate: true,
     };
@@ -234,9 +199,9 @@ async function recordPremiumAlertRecipients(
 export async function sendPremiumListingAlert(supabase: SupabaseClient, listingId: string) {
   const { data: listing, error: listingError } = await supabase
     .from('listings')
-    .select('id, title, category, price, currency, images(url, is_primary)')
+    .select('id, title, category, price, currency, status, public_at, seller_id, images(url, is_primary)')
     .eq('id', listingId)
-    .eq('status', 'ACTIVE_PREMIUM')
+    .in('status', ['ACTIVE_PUBLIC', 'ACTIVE_PREMIUM'])
     .single();
 
   if (listingError || !listing) {
@@ -256,12 +221,15 @@ export async function sendPremiumListingAlert(supabase: SupabaseClient, listingI
   }
 
   let runCompleted = false;
+  let dispatchStarted = false;
 
   try {
     const { data: premiumUsers, error: usersError } = await supabase
       .from('users')
       .select('email')
-      .eq('is_premium', true);
+      .eq('is_premium', true)
+      .eq('listing_alerts_enabled', true)
+      .neq('id', listing.seller_id);
 
     if (usersError || !premiumUsers) {
       throw new Error('Failed to fetch premium users for listing alert');
@@ -289,11 +257,12 @@ export async function sendPremiumListingAlert(supabase: SupabaseClient, listingI
     }
 
     const typedListing = listing as PremiumAlertListing;
-    const html = generatePremiumAlertHtml(typedListing);
+    const content = premiumListingAlertContent(typedListing, siteUrl);
+    dispatchStarted = true;
     const result = await sendEmailBatch(recipients.map((to) => ({
       to,
-      subject: `AeroTrade Premium Alert: ${typedListing.title} is now available`,
-      html,
+      subject: content.subject,
+      html: content.html,
     })), { idempotencyKeyPrefix: `premium-alert/${listingId}` });
 
     const sentCount = result.sentCount ?? 0;
@@ -344,7 +313,7 @@ export async function sendPremiumListingAlert(supabase: SupabaseClient, listingI
   } catch (error) {
     if (!runCompleted) {
       await finishPremiumAlertRun(supabase, alertRun.id, {
-        status: 'failed',
+        status: dispatchStarted ? 'partial' : 'failed',
         errorMessage: getErrorMessage(error),
       });
     }

@@ -1,5 +1,7 @@
 'use server'
 
+import { deliverPublicationAlert } from '@/utils/publication-alerts'
+
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { sendEmail } from '@/utils/resend'
@@ -92,6 +94,7 @@ export async function submitListing(formData: FormData) {
 
   const adminEmail = process.env.ADMIN_EMAIL?.trim()
   const adminSupabase = await createAdminClient()
+  if (listingPlan === 'free') await deliverPublicationAlert(adminSupabase, publishedListing.id)
   await persistSellerFunnelEvent(adminSupabase, {
     sellerId: user.id,
     listingId: publishedListing.id,

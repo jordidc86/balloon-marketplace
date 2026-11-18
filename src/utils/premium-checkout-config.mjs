@@ -35,7 +35,7 @@ export function buildPremiumCheckoutParams({
         currency: 'eur',
         product_data: {
           name: buyerEarlyAccessProduct.publicName,
-          description: 'Annual buyer access: 48-hour early access and instant listing alerts.',
+          description: 'Annual membership: new AeroTrade listing alerts, up to five saved searches with daily matching alerts, and 48-hour early access to promoted listings.',
         },
         unit_amount: 999,
         recurring: { interval: 'year' },

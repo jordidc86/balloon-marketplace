@@ -12,6 +12,7 @@ import {
 import { siteUrl } from '@/utils/site';
 import { getNewsletterCopy, selectNewsletterListings } from '@/utils/newsletter-listing-rotation.mjs';
 import {
+  buildNewsletterPremiumUrl,
   buildNewsletterCampaign,
   buildNewsletterListingUrl,
   buildNewsletterCatalogUrl,
@@ -207,6 +208,11 @@ const generateNewsletterHtml = (listings: NewsletterListing[], periodKey: string
           </p>
 
           ${listingsHtml}
+          <div style="margin-top:28px;padding:22px;border:1px solid #fed7aa;border-radius:12px;background:#fff7ed">
+            <h2 style="color:#9a3412;font-size:22px">Let the right equipment come to you.</h2>
+            <p style="line-height:1.6;color:#334155">AeroTrade Premium includes new listing alerts, up to five saved searches with daily new-match emails, and 48-hour early access to promoted AeroTrade listings. External marketplaces are reviewed daily. €9.99 per year.</p>
+            <a style="color:#c2410c;font-weight:bold" href="${escapeHtml(buildNewsletterPremiumUrl({baseUrl:siteUrl,periodKey}))}">Discover Premium search alerts →</a>
+          </div>
           ${periodKey === '2026-11-16' ? `
           <div style="margin-top: 32px; padding: 24px; border-radius: 12px; background-color: #fff7ed; border: 1px solid #fed7aa;">
             <h2 style="margin: 0 0 12px; color: #9a3412; font-size: 24px;">More balloons. One search.</h2>

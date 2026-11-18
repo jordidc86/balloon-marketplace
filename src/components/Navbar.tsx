@@ -37,7 +37,7 @@ export default async function Navbar() {
             <Link href="/catalog" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Marketplace</Link>
             <Link href="/wanted" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Wanted</Link>
             <Link href="/sell?source=navigation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sell Equipment</Link>
-            <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Buyer Early Access</Link>
+            <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">AeroTrade Premium</Link>
           </div>
 
           <div className="hidden items-center space-x-2 lg:flex sm:space-x-4">
@@ -45,7 +45,7 @@ export default async function Navbar() {
               <>
                 {isPremium && (
                   <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-accent/20 text-accent-foreground border border-accent/30">
-                    EARLY ACCESS
+                    PREMIUM
                   </span>
                 )}
                 <Link href="/sell?source=navigation" className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors">

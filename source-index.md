@@ -84,3 +84,12 @@ Start with [Mac Mini readiness](docs/mac-mini-readiness-2026-10-27.md). The Augu
 - `src/utils/inquiry-submission.mjs`: preserve form data and recover after submission failure.
 - `src/app/admin/traffic/page.tsx`: monthly history, grouped origins, enquiry conversion and distinct direct-contact intent.
 - `docs/traffic-measurement.md`, `scripts/rehearse-contact-clicks.mjs`: attribution definitions, privacy and retention rehearsal.
+
+## Premium listing and saved-search alerts (18 November 2026)
+
+- Premium remains EUR 9.99/year. Seller Launch Promotion remains a separate EUR 5 listing purchase. Only promoted AeroTrade listings have a 48-hour window; free/assisted public listings stay public.
+- `src/utils/publication-alerts.ts`, `src/utils/premium-alerts.ts`: new-listing alerts include free and assisted publication. A database trigger queues new publications made through any client, without backfilling existing adverts. Immediate application delivery and scheduled recovery use the same receipt lock.
+- `src/app/dashboard/searches/`, `src/components/SaveCatalogSearch.tsx`: explicitly requested, owner-only saved searches, maximum five per Premium account, baseline existing matches, pause/remove controls and independent new-listing preference.
+- `src/utils/saved-searches.mjs`, `src/utils/saved-search-delivery.mjs`, `src/utils/saved-search-server.ts`: current native and fresh external matches, frozen daily selections, atomic dispatch claims, provider acceptance readback and signed scanner-safe stop links. Uncertain delivery is retained for review and never automatically resent.
+- `netlify/functions/buyer-alerts-background.ts` reuses the existing `listing-watch-scheduled` timer (15 minutes past every fourth hour); it has no schedule of its own. Daily saved-search evaluation starts with the 08:15 UTC invocation after the existing 04:00 UTC external refresh. `/api/cron/buyer-alerts` is an authenticated, always-read-only inspection endpoint.
+- New private tables and service-only mutation functions: migration `20261118140000_premium_search_alerts.sql`. The nine existing intentional authenticated RPC grants remain unchanged.

@@ -43,7 +43,7 @@ export async function submitListingWatch(listingId: string, formData: FormData, 
     { status: listing.status, publicAt: listing.public_at, sellerId: listing.seller_id },
     { userId: user?.id || null, isPremium: profile?.is_premium || false },
   )
-  if (!canWatch) return { success: false, message: 'Buyer Early Access is required while this promoted listing is private.' }
+  if (!canWatch) return { success: false, message: 'AeroTrade Premium is required while this promoted listing is private.' }
 
   let snapshot
   try {

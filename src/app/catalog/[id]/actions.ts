@@ -1,5 +1,7 @@
 'use server'
 
+import { deliverPublicationAlert } from '@/utils/publication-alerts'
+
 import { insertListingEventOnce } from '@/utils/listing-event-write.mjs'
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
@@ -162,7 +164,7 @@ export async function revealSellerContact(listingId: string, rawContext?: Browse
   )
 
   if (!canReveal) {
-    throw new Error('Buyer Early Access is required to reveal this contact')
+    throw new Error('AeroTrade Premium is required to reveal this contact')
   }
 
   const context = normalizeCommercialContext(rawContext)
@@ -229,7 +231,7 @@ export async function submitListingInquiry(listingId: string, formData: FormData
     { userId: user?.id || null, isPremium: profile?.is_premium || false },
   )
   if (!canContact) {
-    return { success: false, message: 'Buyer Early Access is required during the 48-hour early-access window.' }
+    return { success: false, message: 'AeroTrade Premium is required during the 48-hour early-access window.' }
   }
 
   const duplicateCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
@@ -613,6 +615,7 @@ export async function publishListingFree(listingId: string) {
     throw new Error('Free listing publication was not verified by readback')
   }
 
+  await deliverPublicationAlert(admin, listingId)
   const { revalidatePath } = await import('next/cache')
   revalidatePath(`/catalog/${listingId}`)
   revalidatePath('/catalog')

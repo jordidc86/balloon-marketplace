@@ -33,7 +33,7 @@ export default function MobileNavigation({ signedIn, isAdmin }: { signedIn: bool
     { href: '/catalog', title: 'Marketplace', detail: 'Used balloons and equipment', Icon: Grid2X2 },
     { href: '/wanted', title: 'Wanted', detail: 'Find the equipment you need', Icon: Search },
     { href: '/new-balloon?source=navigation', title: 'Buy New', detail: 'Explore options and request a quote', Icon: Sparkles },
-    { href: '/pricing', title: 'Buyer Early Access', detail: 'Discover promoted listings earlier', Icon: Clock },
+    { href: '/pricing', title: 'AeroTrade Premium', detail: 'Search alerts and early access', Icon: Clock },
   ]
   return <div ref={root} className="lg:hidden">
     <button ref={button} type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">

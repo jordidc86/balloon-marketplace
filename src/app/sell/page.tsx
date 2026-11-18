@@ -72,7 +72,7 @@ export default async function SellPage({
         </div>
         {isPremium && (
           <p className="mt-3 text-sm text-muted-foreground">
-            Your Buyer Early Access membership is for buying. Seller Launch Promotion is purchased separately for each listing.
+            Your AeroTrade Premium membership is for buying. Seller Launch Promotion is purchased separately for each listing.
           </p>
         )}
         <div className="mt-5 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">

@@ -1,3 +1,4 @@
+import SaveCatalogSearch from '@/components/SaveCatalogSearch'
 import Link from 'next/link'
 import { createClient, createAdminClient } from '@/utils/supabase/server'
 import { Search, Lock, Filter } from 'lucide-react'
@@ -221,6 +222,7 @@ export async function CatalogExperience({
       <p className="mb-4 text-sm text-muted-foreground">{catalogListings.length} on AeroTrade{includeExternal ? ` · ${externalListings.length} on other marketplaces` : ''}</p>
       {externalUnavailable ? <p className="mb-4 text-sm text-muted-foreground">Other marketplaces are temporarily unavailable. AeroTrade results are shown below.</p> : null}
 
+      <SaveCatalogSearch query={searchQuery} category={categoryFilter || ''} country={country?.name || countryFilter} manufacturer={manufacturer?.slug || ''} isPremium={isPremium}/>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {(catalogListings as ListingWithImages[]).map((listing) => {
           const { isPremiumExclusive, canViewFully } = getListingVisibility(listing, user?.id, isPremium)
@@ -228,7 +230,7 @@ export async function CatalogExperience({
           const displayTitle = canViewFully ? listing.title : getPublicTeaserTitle(listing.category)
           const displayPrice = canViewFully
             ? listing.price === 0 ? 'Inquire for Pricing' : `${Number(listing.price).toLocaleString()} ${listing.currency}`
-            : 'Buyer Early Access'
+            : 'AeroTrade Premium'
           const publicAtLabel = listing.public_at
             ? formatDistanceToNow(new Date(listing.public_at))
             : 'soon'

@@ -1,6 +1,6 @@
 export const buyerEarlyAccessProduct = Object.freeze({
   internalType: 'premium_subscription',
-  publicName: 'AeroTrade Buyer Early Access',
+  publicName: 'AeroTrade Premium',
   paymentLabelEs: 'acceso anticipado anual para compradores',
 })
 

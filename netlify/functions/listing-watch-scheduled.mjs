@@ -13,6 +13,11 @@ const normalizePublicSiteUrl = (value) => {
 const listingWatchScheduled = async () => {
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) return new Response('Missing CRON_SECRET', { status: 500 })
+  // Reuse this existing schedule; long-running buyer email work uses a background worker.
+  try {
+    const queued = await fetch(`${normalizePublicSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)}/.netlify/functions/buyer-alerts-background`, { method: 'POST', headers: { Authorization: `Bearer ${cronSecret}` }, signal: AbortSignal.timeout(10000) })
+    if (queued.status !== 202) console.error('Buyer alert background dispatch was not accepted')
+  } catch { console.error('Buyer alert dispatch unavailable; continuing existing listing watches') }
   const response = await fetch(`${normalizePublicSiteUrl(process.env.NEXT_PUBLIC_SITE_URL)}/api/cron/listing-watch?commit=1`, { headers: { Authorization: `Bearer ${cronSecret}` } })
   const body = await response.text()
   if (!response.ok) {

@@ -35,3 +35,12 @@ export function buildNewsletterCatalogUrl({ baseUrl, periodKey }) {
   url.searchParams.set('utm_content', 'browse_catalog')
   return url.toString()
 }
+
+export function buildNewsletterPremiumUrl({ baseUrl, periodKey }) {
+  const url = new URL('/pricing', baseUrl)
+  url.searchParams.set('utm_source', newsletterAttribution.source)
+  url.searchParams.set('utm_medium', newsletterAttribution.medium)
+  url.searchParams.set('utm_campaign', buildNewsletterCampaign(periodKey))
+  url.searchParams.set('utm_content', 'premium_search_alerts')
+  return url.toString()
+}

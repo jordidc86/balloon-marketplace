@@ -137,7 +137,7 @@ export default async function Home() {
               <Clock className="w-3.5 h-3.5 text-amber-600" />
             </span>
             <p className="text-sm font-medium text-slate-700">
-              <strong className="text-amber-800">Premium Advantage:</strong> Members get 48 hours early access to all new gear.
+              <strong className="text-amber-800">Premium Advantage:</strong> New listing alerts, saved searches and 48-hour early access to promoted listings.
             </p>
           </div>
           <Link href="/pricing" className="text-sm font-bold text-amber-700 hover:bg-amber-500/10 px-4 py-1.5 rounded-full transition-colors whitespace-nowrap">

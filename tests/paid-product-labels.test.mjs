@@ -9,7 +9,7 @@ import {
 
 test('buyer and seller paid products remain explicitly separate', () => {
   assert.equal(buyerEarlyAccessProduct.internalType, 'premium_subscription')
-  assert.equal(buyerEarlyAccessProduct.publicName, 'AeroTrade Buyer Early Access')
+  assert.equal(buyerEarlyAccessProduct.publicName, 'AeroTrade Premium')
   assert.equal(sellerLaunchPromotionProduct.internalType, 'listing_fee')
   assert.equal(sellerLaunchPromotionProduct.publicName, 'AeroTrade Seller Launch Promotion')
   assert.notEqual(buyerEarlyAccessProduct.publicName, sellerLaunchPromotionProduct.publicName)
