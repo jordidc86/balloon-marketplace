@@ -1,18 +1,20 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-17-contact-measurement",
-  "productionBaseCommit": "abd952d24c7ce30aa9a6028b1132c24a988f2167",
+  "releaseId": "2026-11-18-internal-table-security",
+  "productionBaseCommit": "9f015a624665858f41579ddfd61611fedc7bacd5",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
     "provider": "supabase",
     "applyBeforeApplication": true,
     "requiresExactConfirmation": true,
-    "migrationCount": 0,
-    "migrationVersions": [],
+    "migrationCount": 1,
+    "migrationVersions": [
+      "20261118110000"
+    ],
     "externalAppliedVersions": [
       "20260925160000"
     ],
-    "migrationManifestSha256": "b1fe4a034c718d982c284f04e82d842de814ffc5ce5ae04897b3f38f6dad50c5"
+    "migrationManifestSha256": "d912027e1ebb7e9d0f939614c66fc981a1411826800c73be8dd41886acad2eb1"
   }
 }
