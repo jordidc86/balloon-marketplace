@@ -1,20 +1,18 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-18-premium-search-alerts",
-  "productionBaseCommit": "d1c0d0ad0489a9a2fa21a1ff75930604abe2d16f",
+  "releaseId": "2026-11-22-quote-email-spam-review",
+  "productionBaseCommit": "083c38d5f0c7253fcea8c834d1924d7920a5fa52",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {
     "provider": "supabase",
     "applyBeforeApplication": true,
     "requiresExactConfirmation": true,
-    "migrationCount": 1,
-    "migrationVersions": [
-      "20261118140000"
-    ],
+    "migrationCount": 0,
+    "migrationVersions": [],
     "externalAppliedVersions": [
       "20260925160000"
     ],
-    "migrationManifestSha256": "e676d6bb14ff6bdff9aa74d38eaf2c69d47b58e4a67eb9224c8c44978f36c708"
+    "migrationManifestSha256": "b1fe4a034c718d982c284f04e82d842de814ffc5ce5ae04897b3f38f6dad50c5"
   }
 }

@@ -7,6 +7,7 @@ import { getOpportunityFollowupCutoff, getSellerEnquiryEscalationCutoff, openInq
 import { persistSellerFunnelEvent } from '@/utils/seller-funnel-server'
 import { siteUrl } from '@/utils/site'
 import { buildNewBalloonBuyerAcknowledgement } from '@/utils/new-balloon-buyer-acknowledgement.mjs'
+import { buildNewBalloonQuoteAdminNotification } from '@/utils/new-balloon-admin-notification.mjs'
 import { buildInquiryBuyerAcknowledgement } from '@/utils/inquiry-buyer-acknowledgement.mjs'
 import { buildWantedBuyerAcknowledgement } from '@/utils/wanted-buyer-acknowledgement.mjs'
 import { inquiryBuyerCapabilityLifetimeMs, inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerCapability, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
@@ -262,7 +263,7 @@ export async function GET(request: Request) {
       .limit(100),
     supabase
       .from('quote_requests')
-      .select('id,status,updated_at')
+      .select('id,status,updated_at,name,email,phone,country,manufacturer_preference,equipment_type,volume_or_capacity,intended_use,budget_range,timeline,colors_or_branding,notes,source_context,requested_category,requested_equipment,requested_country')
       .in('status', openQuoteStatuses)
       .lte('updated_at', cutoff)
       .order('updated_at', { ascending: true })
@@ -1444,16 +1445,15 @@ export async function GET(request: Request) {
       continue
     }
     try {
+      const notification = buildNewBalloonQuoteAdminNotification({ request: quote, publicSiteUrl: siteUrl, reminder: true })
       const delivery = await sendCommercialReceiptEmail(supabase, {
         notificationType: 'quote_admin_followup',
         entityType: 'quote_request',
         entityId: quote.id,
         recipientRole: 'admin',
         to: adminEmail,
-        subject: 'AeroTrade: new-balloon quote awaiting action',
-        html: `<h2>A new-balloon opportunity is still open</h2>
-        <p>A factory-new Pasha or Schroeder quote request has remained in NEW status for more than 24 hours.</p>
-        <p><a href="${escapeHtml(`${siteUrl}/admin/commercial`)}">Open the commercial pipeline and assign the next action</a>.</p>`,
+        subject: notification.subject,
+        html: notification.html,
         idempotencyKey: `quote-admin-followup-${quote.id}`,
       })
       if (delivery.duplicate) result.alreadyAccepted += 1

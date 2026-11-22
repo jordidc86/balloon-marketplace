@@ -13,16 +13,9 @@ import { commercialJourneyKey, normalizeCommercialContext } from '@/utils/commer
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { siteUrl } from '@/utils/site'
 import { buildNewBalloonBuyerAcknowledgement } from '@/utils/new-balloon-buyer-acknowledgement.mjs'
+import { buildNewBalloonQuoteAdminNotification } from '@/utils/new-balloon-admin-notification.mjs'
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim()
-
-const escapeHtml = (value: string) =>
-  value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
 
 export async function submitNewBalloonQuote(formData: FormData) {
   let request
@@ -153,27 +146,17 @@ export async function submitNewBalloonQuote(formData: FormData) {
   }
   const { requestId, supabase } = storageResult
 
-  const rows = Object.entries(request)
-    .map(([key, value]) => `
-      <tr>
-        <td style="padding: 8px 12px; color: #64748b; text-transform: capitalize;">${escapeHtml(key.replaceAll('_', ' '))}</td>
-        <td style="padding: 8px 12px; color: #0f172a; font-weight: 600;">${escapeHtml(String(value || '-'))}</td>
-      </tr>
-    `)
-    .join('')
-
   if (adminEmail) {
     try {
+      const notification = buildNewBalloonQuoteAdminNotification({ request, publicSiteUrl: siteUrl })
       await sendCommercialReceiptEmail(supabase, {
         notificationType: 'quote_created_admin',
         entityType: 'quote_request',
         entityId: requestId,
         recipientRole: 'admin',
         to: adminEmail,
-        subject: `New Pasha/Schroeder balloon quote request: ${request.name}`,
-        html: `<h2>New AeroTrade balloon quote request</h2>
-          <p>A buyer is asking for a fast price indication and first visual concept for a new Pasha or Schroeder balloon.</p>
-          <table style="border-collapse: collapse; width: 100%; max-width: 720px;">${rows}</table>`,
+        subject: notification.subject,
+        html: notification.html,
         idempotencyKey: `aerotrade-quote-${requestId}`,
       })
     } catch (error) {

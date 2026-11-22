@@ -93,3 +93,9 @@ Start with [Mac Mini readiness](docs/mac-mini-readiness-2026-10-27.md). The Augu
 - `src/utils/saved-searches.mjs`, `src/utils/saved-search-delivery.mjs`, `src/utils/saved-search-server.ts`: current native and fresh external matches, frozen daily selections, atomic dispatch claims, provider acceptance readback and signed scanner-safe stop links. Uncertain delivery is retained for review and never automatically resent.
 - `netlify/functions/buyer-alerts-background.ts` reuses the existing `listing-watch-scheduled` timer (15 minutes past every fourth hour); it has no schedule of its own. Daily saved-search evaluation starts with the 08:15 UTC invocation after the existing 04:00 UTC external refresh. `/api/cron/buyer-alerts` is an authenticated, always-read-only inspection endpoint.
 - New private tables and service-only mutation functions: migration `20261118140000_premium_search_alerts.sql`. The nine existing intentional authenticated RPC grants remain unchanged.
+
+## New-balloon admin email review (22 November 2026)
+
+- `src/utils/new-balloon-admin-notification.mjs`: shared initial/reminder email with a Spanish, indicative content review and concrete reasons. Known campaigns and unrelated car-sales advertising are flagged; repeated descriptions and missing project details request review. Country, email provider, language and unspecified budget are not spam signals. The review does not verify identity or automatically close requests.
+- `src/app/new-balloon/actions.ts`, `src/app/api/cron/opportunity-followup/route.ts`: retain the existing admin recipients, receipt types and idempotency keys. Buyer acknowledgements and reminder eligibility are unchanged; only explicit public-form fields enter the admin email.
+- `tests/new-balloon-admin-notification.test.mjs`: unrelated promotion, legitimate Russian-language requests and dealership balloon enquiries, ambiguous requests, original content preservation and HTML/header safety.
