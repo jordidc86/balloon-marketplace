@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "releaseId": "2026-11-22-quote-email-spam-review",
-  "productionBaseCommit": "083c38d5f0c7253fcea8c834d1924d7920a5fa52",
+  "releaseId": "2026-11-25-seller-photo-upload-recovery",
+  "productionBaseCommit": "83e9410db0ed90aab74e7ddd908298ec93f67113",
   "expectedProductionDeploys": 1,
   "requiresExplicitApproval": true,
   "database": {

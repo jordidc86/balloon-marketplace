@@ -6,6 +6,7 @@ import Link from 'next/link'
 import ContactSeller from './ContactSeller'
 import { Metadata } from 'next'
 import { getListingVisibility, getPublicTeaserTitle, type ListingWithImages } from '@/utils/listings'
+import { orderListingImages } from '@/utils/listing-image-order.mjs'
 import { siteUrl } from '@/utils/site'
 import { payListingFee, publishListingFree, republishQuarantinedListing } from './actions'
 import ListingViewTracker from './ListingViewTracker'
@@ -107,7 +108,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       public_at,
       created_at,
       updated_at,
-      images(url, is_primary),
+      images(url, is_primary, created_at),
       listing_verifications(status, public_summary, verified_at)
     `)
     .eq('id', id)
@@ -159,8 +160,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   }
 
   const images = canViewFully
-    ? [...(typedListing.images || [])]
-        .sort((a, b) => Number(b.is_primary) - Number(a.is_primary))
+    ? orderListingImages(typedListing.images)
         .map((img) => img.url)
     : []
   const displayTitle = canViewFully ? typedListing.title : getPublicTeaserTitle(typedListing.category)

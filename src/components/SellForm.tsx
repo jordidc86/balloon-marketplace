@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { useRouter } from 'next/navigation'
+import { unstable_rethrow, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Megaphone, UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
 
@@ -10,12 +10,16 @@ import { Megaphone, UploadCloud, CheckCircle2, Loader2, Trash2 } from 'lucide-re
 import { recordSellerFunnelStage, submitListing } from '@/app/sell/actions'
 import { updateListing } from '@/app/catalog/[id]/actions'
 import { maxListingImages } from '@/utils/listing-safety.mjs'
+import { submitListingImages } from '@/utils/listing-image-upload.mjs'
+import { orderListingImages } from '@/utils/listing-image-order.mjs'
 
 const maxImageBytes = 5 * 1024 * 1024
 const nextCalendarYear = new Date().getFullYear() + 1
 
 type ExistingImage = {
   url: string
+  is_primary?: boolean | null
+  created_at?: string | null
 }
 
 type SellFormInitialData = {
@@ -41,7 +45,7 @@ export default function SellForm({ userId, defaultContactEmail, initialData, sel
   const [category, setCategory] = useState<string>(initialData?.category || '')
   const [inquirePrice, setInquirePrice] = useState<boolean>(initialData?.price === 0)
   const [images, setImages] = useState<File[]>([])
-  const [existingImages, setExistingImages] = useState<ExistingImage[]>(initialData?.images || [])
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>(() => orderListingImages(initialData?.images))
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [listingPlan, setListingPlan] = useState<'free' | 'premium'>('free')
@@ -99,63 +103,40 @@ export default function SellForm({ userId, defaultContactEmail, initialData, sel
 
     setIsUploading(true)
     setSubmissionError(null)
-    const uploadedPaths: string[] = []
     
     try {
       const formData = new FormData(e.currentTarget)
       const folderId = `${userId}/${Date.now()}`
-      const uploadedUrls = []
-      
-      // 1. Upload NEW Images (if any)
-      for (let i = 0; i < images.length; i++) {
-        const file = images[i]
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${folderId}/${i}.${fileExt}`
-        
-        const { error } = await supabase.storage
-          .from('listing_images')
-          .upload(fileName, file)
-          
-        if (error) {
-          console.error('Error uploading image:', error)
-          throw new Error(`Could not upload ${file.name}`)
-        } else {
-          uploadedPaths.push(fileName)
-          const { data: { publicUrl } } = supabase.storage
-            .from('listing_images')
-            .getPublicUrl(fileName)
-          uploadedUrls.push(publicUrl)
-        }
-        setUploadProgress(Math.round(((i + 1) / (images.length || 1)) * 100))
-      }
-      
-      // 2. Combine with preserved existing images
-      const finalImageUrls = [
-        ...existingImages.map(img => img.url),
-        ...uploadedUrls
-      ]
-
-      if (finalImageUrls.length === 0) {
-        throw new Error('A cover image is required to publish a listing.')
-      }
-      
-      formData.append('image_urls', JSON.stringify(finalImageUrls))
-      
-      if (isEditing) {
-        formData.append('id', initialData.id)
-        await updateListing(formData)
-      } else {
-        await submitListing(formData)
-      }
+      await submitListingImages({
+        files: images,
+        existingUrls: existingImages.map(image => image.url),
+        uploadImage: async (file, index) => {
+          const extension = file.name.split('.').pop()
+          const path = `${folderId}/${index}.${extension}`
+          const { error } = await supabase.storage.from('listing_images').upload(path, file)
+          if (error) throw new Error(`Could not upload ${file.name}: ${error.message}`)
+          const { data: { publicUrl } } = supabase.storage.from('listing_images').getPublicUrl(path)
+          return { path, url: publicUrl }
+        },
+        removeUploadedImages: async (paths) => {
+          const { error } = await supabase.storage.from('listing_images').remove(paths)
+          if (error) throw error
+        },
+        onProgress: setUploadProgress,
+        onCleanupError: error => console.error('Could not clean up incomplete image upload:', error),
+        saveListing: async (urls) => {
+          formData.set('image_urls', JSON.stringify(urls))
+          if (isEditing) {
+            formData.set('id', initialData.id)
+            return updateListing(formData)
+          }
+          return submitListing(formData)
+        },
+      })
       
     } catch (err) {
+      unstable_rethrow(err)
       console.error(err)
-      if (uploadedPaths.length > 0) {
-        const { error: cleanupError } = await supabase.storage.from('listing_images').remove(uploadedPaths)
-        if (cleanupError) {
-          console.error('Could not clean up incomplete image upload:', cleanupError)
-        }
-      }
       setSubmissionError(err instanceof Error ? err.message : 'Could not publish this listing. Please try again.')
       setIsUploading(false)
     }

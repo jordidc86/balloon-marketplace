@@ -99,3 +99,9 @@ Start with [Mac Mini readiness](docs/mac-mini-readiness-2026-10-27.md). The Augu
 - `src/utils/new-balloon-admin-notification.mjs`: shared initial/reminder email with a Spanish, indicative content review and concrete reasons. Known campaigns and unrelated car-sales advertising are flagged; repeated descriptions and missing project details request review. Country, email provider, language and unspecified budget are not spam signals. The review does not verify identity or automatically close requests.
 - `src/app/new-balloon/actions.ts`, `src/app/api/cron/opportunity-followup/route.ts`: retain the existing admin recipients, receipt types and idempotency keys. Buyer acknowledgements and reminder eligibility are unchanged; only explicit public-form fields enter the admin email.
 - `tests/new-balloon-admin-notification.test.mjs`: unrelated promotion, legitimate Russian-language requests and dealership balloon enquiries, ambiguous requests, original content preservation and HTML/header safety.
+
+## Seller photo upload recovery (25 November 2026)
+
+- `src/utils/listing-image-upload.mjs`, `src/components/SellForm.tsx`: rollback removes only partial uploads before the server handoff. Successful Next.js redirects are rethrown; post-handoff errors never delete potentially committed images. The create and edit form share this flow.
+- `src/utils/listing-image-order.mjs`: gallery and editor show the selected cover first, then upload batches by creation time and numeric filename, including batches inserted at the same timestamp. Edit validation checks reachable images before changing listing details.
+- `tests/listing-image-upload.test.mjs`: real Next.js create/edit redirects, failed uploads and cleanup, uncertain persistence responses, existing-photo edits and shuffled numeric photo batches. No schema, permission or scheduling change is required.

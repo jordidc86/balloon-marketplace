@@ -16,7 +16,7 @@ import { commercialEventKey, commercialJourneyKey, normalizeCommercialContext } 
 import type { BrowserCommercialContext } from '@/utils/browser-attribution'
 import { assertStoredListingRequiredFields, parseListingSubmission } from '@/utils/listing-submission.mjs'
 import { createPremiumListingCheckout, retireListingCheckoutBeforeFreePublication } from '@/utils/listing-checkout'
-import { assertListingHasReachableImage, markListingQualityResolved } from '@/utils/listing-image-quality-server'
+import { assertListingHasReachableImage, assertListingImageUrlsReachable, markListingQualityResolved } from '@/utils/listing-image-quality-server'
 import { sendCommercialReceiptEmail } from '@/utils/commercial-notification'
 import { normalizeListingCommercialIntentStage } from '@/utils/listing-commercial-intent.mjs'
 import { inquiryBuyerPortalCapabilityLifetimeMs, signInquiryBuyerPortalCapability } from '@/utils/inquiry-buyer-capability.mjs'
@@ -396,6 +396,9 @@ export async function updateListing(formData: FormData) {
   }
 
   const submission = parseListingSubmission(formData)
+  const imageUrlsJson = formData.get('image_urls')
+  const imageUrls = imageUrlsJson ? parseListingImageUrls(imageUrlsJson) : null
+  if (imageUrls) await assertListingImageUrlsReachable(imageUrls)
   const details: ListingDetailsForm = {
     ...((listing.details || {}) as ListingDetailsForm),
     ...submission.details,
@@ -422,14 +425,14 @@ export async function updateListing(formData: FormData) {
   }
 
   // Handle Images Reconciliation
-  const imageUrlsJson = formData.get('image_urls')
-  if (imageUrlsJson) {
-    const imageUrls = parseListingImageUrls(imageUrlsJson)
+  if (imageUrls) {
     
-    const { data: currentImages } = await supabase
+    const { data: currentImages, error: currentImagesError } = await supabase
       .from('images')
       .select('id, url')
       .eq('listing_id', listingId)
+
+    if (currentImagesError) throw new Error('Could not read listing images')
 
     const currentUrls = currentImages?.map(img => img.url) || []
     const urlsToInsert = imageUrls.filter(url => !currentUrls.includes(url))
@@ -462,7 +465,7 @@ export async function updateListing(formData: FormData) {
 
     const { data: remainingImages, error: remainingImagesError } = await supabase
       .from('images')
-      .select('id, is_primary, created_at')
+      .select('id, url, is_primary, created_at')
       .eq('listing_id', listingId)
       .order('created_at', { ascending: true })
 
@@ -472,10 +475,11 @@ export async function updateListing(formData: FormData) {
     }
 
     if (!remainingImages.some((image) => image.is_primary)) {
+      const cover = remainingImages.find(image => image.url === imageUrls[0]) || remainingImages[0]
       const { error: primaryError } = await supabase
         .from('images')
         .update({ is_primary: true })
-        .eq('id', remainingImages[0].id)
+        .eq('id', cover.id)
 
       if (primaryError) {
         console.error('Error assigning primary listing image:', primaryError)
